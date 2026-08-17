@@ -221,8 +221,8 @@ func TestRunGeneratesBom(t *testing.T) { //nolint:paralleltest // shares process
 			if len(bom.Metadata.Tools) != 1 {
 				t.Fatalf("metadata tools count = %d, want 1", len(bom.Metadata.Tools))
 			}
-			if toolName := bom.Metadata.Tools[0].Name; toolName != "motmedel-sbom-generator" {
-				t.Errorf("tool name = %q, want %q", toolName, "motmedel-sbom-generator")
+			if toolName := bom.Metadata.Tools[0].Name; toolName != "altshift-sbom-generator" {
+				t.Errorf("tool name = %q, want %q", toolName, "altshift-sbom-generator")
 			}
 
 			if len(bom.Components) != len(testCase.wantComponents) {

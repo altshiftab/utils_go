@@ -18,7 +18,7 @@ import (
 const (
 	specVersion = "1.6"
 	bomVersion  = 1
-	toolName    = "motmedel-sbom-generator"
+	toolName    = "altshift-sbom-generator"
 	toolVersion = "0.1.0"
 )
 
