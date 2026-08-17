@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
-	motmedelCryptoInterfaces "github.com/Motmedel/utils_go/pkg/crypto/interfaces"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
-	jwkKey "github.com/Motmedel/utils_go/pkg/json/jose/jwk/types/key"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwk/types/key_handler/key_handler_config"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	jwkKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler/key_handler_config"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Handler struct {

@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/Motmedel/utils_go/pkg/http/client_code_generation/types/template_options"
+	"github.com/altshiftab/utils_go/pkg/http/client_code_generation/types/template_options"
 )
 
 type TemplateInput struct {

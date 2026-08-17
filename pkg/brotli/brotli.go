@@ -17,10 +17,10 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/Motmedel/utils_go/pkg/brotli/internal/brotli"
+	"github.com/altshiftab/utils_go/pkg/brotli/internal/brotli"
 
-	motmedelContext "github.com/Motmedel/utils_go/pkg/context"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func MakeBrotliData(ctx context.Context, data []byte) ([]byte, error) {

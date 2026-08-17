@@ -7,13 +7,13 @@ import (
 	"log/slog"
 	"runtime/debug"
 
-	gcpHttpContextExtractor "github.com/Motmedel/utils_go/pkg/cloud/gcp/types/http_context_extractor"
-	gcpLogger "github.com/Motmedel/utils_go/pkg/cloud/gcp/types/logger"
-	motmedelLog "github.com/Motmedel/utils_go/pkg/log"
-	motmedelContextLogger "github.com/Motmedel/utils_go/pkg/log/context_logger"
-	"github.com/Motmedel/utils_go/pkg/log/entry_size_guard"
-	motmedelErrorLogger "github.com/Motmedel/utils_go/pkg/log/error_logger"
-	"github.com/Motmedel/utils_go/pkg/log/http_logger/http_logger_config"
+	gcpHttpContextExtractor "github.com/altshiftab/utils_go/pkg/cloud/gcp/types/http_context_extractor"
+	gcpLogger "github.com/altshiftab/utils_go/pkg/cloud/gcp/types/logger"
+	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	motmedelContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
+	"github.com/altshiftab/utils_go/pkg/log/entry_size_guard"
+	motmedelErrorLogger "github.com/altshiftab/utils_go/pkg/log/error_logger"
+	"github.com/altshiftab/utils_go/pkg/log/http_logger/http_logger_config"
 )
 
 // buildSettingKeys are the build settings labelled onto every entry: which revision the service was

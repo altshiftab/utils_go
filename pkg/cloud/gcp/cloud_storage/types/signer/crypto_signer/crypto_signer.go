@@ -7,9 +7,9 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
 // Signer adapts an in-process crypto.Signer (e.g. an *rsa.PrivateKey parsed from a

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/webauthn"
+	"github.com/altshiftab/utils_go/pkg/webauthn"
 )
 
 func TestUnmarshalPublicKeyCredentialCreationOptions(t *testing.T) {

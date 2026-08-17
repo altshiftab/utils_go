@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/json/schema/internal/argtype"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	"github.com/altshiftab/utils_go/pkg/json/schema/internal/argtype"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // DerefSchema takes a JSON pointer and a root schema and returns

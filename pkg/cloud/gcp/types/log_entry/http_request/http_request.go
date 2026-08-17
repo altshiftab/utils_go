@@ -1,6 +1,6 @@
 package http_request
 
-import "github.com/Motmedel/utils_go/pkg/cloud/gcp/types/log_entry/duration"
+import "github.com/altshiftab/utils_go/pkg/cloud/gcp/types/log_entry/duration"
 
 type Request struct {
 	RequestMethod                  string             `json:"requestMethod,omitempty"`

@@ -6,4 +6,4 @@
 // suite, synced by the testgen command via go generate.
 package tests
 
-//go:generate go run github.com/Motmedel/utils_go/pkg/json/schema/internal/cmd/testgen
+//go:generate go run github.com/altshiftab/utils_go/pkg/json/schema/internal/cmd/testgen

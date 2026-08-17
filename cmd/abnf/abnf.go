@@ -11,12 +11,12 @@ import (
 	"log/slog"
 	"os"
 
-	argumentParser "github.com/Motmedel/utils_go/pkg/cli/argument_parser"
-	argumentParserErrors "github.com/Motmedel/utils_go/pkg/cli/argument_parser/errors"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelLog "github.com/Motmedel/utils_go/pkg/log"
-	motmedelContextLogger "github.com/Motmedel/utils_go/pkg/log/context_logger"
-	errorLogger "github.com/Motmedel/utils_go/pkg/log/error_logger"
+	argumentParser "github.com/altshiftab/utils_go/pkg/cli/argument_parser"
+	argumentParserErrors "github.com/altshiftab/utils_go/pkg/cli/argument_parser/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	motmedelContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
+	errorLogger "github.com/altshiftab/utils_go/pkg/log/error_logger"
 )
 
 // Exit codes. Anything the command was asked to report on that it found is

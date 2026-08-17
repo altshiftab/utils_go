@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/go/code_generation"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/go/code_generation"
 )
 
 var identRx = regexp.MustCompile(`[^0-9A-Za-z_]`)

@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 
-	context2 "github.com/Motmedel/utils_go/pkg/context"
-	motmedelEnvErrors "github.com/Motmedel/utils_go/pkg/env/errors"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	context2 "github.com/altshiftab/utils_go/pkg/context"
+	motmedelEnvErrors "github.com/altshiftab/utils_go/pkg/env/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func GetEnvWithDefault(key string, defaultValue string) string {

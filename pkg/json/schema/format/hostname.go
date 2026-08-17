@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // hostnameFormat requires a valid hostname.

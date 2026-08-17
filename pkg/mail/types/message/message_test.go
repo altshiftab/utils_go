@@ -7,15 +7,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelMailErrors "github.com/Motmedel/utils_go/pkg/mail/errors"
-	"github.com/Motmedel/utils_go/pkg/mail/types/message/message_config"
-	"github.com/Motmedel/utils_go/pkg/mail/types/message/message_header"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelMailErrors "github.com/altshiftab/utils_go/pkg/mail/errors"
+	"github.com/altshiftab/utils_go/pkg/mail/types/message/message_config"
+	"github.com/altshiftab/utils_go/pkg/mail/types/message/message_header"
 )
 
 func validFrom() *mail.Address { return &mail.Address{Address: "from@example.com"} }
-func validTo() []*mail.Address  { return []*mail.Address{{Address: "to@example.com"}} }
+func validTo() []*mail.Address { return []*mail.Address{{Address: "to@example.com"}} }
 
 func TestNew_NilFrom(t *testing.T) {
 	t.Parallel()

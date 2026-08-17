@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	context2 "github.com/Motmedel/utils_go/pkg/context"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	context2 "github.com/altshiftab/utils_go/pkg/context"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func MakeGzipData(ctx context.Context, data []byte) ([]byte, error) {

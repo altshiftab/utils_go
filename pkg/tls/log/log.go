@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelLog "github.com/Motmedel/utils_go/pkg/log"
-	"github.com/Motmedel/utils_go/pkg/schema"
-	schemaUtils "github.com/Motmedel/utils_go/pkg/schema/utils"
-	motmedelTlsContext "github.com/Motmedel/utils_go/pkg/tls/context"
-	motmedelTlsTypes "github.com/Motmedel/utils_go/pkg/tls/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	"github.com/altshiftab/utils_go/pkg/schema"
+	schemaUtils "github.com/altshiftab/utils_go/pkg/schema/utils"
+	motmedelTlsContext "github.com/altshiftab/utils_go/pkg/tls/context"
+	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
 )
 
 func ParseTlsContext(tlsContext *motmedelTlsTypes.TlsContext) *schema.Base {

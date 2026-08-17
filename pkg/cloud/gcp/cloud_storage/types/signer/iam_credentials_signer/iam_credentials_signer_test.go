@@ -10,12 +10,12 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/iam_credentials"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/iam_credentials/iam_credentials_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/iam_credentials/types/sign_blob_response"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials/iam_credentials_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials/types/sign_blob_response"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 // testClient returns an iam_credentials.Client whose base URL points at a local

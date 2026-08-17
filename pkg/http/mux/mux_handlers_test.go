@@ -8,17 +8,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/body_loader"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/body_loader/body_setting"
-	bodyParserPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/body_parser"
-	endpointPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	staticContentPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint/static_content"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser"
-	muxResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	muxResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	muxUtils "github.com/Motmedel/utils_go/pkg/http/mux/utils"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_loader"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_loader/body_setting"
+	bodyParserPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/body_parser"
+	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	staticContentPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
+	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	muxUtils "github.com/altshiftab/utils_go/pkg/http/mux/utils"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 )
 
 func headerValue(headers []*muxResponse.HeaderEntry, name string) string {

@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
+	"github.com/altshiftab/utils_go/pkg/abnf"
 )
 
 // grammarCase is one value a grammar is required to accept or to reject.

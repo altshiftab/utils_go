@@ -1,7 +1,7 @@
 package message
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/types/message/message_part"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message/message_part"
 )
 
 type Message struct {

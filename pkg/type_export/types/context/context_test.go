@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/type_export/types/type_declaration"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
 )
 
 type ctxLeaf struct {

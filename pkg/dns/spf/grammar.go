@@ -4,7 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
+	"github.com/altshiftab/utils_go/pkg/abnf"
 )
 
 //go:embed grammar.abnf

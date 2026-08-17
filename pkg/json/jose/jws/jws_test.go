@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	errors2 "github.com/Motmedel/utils_go/pkg/errors"
+	errors2 "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestSplit(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 	"io"
 	"math"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // UnmarshalJSON decodes the JSON representation of a [Schema].

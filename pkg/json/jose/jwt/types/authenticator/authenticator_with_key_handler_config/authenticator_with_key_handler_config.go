@@ -1,7 +1,7 @@
 package authenticator_with_key_handler_config
 
 import (
-	"github.com/Motmedel/utils_go/pkg/interfaces/validator"
+	"github.com/altshiftab/utils_go/pkg/interfaces/validator"
 )
 
 type Config struct {

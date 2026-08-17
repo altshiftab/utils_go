@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func DecodeJson[T any](reader io.Reader) (T, error) {

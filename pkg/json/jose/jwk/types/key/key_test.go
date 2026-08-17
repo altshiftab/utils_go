@@ -4,8 +4,8 @@ import (
 	"encoding/json/v2"
 	"testing"
 
-	ecKey "github.com/Motmedel/utils_go/pkg/json/jose/jwk/types/key/ec"
-	rsaKey "github.com/Motmedel/utils_go/pkg/json/jose/jwk/types/key/rsa"
+	ecKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key/ec"
+	rsaKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key/rsa"
 )
 
 func TestKey_MarshalJSON_EC(t *testing.T) {

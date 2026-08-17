@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cose"
+	"github.com/altshiftab/utils_go/pkg/cose"
 )
 
 func testKey(t *testing.T) *ecdh.PrivateKey {

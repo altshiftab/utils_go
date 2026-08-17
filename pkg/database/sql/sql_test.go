@@ -10,14 +10,14 @@ import (
 	"sync/atomic"
 	"testing"
 
-	sqltesting "github.com/Motmedel/utils_go/pkg/database/sql/testing"
-	"github.com/Motmedel/utils_go/pkg/database/sql/types/authorized_tx_caller"
-	"github.com/Motmedel/utils_go/pkg/database/sql/types/tx_authorizer"
-	"github.com/Motmedel/utils_go/pkg/database/sql/types/tx_caller"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/interfaces/parser"
+	sqltesting "github.com/altshiftab/utils_go/pkg/database/sql/testing"
+	"github.com/altshiftab/utils_go/pkg/database/sql/types/authorized_tx_caller"
+	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_authorizer"
+	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_caller"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/interfaces/parser"
 )
 
 var (

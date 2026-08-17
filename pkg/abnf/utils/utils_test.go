@@ -5,10 +5,10 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/abnf"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
 const testGrammar = "root = key \"=\" value\r\nkey = 1*ALPHA\r\nvalue = 1*(ALPHA / DIGIT)\r\n"

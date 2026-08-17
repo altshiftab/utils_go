@@ -16,11 +16,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/credentials_file"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/token_response"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/token_source/authorized_user_token_source"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/token_source/metadata_token_source"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/token_source/service_account_token_source"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/credentials_file"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_response"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/authorized_user_token_source"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/metadata_token_source"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/service_account_token_source"
 )
 
 func testMetadataServer(t *testing.T, handler http.HandlerFunc) (*httptest.Server, *url.URL) {

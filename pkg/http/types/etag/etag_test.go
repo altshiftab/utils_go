@@ -3,7 +3,7 @@ package etag
 import (
 	"testing"
 
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 func TestParseValid(t *testing.T) {

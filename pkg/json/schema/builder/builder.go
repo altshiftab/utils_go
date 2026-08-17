@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/json/schema/internal/argtype"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	"github.com/altshiftab/utils_go/pkg/json/schema/internal/argtype"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // Builder is a JSON schema builder.

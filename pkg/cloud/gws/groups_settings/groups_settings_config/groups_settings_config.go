@@ -3,7 +3,7 @@ package groups_settings_config
 import (
 	"net/url"
 
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 type Config struct {

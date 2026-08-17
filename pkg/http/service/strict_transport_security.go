@@ -1,9 +1,9 @@
 package service
 
 import (
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/Motmedel/utils_go/pkg/http/mux"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
 )
 
 const strictTransportSecurityHeaderName = "Strict-Transport-Security"

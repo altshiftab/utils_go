@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	context2 "github.com/Motmedel/utils_go/pkg/context"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelLogHandler "github.com/Motmedel/utils_go/pkg/log/handler"
+	context2 "github.com/altshiftab/utils_go/pkg/context"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelLogHandler "github.com/altshiftab/utils_go/pkg/log/handler"
 )
 
 var (

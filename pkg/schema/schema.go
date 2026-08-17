@@ -5,10 +5,10 @@ import (
 	"net"
 	"strconv"
 
-	csp "github.com/Motmedel/utils_go/pkg/http/types/content_security_policy"
-	"github.com/Motmedel/utils_go/pkg/http/types/integrity_policy"
-	"github.com/Motmedel/utils_go/pkg/http/types/reporting_api"
-	"github.com/Motmedel/utils_go/pkg/net/types/domain_parts"
+	csp "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
+	"github.com/altshiftab/utils_go/pkg/http/types/integrity_policy"
+	"github.com/altshiftab/utils_go/pkg/http/types/reporting_api"
+	"github.com/altshiftab/utils_go/pkg/net/types/domain_parts"
 )
 
 const unknownPlaceholder = "(unknown)"

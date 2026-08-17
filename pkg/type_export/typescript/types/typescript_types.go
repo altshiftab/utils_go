@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	typescriptErrors "github.com/Motmedel/utils_go/pkg/type_export/typescript/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	typescriptErrors "github.com/altshiftab/utils_go/pkg/type_export/typescript/errors"
 )
 
 type Type interface {

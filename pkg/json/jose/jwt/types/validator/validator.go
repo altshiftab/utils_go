@@ -3,13 +3,13 @@ package validator
 import (
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/interfaces/validator"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/claims/registered_claims"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/claims/session_claims"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/interfaces/validator"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/claims/registered_claims"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/claims/session_claims"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Validator struct {

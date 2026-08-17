@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"reflect"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/type_export/jsonschema/types"
-	typeExportTypesContext "github.com/Motmedel/utils_go/pkg/type_export/types/context"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/type_export/jsonschema/types"
+	typeExportTypesContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
 )
 
 func Convert(root reflect.Type) (string, error) {

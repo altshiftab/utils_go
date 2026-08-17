@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	muxTypesResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
+	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 )
 
 func TestWriteResponse_HeadRequestOmitsBody(t *testing.T) {

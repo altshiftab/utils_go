@@ -12,7 +12,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // CollectedClientData is the parsed client data of a ceremony (WebAuthn §5.8.1).

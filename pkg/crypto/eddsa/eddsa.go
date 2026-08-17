@@ -4,11 +4,11 @@ import (
 	"crypto/ed25519"
 	"fmt"
 
-	motmedelCrypto "github.com/Motmedel/utils_go/pkg/crypto"
-	motmedelCryptoErrors "github.com/Motmedel/utils_go/pkg/crypto/errors"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	motmedelUtils "github.com/Motmedel/utils_go/pkg/utils"
+	motmedelCrypto "github.com/altshiftab/utils_go/pkg/crypto"
+	motmedelCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	motmedelUtils "github.com/altshiftab/utils_go/pkg/utils"
 )
 
 const Name = "EdDSA"

@@ -1,7 +1,7 @@
 package generation_config
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/thinking_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/thinking_config"
 )
 
 type GenerationConfig struct {

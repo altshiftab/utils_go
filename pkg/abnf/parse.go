@@ -5,7 +5,7 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
 // Path describes a portion of an input that matched a grammar rule, from a

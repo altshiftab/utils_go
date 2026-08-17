@@ -7,10 +7,10 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelContext "github.com/Motmedel/utils_go/pkg/context"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func Convert[T any](value any) (T, error) {

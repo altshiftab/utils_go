@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // ErrInvalidSchema indicates that a schema document itself is invalid:

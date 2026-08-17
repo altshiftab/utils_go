@@ -3,7 +3,7 @@ package jwt
 import (
 	"time"
 
-	motmedelJwtErrors "github.com/Motmedel/utils_go/pkg/json/jose/jwt/errors"
+	motmedelJwtErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwt/errors"
 )
 
 func ValidateExpiresAt(expiresAt time.Time, cmp time.Time) error {

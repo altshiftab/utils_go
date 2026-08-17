@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelNet "github.com/Motmedel/utils_go/pkg/net"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
 )
 
 // TODO: This does not need to be in `mux`?

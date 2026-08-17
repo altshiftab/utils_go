@@ -6,16 +6,16 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelContext "github.com/Motmedel/utils_go/pkg/context"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelHttpContext "github.com/Motmedel/utils_go/pkg/http/context"
-	muxContext "github.com/Motmedel/utils_go/pkg/http/mux/context"
-	muxErrors "github.com/Motmedel/utils_go/pkg/http/mux/errors"
-	muxTypesResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	muxTypesResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response_writer"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
+	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	muxContext "github.com/altshiftab/utils_go/pkg/http/mux/context"
+	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
+	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response_writer"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 // The messages the mux logs an error response under. What is worth saying about one is in the HTTP

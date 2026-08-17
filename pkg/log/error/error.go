@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"os"
 
-	context2 "github.com/Motmedel/utils_go/pkg/context"
+	context2 "github.com/altshiftab/utils_go/pkg/context"
 )
 
 func LogError(message string, err error, logger *slog.Logger, args ...any) {

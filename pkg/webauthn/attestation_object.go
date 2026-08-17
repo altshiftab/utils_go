@@ -3,8 +3,8 @@ package webauthn
 import (
 	"fmt"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/cbor"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // AttestationObject is a parsed attestation object (WebAuthn §6.5.4). The attestation statement

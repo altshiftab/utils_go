@@ -5,12 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	"github.com/Motmedel/utils_go/pkg/database/sql/types/tx_authorizer"
-	"github.com/Motmedel/utils_go/pkg/database/sql/types/tx_caller"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_authorizer"
+	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_caller"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type AuthorizedTxCaller[T any] struct {

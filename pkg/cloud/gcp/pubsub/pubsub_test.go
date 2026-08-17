@@ -10,10 +10,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/pubsub"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/pubsub/pubsub_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/pubsub/types/message"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/pubsub/types/publish_request"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/pubsub_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/types/message"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/types/publish_request"
 )
 
 func TestPublish(t *testing.T) {

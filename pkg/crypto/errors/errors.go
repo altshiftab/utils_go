@@ -1,6 +1,6 @@
 package errors
 
-import "github.com/Motmedel/utils_go/pkg/errors"
+import "github.com/altshiftab/utils_go/pkg/errors"
 
 var (
 	ErrSignatureMismatch    = errors.New("signature mismatch")

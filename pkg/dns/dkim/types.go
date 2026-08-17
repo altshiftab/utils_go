@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	motmedelCrypto "github.com/Motmedel/utils_go/pkg/crypto"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
+	motmedelCrypto "github.com/altshiftab/utils_go/pkg/crypto"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 )
 
 const Prefix = "v=DKIM1"

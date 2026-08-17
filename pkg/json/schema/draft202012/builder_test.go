@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/json/schema/draft202012"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	"github.com/altshiftab/utils_go/pkg/json/schema/draft202012"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 func TestBuilderKeywords(t *testing.T) {

@@ -3,12 +3,12 @@ package request_parser
 import (
 	"net/http"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	processorPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/processor"
-	muxTypesResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	processorPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/processor"
+	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type RequestParser[T any] interface {

@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/body_loader/body_setting"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/body_parser"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_loader/body_setting"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_parser"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 )
 
 func TestLoader_Fields(t *testing.T) {

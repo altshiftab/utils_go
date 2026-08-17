@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	contentSecurityPolicy "github.com/Motmedel/utils_go/pkg/http/types/content_security_policy"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	contentSecurityPolicy "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 )
 
 const contentSecurityPolicyHeaderName = "Content-Security-Policy"

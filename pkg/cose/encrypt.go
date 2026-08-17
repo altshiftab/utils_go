@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
+	"github.com/altshiftab/utils_go/pkg/cbor"
 )
 
 type EncryptOptions struct {

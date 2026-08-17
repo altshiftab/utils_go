@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/artifact_registry/artifact_registry_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/artifact_registry/types/index"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/artifact_registry/types/manifest"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/artifact_registry_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/types/index"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/types/manifest"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const DomainSuffix = "docker.pkg.dev"

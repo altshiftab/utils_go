@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	webauthnErrors "github.com/Motmedel/utils_go/pkg/webauthn/errors"
+	webauthnErrors "github.com/altshiftab/utils_go/pkg/webauthn/errors"
 )
 
 // A real authentication ceremony response for rp id "alt-shift.se".

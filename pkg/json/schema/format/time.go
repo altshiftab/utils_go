@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // atoiDigits converts a string of ASCII digits to an int.

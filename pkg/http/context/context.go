@@ -3,7 +3,7 @@ package context
 import (
 	"context"
 
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 type requestIdContextType struct{}

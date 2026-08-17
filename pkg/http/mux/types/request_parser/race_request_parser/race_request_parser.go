@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"sync"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/race_request_parser/race_request_parser_config"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/race_request_parser/race_request_parser_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Parser[T any] struct {

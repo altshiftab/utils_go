@@ -2,7 +2,7 @@ package context
 
 import (
 	"context"
-	motmedelTlsTypes "github.com/Motmedel/utils_go/pkg/tls/types"
+	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
 )
 
 type tlsContextType struct{}

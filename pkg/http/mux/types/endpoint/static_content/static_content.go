@@ -1,7 +1,7 @@
 package static_content
 
 import (
-	muxTypesResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
+	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 )
 
 type StaticContentData struct {

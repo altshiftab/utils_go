@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type parsedRequestUrlContextType struct{}

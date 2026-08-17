@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"testing"
 
-	motmedelLog "github.com/Motmedel/utils_go/pkg/log"
+	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
 )
 
 var (

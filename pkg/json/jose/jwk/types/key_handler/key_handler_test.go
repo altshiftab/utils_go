@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	motmedelCryptoEcdsa "github.com/Motmedel/utils_go/pkg/crypto/ecdsa"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	ecKey "github.com/Motmedel/utils_go/pkg/json/jose/jwk/types/key/ec"
+	motmedelCryptoEcdsa "github.com/altshiftab/utils_go/pkg/crypto/ecdsa"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	ecKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key/ec"
 )
 
 // ecJwk generates a P-256 key pair and returns its JWK map (with the given kid)

@@ -7,9 +7,9 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelUtils "github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelUtils "github.com/altshiftab/utils_go/pkg/utils"
 )
 
 const (

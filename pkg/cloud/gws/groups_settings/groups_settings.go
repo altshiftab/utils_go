@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/internal/rest"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/groups_settings/groups_settings_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/groups_settings/types/group"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/groups_settings/groups_settings_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/groups_settings/types/group"
 )
 
 const Domain = "www.googleapis.com"

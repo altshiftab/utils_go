@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	context2 "github.com/Motmedel/utils_go/pkg/context"
-	"github.com/Motmedel/utils_go/pkg/database/sql/types/tx_caller"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/interfaces/parser"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	context2 "github.com/altshiftab/utils_go/pkg/context"
+	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_caller"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/interfaces/parser"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 func WithTx[T any](

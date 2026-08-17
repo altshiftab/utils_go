@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config/retry_config/response_checker"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config/retry_config/response_checker"
 )
 
 func TestNewDefaults(t *testing.T) {

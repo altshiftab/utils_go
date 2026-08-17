@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 // Corpus of realistic Cache-Control header values; tests focus on parsing without errors.

@@ -4,10 +4,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/crypto/hmac"
-	motmedelCryptoInterfaces "github.com/Motmedel/utils_go/pkg/crypto/interfaces"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/crypto/hmac"
+	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
 func newSigner(t *testing.T) *hmac.Method {

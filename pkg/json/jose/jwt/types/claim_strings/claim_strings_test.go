@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestClaimStrings_UnmarshalJSON(t *testing.T) {

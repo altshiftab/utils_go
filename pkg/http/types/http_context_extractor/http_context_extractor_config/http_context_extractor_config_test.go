@@ -3,7 +3,7 @@ package http_context_extractor_config
 import (
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/schema"
+	"github.com/altshiftab/utils_go/pkg/schema"
 )
 
 func TestNew(t *testing.T) {

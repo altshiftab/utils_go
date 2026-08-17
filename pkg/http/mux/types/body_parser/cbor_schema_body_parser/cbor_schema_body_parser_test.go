@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
-	cborSchema "github.com/Motmedel/utils_go/pkg/cbor/schema"
+	"github.com/altshiftab/utils_go/pkg/cbor"
+	cborSchema "github.com/altshiftab/utils_go/pkg/cbor/schema"
 )
 
 type testDocument struct {

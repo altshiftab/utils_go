@@ -1,7 +1,7 @@
 package lint
 
 import (
-	"github.com/Motmedel/utils_go/pkg/sarif"
+	"github.com/altshiftab/utils_go/pkg/sarif"
 )
 
 // RuleId identifies a check the linter performs.

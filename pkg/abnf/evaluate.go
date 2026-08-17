@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // evaluateGrammar evaluates a rulelist path, as produced by parsing an ABNF

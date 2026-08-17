@@ -3,7 +3,7 @@ package strings
 import (
 	"encoding"
 	"fmt"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"reflect"
 	"strconv"
 	"strings"

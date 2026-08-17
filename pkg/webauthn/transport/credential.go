@@ -6,11 +6,11 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/utils"
-	"github.com/Motmedel/utils_go/pkg/webauthn"
-	webauthnErrors "github.com/Motmedel/utils_go/pkg/webauthn/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/utils"
+	"github.com/altshiftab/utils_go/pkg/webauthn"
+	webauthnErrors "github.com/altshiftab/utils_go/pkg/webauthn/errors"
 )
 
 // CollectedClientData is the wire format of clientDataJSON (WebAuthn §5.8.1).

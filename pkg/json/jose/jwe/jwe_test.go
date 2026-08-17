@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // TestConcatKdf checks the Concat KDF against the test vector in

@@ -1,7 +1,7 @@
 package manifest
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/artifact_registry/types/descriptor"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/types/descriptor"
 )
 
 type Manifest struct {

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	motmedelSbomTypes "github.com/Motmedel/utils_go/pkg/sbom/types"
+	motmedelSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
 )
 
 func TestGoModulePurl(t *testing.T) {
@@ -140,7 +140,7 @@ func TestDockerPurl(t *testing.T) {
 func TestParseGoModules(t *testing.T) {
 	t.Parallel()
 
-	goListOutput := []byte(`{"Path":"github.com/Motmedel/utils_go","Main":true,"Dir":"/home/user/project","GoMod":"/home/user/project/go.mod"}
+	goListOutput := []byte(`{"Path":"github.com/altshiftab/utils_go","Main":true,"Dir":"/home/user/project","GoMod":"/home/user/project/go.mod"}
 {"Path":"github.com/foo/bar","Version":"v1.0.0","Dir":"/home/user/go/pkg/mod/github.com/foo/bar@v1.0.0"}
 {"Path":"github.com/baz/qux","Version":"v2.3.4","Dir":"/home/user/go/pkg/mod/github.com/baz/qux@v2.3.4"}
 `)

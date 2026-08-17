@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	endpointPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	muxTypesStaticContent "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint/static_content"
+	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	muxTypesStaticContent "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
 )
 
 func TestObtainRequestBody(t *testing.T) {

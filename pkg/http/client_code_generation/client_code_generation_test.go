@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/body_loader"
-	endpointPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_loader"
+	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
 )
 
 type uploadInput struct {

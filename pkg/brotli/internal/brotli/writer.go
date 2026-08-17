@@ -6,7 +6,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/Motmedel/utils_go/pkg/brotli/internal/brotli/matchfinder"
+	"github.com/altshiftab/utils_go/pkg/brotli/internal/brotli/matchfinder"
 )
 
 const (

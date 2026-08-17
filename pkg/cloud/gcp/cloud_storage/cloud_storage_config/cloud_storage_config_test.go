@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func TestNew(t *testing.T) {

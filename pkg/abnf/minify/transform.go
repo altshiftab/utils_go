@@ -3,7 +3,7 @@ package minify
 import (
 	"slices"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
+	"github.com/altshiftab/utils_go/pkg/abnf"
 )
 
 // Transform identifies a simplification that rewrites the expressions of a

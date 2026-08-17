@@ -1,14 +1,14 @@
 package lint
 
 import (
-	"github.com/Motmedel/utils_go/pkg/sarif"
+	"github.com/altshiftab/utils_go/pkg/sarif"
 )
 
 const (
 	// driverName is the name the linter reports itself under.
 	driverName = "abnf"
 	// driverInformationUri locates what the linter is part of.
-	driverInformationUri = "https://github.com/Motmedel/utils_go"
+	driverInformationUri = "https://github.com/altshiftab/utils_go"
 )
 
 // Report holds the findings of one grammar definition.

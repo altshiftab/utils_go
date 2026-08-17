@@ -1,7 +1,7 @@
 package bucket
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_storage/types/bucket/lifecycle"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/bucket/lifecycle"
 )
 
 type Bucket struct {

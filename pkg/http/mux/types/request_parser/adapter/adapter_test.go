@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 )
 
 func TestAdapter_Parse(t *testing.T) {

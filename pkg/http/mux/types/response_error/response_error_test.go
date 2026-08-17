@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	muxTypesResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
+	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 )
 
 var errBoom = errors.New("boom")

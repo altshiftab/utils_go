@@ -3,7 +3,7 @@ package processor
 import (
 	"context"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 )
 
 type Processor[T any, U any] interface {

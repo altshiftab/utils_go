@@ -5,9 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
-	"github.com/Motmedel/utils_go/pkg/cose"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/cbor"
+	"github.com/altshiftab/utils_go/pkg/cose"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // Authenticator data flag bits (WebAuthn §6.1).

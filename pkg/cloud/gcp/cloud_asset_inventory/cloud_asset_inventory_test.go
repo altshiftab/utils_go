@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_asset_inventory/cloud_asset_inventory_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/asset"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/asset_list"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource_search_result"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource_search_result_list"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/cloud_asset_inventory_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/asset"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/asset_list"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource_search_result"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource_search_result_list"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {

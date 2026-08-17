@@ -7,16 +7,16 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 
-	motmedelCryptoEcdsa "github.com/Motmedel/utils_go/pkg/crypto/ecdsa"
-	motmedelCryptoInterfaces "github.com/Motmedel/utils_go/pkg/crypto/interfaces"
-	motmedelCryptoRsa "github.com/Motmedel/utils_go/pkg/crypto/rsa"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelJwkErrors "github.com/Motmedel/utils_go/pkg/json/jose/jwk/errors"
-	ecKey "github.com/Motmedel/utils_go/pkg/json/jose/jwk/types/key/ec"
-	rsaKey "github.com/Motmedel/utils_go/pkg/json/jose/jwk/types/key/rsa"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelCryptoEcdsa "github.com/altshiftab/utils_go/pkg/crypto/ecdsa"
+	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	motmedelCryptoRsa "github.com/altshiftab/utils_go/pkg/crypto/rsa"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
+	ecKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key/ec"
+	rsaKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key/rsa"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Key struct {

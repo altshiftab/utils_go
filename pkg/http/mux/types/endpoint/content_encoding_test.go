@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	motmedelBrotli "github.com/Motmedel/utils_go/pkg/brotli"
+	motmedelBrotli "github.com/altshiftab/utils_go/pkg/brotli"
 )
 
 func TestAddContentEncodingDataBrotli(t *testing.T) {

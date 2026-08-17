@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 )
 
 // runMain invokes run() with a controlled argv, capturing anything written to

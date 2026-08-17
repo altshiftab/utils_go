@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	argumentParserErrors "github.com/Motmedel/utils_go/pkg/cli/argument_parser/errors"
-	"github.com/Motmedel/utils_go/pkg/cli/argument_parser/option"
-	"github.com/Motmedel/utils_go/pkg/testing/cmp"
+	argumentParserErrors "github.com/altshiftab/utils_go/pkg/cli/argument_parser/errors"
+	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
+	"github.com/altshiftab/utils_go/pkg/testing/cmp"
 )
 
 var diffOpts = []cmp.Option{cmp.EquateEmpty()}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // ruleNameOws is the rule the list expansion separates elements with.

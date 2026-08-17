@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Motmedel/utils_go/pkg/abnf/minify"
-	argumentParser "github.com/Motmedel/utils_go/pkg/cli/argument_parser"
-	"github.com/Motmedel/utils_go/pkg/cli/argument_parser/option"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/abnf/minify"
+	argumentParser "github.com/altshiftab/utils_go/pkg/cli/argument_parser"
+	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // rewriteOptions are the options both rewriting subcommands take.

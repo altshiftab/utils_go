@@ -18,11 +18,11 @@ import (
 	"testing"
 	"time"
 
-	motmedelMux "github.com/Motmedel/utils_go/pkg/http/mux"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	muxResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	muxResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/service/service_config"
+	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/service/service_config"
 )
 
 func noContentEndpoint() *endpoint.Endpoint {

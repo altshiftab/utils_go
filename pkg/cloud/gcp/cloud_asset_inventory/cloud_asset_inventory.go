@@ -4,13 +4,13 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_asset_inventory/cloud_asset_inventory_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/asset_list"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource_search_result_list"
-	"github.com/Motmedel/utils_go/pkg/cloud/internal/rest"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/cloud_asset_inventory_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/asset_list"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource_search_result_list"
+	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 const Domain = "cloudasset.googleapis.com"

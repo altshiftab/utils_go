@@ -5,11 +5,11 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/iam_credentials"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 // Signer adapts an iam_credentials.Client to cloud_storage/types/signer.Signer.

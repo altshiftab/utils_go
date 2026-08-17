@@ -13,15 +13,15 @@ import (
 	"strings"
 	"time"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/Motmedel/utils_go/pkg/http/mux"
-	endpointPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	"github.com/Motmedel/utils_go/pkg/http/service/service_config"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	motmedelNet "github.com/Motmedel/utils_go/pkg/net"
-	"github.com/Motmedel/utils_go/pkg/net/types/domain_parts"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	"github.com/altshiftab/utils_go/pkg/http/service/service_config"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
+	"github.com/altshiftab/utils_go/pkg/net/types/domain_parts"
 )
 
 // Service is a mux and the server that serves it. The server is made for being stopped: asking it

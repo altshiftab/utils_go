@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 type Option func(*Config)

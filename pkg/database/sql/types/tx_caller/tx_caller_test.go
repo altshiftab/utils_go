@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	sqltesting "github.com/Motmedel/utils_go/pkg/database/sql/testing"
+	sqltesting "github.com/altshiftab/utils_go/pkg/database/sql/testing"
 )
 
 var (

@@ -3,7 +3,7 @@ package adapter
 import (
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/body_parser/json_body_parser"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_parser/json_body_parser"
 )
 
 type payload struct {

@@ -5,11 +5,11 @@ import (
 	"log/slog"
 	"os"
 
-	gcpHttpContextExtractor "github.com/Motmedel/utils_go/pkg/cloud/gcp/types/http_context_extractor"
-	motmedelMux "github.com/Motmedel/utils_go/pkg/http/mux"
-	"github.com/Motmedel/utils_go/pkg/http/types/http_context_extractor"
-	"github.com/Motmedel/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
+	gcpHttpContextExtractor "github.com/altshiftab/utils_go/pkg/cloud/gcp/types/http_context_extractor"
+	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor"
+	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const DefaultLogLevel = slog.LevelInfo

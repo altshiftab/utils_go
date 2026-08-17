@@ -9,8 +9,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/cbor"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // Authenticator data from a real registration ceremony for rp id "alt-shift.se" (extracted from

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/redirector/redirector_config"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/redirector/redirector_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 )
 
 func locationHeader(responseError *response_error.ResponseError) (string, bool) {

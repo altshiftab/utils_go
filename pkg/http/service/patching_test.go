@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	motmedelMux "github.com/Motmedel/utils_go/pkg/http/mux"
-	endpointPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint/static_content"
-	muxResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	muxResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	muxUtils "github.com/Motmedel/utils_go/pkg/http/mux/utils"
-	"github.com/Motmedel/utils_go/pkg/http/service/service_config"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	"github.com/Motmedel/utils_go/pkg/http/types/content_security_policy"
-	cspUtils "github.com/Motmedel/utils_go/pkg/http/utils/content_security_policy"
+	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
+	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	muxUtils "github.com/altshiftab/utils_go/pkg/http/mux/utils"
+	"github.com/altshiftab/utils_go/pkg/http/service/service_config"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
+	cspUtils "github.com/altshiftab/utils_go/pkg/http/utils/content_security_policy"
 )
 
 // staticContentEndpoint is a document the service serves as it is, of the given content type.

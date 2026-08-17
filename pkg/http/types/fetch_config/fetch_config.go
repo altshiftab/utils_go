@@ -4,7 +4,7 @@ import (
 	"maps"
 	"net/http"
 
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config/retry_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config/retry_config"
 )
 
 type Option func(*Config)

@@ -2,7 +2,7 @@ package handler
 
 import (
 	"context"
-	"github.com/Motmedel/utils_go/pkg/log/handler/tree"
+	"github.com/altshiftab/utils_go/pkg/log/handler/tree"
 	"log/slog"
 )
 

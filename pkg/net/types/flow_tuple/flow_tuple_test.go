@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	motmedelNet "github.com/Motmedel/utils_go/pkg/net"
+	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
 )
 
 // Test vectors from the official Community ID spec:

@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"testing"
 
-	motmedelTarTypes "github.com/Motmedel/utils_go/pkg/tar/types"
+	motmedelTarTypes "github.com/altshiftab/utils_go/pkg/tar/types"
 )
 
 func writeTar(t *testing.T, files map[string][]byte) []byte {

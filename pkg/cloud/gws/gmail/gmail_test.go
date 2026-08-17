@@ -9,14 +9,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/get_message_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/gmail_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/list_history_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/types/filter"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/types/message"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/types/send_as"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/types/watch_request"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/types/watch_response"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/get_message_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/gmail_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_history_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/filter"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/send_as"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/watch_request"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/watch_response"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {

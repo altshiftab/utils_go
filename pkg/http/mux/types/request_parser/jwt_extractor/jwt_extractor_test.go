@@ -8,13 +8,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/mismatch_error"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
-	authenticatorPkg "github.com/Motmedel/utils_go/pkg/interfaces/authenticator"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token/authenticated_token"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
+	authenticatorPkg "github.com/altshiftab/utils_go/pkg/interfaces/authenticator"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token"
 )
 
 var errAuthFailure = errors.New("authenticator failure")

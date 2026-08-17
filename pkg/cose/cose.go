@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
+	"github.com/altshiftab/utils_go/pkg/cbor"
 )
 
 const encryptMessageTag = 96

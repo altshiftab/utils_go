@@ -3,7 +3,7 @@ package utils
 import (
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/schema"
+	"github.com/altshiftab/utils_go/pkg/schema"
 )
 
 func TestMakeHttpMessage_NilBase(t *testing.T) {

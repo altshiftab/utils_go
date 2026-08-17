@@ -9,9 +9,9 @@ import (
 	"net/url"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelJwkErrors "github.com/Motmedel/utils_go/pkg/json/jose/jwk/errors"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwk/types/key_handler"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler"
 )
 
 func makeTokenString(t *testing.T, header string, payload string) string {

@@ -10,9 +10,9 @@ import (
 	"net/url"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/json/schema/internal/schemacache"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/json/schema/internal/schemacache"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // metaCache is a cache of the meta-schemas.

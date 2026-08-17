@@ -5,18 +5,18 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelCryptoErrors "github.com/Motmedel/utils_go/pkg/crypto/errors"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/mismatch_error"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser"
-	muxResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail/problem_detail_config"
-	authenticatorPkg "github.com/Motmedel/utils_go/pkg/interfaces/authenticator"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token/authenticated_token"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
+	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
+	authenticatorPkg "github.com/altshiftab/utils_go/pkg/interfaces/authenticator"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Parser[T request_parser.RequestParser[string]] struct {

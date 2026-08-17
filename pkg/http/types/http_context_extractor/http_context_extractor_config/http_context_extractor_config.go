@@ -1,6 +1,6 @@
 package http_context_extractor_config
 
-import "github.com/Motmedel/utils_go/pkg/schema"
+import "github.com/altshiftab/utils_go/pkg/schema"
 
 type MaskedHeader struct {
 	Url     *schema.Url

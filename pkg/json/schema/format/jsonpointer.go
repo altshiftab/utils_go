@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // jsonPointerFormat requires a valid JSON pointer.

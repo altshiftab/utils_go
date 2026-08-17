@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	muxTypesResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	responseWriterPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/response_writer"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
+	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	responseWriterPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/response_writer"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 )
 
 var errServerFailure = errors.New("server failure")

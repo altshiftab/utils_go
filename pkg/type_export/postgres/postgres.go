@@ -3,9 +3,9 @@ package postgres
 import (
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/type_export/postgres/types"
-	typeExportTypesContext "github.com/Motmedel/utils_go/pkg/type_export/types/context"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/type_export/postgres/types"
+	typeExportTypesContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
 )
 
 func Convert(values ...any) (string, error) {

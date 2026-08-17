@@ -10,12 +10,12 @@ import (
 	"net/http"
 	"testing"
 
-	motmedelContext "github.com/Motmedel/utils_go/pkg/context"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelHttpErrors "github.com/Motmedel/utils_go/pkg/http/errors"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
-	"github.com/Motmedel/utils_go/pkg/http/utils"
-	"github.com/Motmedel/utils_go/pkg/testing/cmp"
+	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
+	"github.com/altshiftab/utils_go/pkg/http/utils"
+	"github.com/altshiftab/utils_go/pkg/testing/cmp"
 )
 
 const ExpectedBodyNonEmpty = "*non-empty-body"

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/testing/cmp"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/testing/cmp"
 )
 
 var diffOpts = []cmp.Option{cmp.EquateEmpty()}

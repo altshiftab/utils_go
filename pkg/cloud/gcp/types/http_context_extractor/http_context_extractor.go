@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/http_context_extractor/http_context_extractor_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/log_entry"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelHttpContext "github.com/Motmedel/utils_go/pkg/http/context"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	motmedelJson "github.com/Motmedel/utils_go/pkg/json"
-	motmedelLog "github.com/Motmedel/utils_go/pkg/log"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/http_context_extractor/http_context_extractor_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/log_entry"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	motmedelJson "github.com/altshiftab/utils_go/pkg/json"
+	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
 )
 
 type Extractor struct {

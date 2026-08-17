@@ -5,7 +5,7 @@ package brotli
 import (
 	"math"
 
-	"github.com/Motmedel/utils_go/pkg/brotli/internal/brotli/matchfinder"
+	"github.com/altshiftab/utils_go/pkg/brotli/internal/brotli/matchfinder"
 )
 
 func gaussianProbability(x, mean, stdDev float64) float64 {

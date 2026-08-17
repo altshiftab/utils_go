@@ -2,7 +2,7 @@
 
 package brotli
 
-import "github.com/Motmedel/utils_go/pkg/brotli/internal/brotli/matchfinder"
+import "github.com/altshiftab/utils_go/pkg/brotli/internal/brotli/matchfinder"
 
 // An Encoder implements the matchfinder.Encoder interface, writing in Brotli format.
 type Encoder struct {

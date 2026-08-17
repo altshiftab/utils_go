@@ -5,11 +5,11 @@ import (
 	"net/url"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/Motmedel/utils_go/pkg/http/mux"
-	csp "github.com/Motmedel/utils_go/pkg/http/types/content_security_policy"
-	cspUtils "github.com/Motmedel/utils_go/pkg/http/utils/content_security_policy"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	csp "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
+	cspUtils "github.com/altshiftab/utils_go/pkg/http/utils/content_security_policy"
 )
 
 const permissionsPolicyHeaderName = "Permissions-Policy"

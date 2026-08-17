@@ -8,7 +8,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // Base64URL is a byte string that is JSON-encoded as unpadded base64url.

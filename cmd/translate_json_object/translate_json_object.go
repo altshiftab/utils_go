@@ -7,14 +7,14 @@ import (
 	"log/slog"
 	"os"
 
-	motmedelEnv "github.com/Motmedel/utils_go/pkg/env"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/go/code_generation"
-	"github.com/Motmedel/utils_go/pkg/go/code_generation/translate"
-	motmedelLog "github.com/Motmedel/utils_go/pkg/log"
-	motmedelContextLogger "github.com/Motmedel/utils_go/pkg/log/context_logger"
-	errorLogger "github.com/Motmedel/utils_go/pkg/log/error_logger"
+	motmedelEnv "github.com/altshiftab/utils_go/pkg/env"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/go/code_generation"
+	"github.com/altshiftab/utils_go/pkg/go/code_generation/translate"
+	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	motmedelContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
+	errorLogger "github.com/altshiftab/utils_go/pkg/log/error_logger"
 )
 
 func run() error {

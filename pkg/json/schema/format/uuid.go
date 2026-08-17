@@ -7,7 +7,7 @@ package format
 import (
 	"fmt"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // uuidFormat requires a valid URI.

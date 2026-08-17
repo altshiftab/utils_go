@@ -10,10 +10,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/utils/client_side_encryption/body_parser_config"
-	"github.com/Motmedel/utils_go/pkg/http/mux/utils/client_side_encryption/header_parser_config"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwe"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwk/types/key"
+	"github.com/altshiftab/utils_go/pkg/http/mux/utils/client_side_encryption/body_parser_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/utils/client_side_encryption/header_parser_config"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwe"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key"
 )
 
 func makeJwe(t *testing.T, recipientPublicKey *ecdsa.PublicKey, keyId string) []byte {

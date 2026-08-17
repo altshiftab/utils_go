@@ -14,16 +14,16 @@ import (
 	"strings"
 	"time"
 
-	gmailMessage "github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/types/message"
-	gmailMessagePart "github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/types/message/message_part"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	motmedelNet "github.com/Motmedel/utils_go/pkg/net"
-	"github.com/Motmedel/utils_go/pkg/net/types/domain_parts"
-	"github.com/Motmedel/utils_go/pkg/net/types/flow_tuple"
-	"github.com/Motmedel/utils_go/pkg/schema"
-	motmedelTlsTypes "github.com/Motmedel/utils_go/pkg/tls/types"
-	motmedelWhoisTypes "github.com/Motmedel/utils_go/pkg/whois/types"
+	gmailMessage "github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
+	gmailMessagePart "github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message/message_part"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
+	"github.com/altshiftab/utils_go/pkg/net/types/domain_parts"
+	"github.com/altshiftab/utils_go/pkg/net/types/flow_tuple"
+	"github.com/altshiftab/utils_go/pkg/schema"
+	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
+	motmedelWhoisTypes "github.com/altshiftab/utils_go/pkg/whois/types"
 )
 
 const (

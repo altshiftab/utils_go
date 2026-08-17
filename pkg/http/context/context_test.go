@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 func TestContextKeys(t *testing.T) {

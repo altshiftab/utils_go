@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	muxTypesResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
+	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 )
 
 func TestStaticContentData_Fields(t *testing.T) {

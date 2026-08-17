@@ -3,14 +3,14 @@ package authenticated_token
 import (
 	"fmt"
 
-	motmedelCryptoInterfaces "github.com/Motmedel/utils_go/pkg/crypto/interfaces"
-	"github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/mismatch_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jws/types/jws_object"
-	motmedelJwtToken "github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token/authenticated_token/authenticated_token_config"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	"github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jws/types/jws_object"
+	motmedelJwtToken "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token/authenticated_token_config"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Token struct {

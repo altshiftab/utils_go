@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/mismatch_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/missing_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/interfaces/comparer"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/claim_strings"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/numeric_date"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/validator/setting"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/missing_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/interfaces/comparer"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/claim_strings"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/numeric_date"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/validator/setting"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 // TODO: Rework

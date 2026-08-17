@@ -6,9 +6,9 @@ import (
 	"net"
 	"strings"
 
-	abnfUtils "github.com/Motmedel/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelNet "github.com/Motmedel/utils_go/pkg/net"
+	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
 )
 
 var ErrUnexpectedMatchRule = errors.New("unexpected matching rule")

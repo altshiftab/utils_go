@@ -1,6 +1,6 @@
 package publish_request
 
-import "github.com/Motmedel/utils_go/pkg/cloud/gcp/pubsub/types/message"
+import "github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/types/message"
 
 // Request is the body of a topics:publish call.
 type Request struct {

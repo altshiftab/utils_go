@@ -6,17 +6,17 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	typeExportErrors "github.com/Motmedel/utils_go/pkg/type_export/errors"
-	typeExportContext "github.com/Motmedel/utils_go/pkg/type_export/types/context"
-	"github.com/Motmedel/utils_go/pkg/type_export/types/shape"
-	"github.com/Motmedel/utils_go/pkg/type_export/types/type_declaration"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	typeExportErrors "github.com/altshiftab/utils_go/pkg/type_export/errors"
+	typeExportContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/shape"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelJsonTag "github.com/Motmedel/utils_go/pkg/json/types/tag"
-	motmedelReflect "github.com/Motmedel/utils_go/pkg/reflect"
-	jsonschemaTag "github.com/Motmedel/utils_go/pkg/type_export/jsonschema/types/tag"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelJsonTag "github.com/altshiftab/utils_go/pkg/json/types/tag"
+	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	jsonschemaTag "github.com/altshiftab/utils_go/pkg/type_export/jsonschema/types/tag"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 func isTime(t reflect.Type) bool {

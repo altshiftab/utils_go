@@ -8,10 +8,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/drive/create_permission_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/drive/drive_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/drive/types/permission"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/drive/update_permission_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/create_permission_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/drive_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/types/permission"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/update_permission_config"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc, options ...drive_config.Option) *Client {

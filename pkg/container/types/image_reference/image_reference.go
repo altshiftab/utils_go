@@ -3,10 +3,10 @@ package image_reference
 import (
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/missing_error"
-	"github.com/Motmedel/utils_go/pkg/schema"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/missing_error"
+	"github.com/altshiftab/utils_go/pkg/schema"
 )
 
 type Reference struct {

@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/utils"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 const (

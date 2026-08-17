@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	typeExportContext "github.com/Motmedel/utils_go/pkg/type_export/types/context"
-	"github.com/Motmedel/utils_go/pkg/type_export/types/type_declaration"
+	typeExportContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
 )
 
 type pgPrimitives struct {

@@ -9,7 +9,7 @@ package schemacache
 import (
 	"sync"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // Cache is a cache that holds schemas.

@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/mismatch_error"
-	webauthnErrors "github.com/Motmedel/utils_go/pkg/webauthn/errors"
+	"github.com/altshiftab/utils_go/pkg/cbor"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
+	webauthnErrors "github.com/altshiftab/utils_go/pkg/webauthn/errors"
 )
 
 type attestationCertificateConfig struct {

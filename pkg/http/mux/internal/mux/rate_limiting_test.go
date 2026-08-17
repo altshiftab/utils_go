@@ -6,7 +6,7 @@ import (
 	"testing"
 	"testing/synctest"
 
-	muxTypesRateLimiting "github.com/Motmedel/utils_go/pkg/http/mux/types/rate_limiting"
+	muxTypesRateLimiting "github.com/altshiftab/utils_go/pkg/http/mux/types/rate_limiting"
 )
 
 func TestHandleRateLimiting(t *testing.T) {

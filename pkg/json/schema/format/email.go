@@ -9,7 +9,7 @@ import (
 	"net/mail"
 	"strings"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // emailFormat requires a valid email address.

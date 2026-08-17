@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
-	abnfUtils "github.com/Motmedel/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/abnf"
+	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 //go:embed grammar.abnf

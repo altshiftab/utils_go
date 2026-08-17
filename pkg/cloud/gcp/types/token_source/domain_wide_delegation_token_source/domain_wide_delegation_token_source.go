@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/iam_credentials"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/token_response"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/token"
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/token_source"
-	motmedelOauth2Transport "github.com/Motmedel/utils_go/pkg/oauth2/types/transport"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_response"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/token"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/token_source"
+	motmedelOauth2Transport "github.com/altshiftab/utils_go/pkg/oauth2/types/transport"
 )
 
 const (

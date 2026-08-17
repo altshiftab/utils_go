@@ -3,9 +3,9 @@ package generate_content_response
 import (
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/candidate"
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/prompt_feedback"
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/usage_metadata"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/candidate"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/prompt_feedback"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/usage_metadata"
 )
 
 type GenerateContentResponse struct {

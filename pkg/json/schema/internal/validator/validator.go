@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go run github.com/Motmedel/utils_go/pkg/json/schema/internal/cmd/validatorgen
+//go:generate go run github.com/altshiftab/utils_go/pkg/json/schema/internal/cmd/validatorgen
 
 // Package validator contains functions to handle different schema arguments.
 package validator
@@ -19,9 +19,9 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/json/schema/notes"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/json/schema/notes"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // ToInt converts arg into a types.PartInt.

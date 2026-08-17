@@ -1,7 +1,7 @@
 package transport
 
 import (
-	"github.com/Motmedel/utils_go/pkg/webauthn"
+	"github.com/altshiftab/utils_go/pkg/webauthn"
 )
 
 // PublicKeyCredentialUserEntity is the wire format of a user entity (WebAuthn §5.4.3).

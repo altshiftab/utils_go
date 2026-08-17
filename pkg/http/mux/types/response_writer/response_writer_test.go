@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	muxTypesResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	acceptEncodingParsing "github.com/Motmedel/utils_go/pkg/http/types/accept_encoding"
+	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	acceptEncodingParsing "github.com/altshiftab/utils_go/pkg/http/types/accept_encoding"
 )
 
 var errStream = errors.New("stream failure")

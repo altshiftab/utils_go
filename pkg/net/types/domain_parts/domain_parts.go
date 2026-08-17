@@ -3,7 +3,7 @@ package domain_parts
 import (
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/net/publicsuffix"
+	"github.com/altshiftab/utils_go/pkg/net/publicsuffix"
 )
 
 type Parts struct {

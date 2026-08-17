@@ -1,7 +1,7 @@
 package asset
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource"
 )
 
 type Asset struct {

@@ -4,8 +4,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelTarTypes "github.com/Motmedel/utils_go/pkg/tar/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelTarTypes "github.com/altshiftab/utils_go/pkg/tar/types"
 	"io"
 )
 

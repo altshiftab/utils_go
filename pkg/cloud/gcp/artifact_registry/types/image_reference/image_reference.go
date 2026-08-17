@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/container/types/image_reference"
-	"github.com/Motmedel/utils_go/pkg/schema"
+	"github.com/altshiftab/utils_go/pkg/container/types/image_reference"
+	"github.com/altshiftab/utils_go/pkg/schema"
 )
 
 const dockerPkgDevSuffix = "-docker.pkg.dev"

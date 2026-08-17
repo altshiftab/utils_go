@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/auth_code_option"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/auth_code_option"
 )
 
 const (

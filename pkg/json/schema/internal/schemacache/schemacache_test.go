@@ -7,7 +7,7 @@ package schemacache
 import (
 	"testing"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 func TestCache(t *testing.T) {

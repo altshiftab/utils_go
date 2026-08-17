@@ -7,7 +7,7 @@ import (
 	"io"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // readArchiveBytes parses raw tar bytes into a name -> content map.

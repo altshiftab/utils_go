@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/query_extractor/query_extractor_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/query_extractor/query_extractor_config"
 )
 
 type basicQuery struct {

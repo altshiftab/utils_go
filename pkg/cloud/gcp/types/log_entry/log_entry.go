@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/log_entry/http_request"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/log_entry/http_request"
 )
 
 type LogEntry struct {

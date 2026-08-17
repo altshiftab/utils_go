@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 )
 
 func TestResponseToken(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"net"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/testing/cmp"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/testing/cmp"
 )
 
 func TestParseSpfRecord(t *testing.T) {

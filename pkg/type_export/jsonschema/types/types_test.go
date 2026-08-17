@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	typeExportContext "github.com/Motmedel/utils_go/pkg/type_export/types/context"
+	typeExportContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
 )
 
 type SimpleStruct struct {

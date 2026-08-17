@@ -4,17 +4,17 @@ import (
 	"net/http"
 	"time"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/Motmedel/utils_go/pkg/http/mux"
-	endpointPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint/static_content"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	muxUtils "github.com/Motmedel/utils_go/pkg/http/mux/utils"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	muxUtils "github.com/altshiftab/utils_go/pkg/http/mux/utils"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const (

@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
+	"github.com/altshiftab/utils_go/pkg/abnf"
 )
 
 // simplifyGrammar rewrites the expressions of the grammar into shorter

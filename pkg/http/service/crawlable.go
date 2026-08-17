@@ -9,17 +9,17 @@ import (
 	"strings"
 	"time"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/Motmedel/utils_go/pkg/http/mux"
-	endpointPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint/static_content"
-	muxUtils "github.com/Motmedel/utils_go/pkg/http/mux/utils"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	contentTypeParsing "github.com/Motmedel/utils_go/pkg/http/types/content_type"
-	motmedelHttpTypesSitemapxml "github.com/Motmedel/utils_go/pkg/http/types/sitemapxml"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
+	muxUtils "github.com/altshiftab/utils_go/pkg/http/mux/utils"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	contentTypeParsing "github.com/altshiftab/utils_go/pkg/http/types/content_type"
+	motmedelHttpTypesSitemapxml "github.com/altshiftab/utils_go/pkg/http/types/sitemapxml"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 // sitemapContentTypes are the response content types whose endpoints are eligible for inclusion in

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/cbor"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // The attestation object of a real registration ceremony, and the credential public key of the

@@ -5,15 +5,15 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	muxErrors "github.com/Motmedel/utils_go/pkg/http/mux/errors"
-	muxTypesResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	muxTypesResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	muxTypesResponseWriter "github.com/Motmedel/utils_go/pkg/http/mux/types/response_writer"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
-	motmedelStrings "github.com/Motmedel/utils_go/pkg/strings"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
+	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	muxTypesResponseWriter "github.com/altshiftab/utils_go/pkg/http/mux/types/response_writer"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
+	motmedelStrings "github.com/altshiftab/utils_go/pkg/strings"
 )
 
 type VhostMuxSpecification struct {

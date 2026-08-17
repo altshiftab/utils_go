@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
 )
 
 func TestEndpoint_EmbeddedFieldPromotion(t *testing.T) {

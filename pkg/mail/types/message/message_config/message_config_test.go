@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/mail/types/message/message_header"
+	"github.com/altshiftab/utils_go/pkg/mail/types/message/message_header"
 )
 
 func TestNew_NoOptions(t *testing.T) {

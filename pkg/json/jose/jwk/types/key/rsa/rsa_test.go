@@ -7,15 +7,15 @@ import (
 	"math/big"
 	"testing"
 
-	motmedelJwkErrors "github.com/Motmedel/utils_go/pkg/json/jose/jwk/errors"
+	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 )
 
 func TestKey_PublicKey(t *testing.T) {
 	t.Parallel()
 
 	// Valid RSA public key components (small example for testing)
-	validN := base64.RawURLEncoding.EncodeToString(big.NewInt(3233).Bytes())   // n = 3233 = 61 * 53
-	validE := base64.RawURLEncoding.EncodeToString(big.NewInt(17).Bytes())     // e = 17
+	validN := base64.RawURLEncoding.EncodeToString(big.NewInt(3233).Bytes()) // n = 3233 = 61 * 53
+	validE := base64.RawURLEncoding.EncodeToString(big.NewInt(17).Bytes())   // e = 17
 
 	testCases := []struct {
 		name        string

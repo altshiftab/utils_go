@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	motmedelCryptoHmac "github.com/Motmedel/utils_go/pkg/crypto/hmac"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelCryptoHmac "github.com/altshiftab/utils_go/pkg/crypto/hmac"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // signedJws builds a compact HS256 JWS over the given header/payload JSON with the

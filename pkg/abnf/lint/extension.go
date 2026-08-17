@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
+	"github.com/altshiftab/utils_go/pkg/abnf"
 )
 
 // holdsListOperator reports whether a definition uses the "#" list operator

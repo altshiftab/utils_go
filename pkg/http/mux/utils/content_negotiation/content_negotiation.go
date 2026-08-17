@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	motmedelHttpHeadersParsingAccept "github.com/Motmedel/utils_go/pkg/http/types/accept"
-	motmedelHttpHeadersParsingAcceptEncoding "github.com/Motmedel/utils_go/pkg/http/types/accept_encoding"
-	motmedelHttpHeadersParsingAcceptLanguage "github.com/Motmedel/utils_go/pkg/http/types/accept_language"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	motmedelHttpHeadersParsingAccept "github.com/altshiftab/utils_go/pkg/http/types/accept"
+	motmedelHttpHeadersParsingAcceptEncoding "github.com/altshiftab/utils_go/pkg/http/types/accept_encoding"
+	motmedelHttpHeadersParsingAcceptLanguage "github.com/altshiftab/utils_go/pkg/http/types/accept_language"
 )
 
 // TODO: Log warnings in non-strict cases?

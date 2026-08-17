@@ -7,10 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/abnf/lint"
-	argumentParser "github.com/Motmedel/utils_go/pkg/cli/argument_parser"
-	"github.com/Motmedel/utils_go/pkg/cli/argument_parser/option"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/abnf/lint"
+	argumentParser "github.com/altshiftab/utils_go/pkg/cli/argument_parser"
+	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 const (

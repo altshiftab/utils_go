@@ -4,9 +4,9 @@ import (
 	"encoding/json/v2"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/json/schema/draft202012"
-	"github.com/Motmedel/utils_go/pkg/json/schema/jsonpointer"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	"github.com/altshiftab/utils_go/pkg/json/schema/draft202012"
+	"github.com/altshiftab/utils_go/pkg/json/schema/jsonpointer"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 const rootSchemaJSON = `{

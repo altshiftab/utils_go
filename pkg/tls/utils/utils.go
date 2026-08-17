@@ -2,7 +2,7 @@ package utils
 
 import (
 	"crypto/x509"
-	motmedelIter "github.com/Motmedel/utils_go/pkg/iter"
+	motmedelIter "github.com/altshiftab/utils_go/pkg/iter"
 )
 
 func ExtractAlternativeNames(certificate *x509.Certificate) []string {

@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"testing"
 
-	endpointPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	staticContentPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint/static_content"
-	muxResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
+	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	staticContentPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
+	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 )
 
 func TestNew(t *testing.T) {

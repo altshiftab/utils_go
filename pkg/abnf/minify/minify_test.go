@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/abnf"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestMinify(t *testing.T) {

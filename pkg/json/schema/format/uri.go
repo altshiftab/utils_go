@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // uriOrIRI is an enum.

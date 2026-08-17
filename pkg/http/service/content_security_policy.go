@@ -3,12 +3,12 @@ package service
 import (
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/Motmedel/utils_go/pkg/http/mux"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_writer"
-	csp "github.com/Motmedel/utils_go/pkg/http/types/content_security_policy"
-	cspUtils "github.com/Motmedel/utils_go/pkg/http/utils/content_security_policy"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_writer"
+	csp "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
+	cspUtils "github.com/altshiftab/utils_go/pkg/http/utils/content_security_policy"
 )
 
 const contentSecurityPolicyHeaderName = "Content-Security-Policy"

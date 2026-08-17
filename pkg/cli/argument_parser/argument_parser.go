@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	argumentParserErrors "github.com/Motmedel/utils_go/pkg/cli/argument_parser/errors"
-	"github.com/Motmedel/utils_go/pkg/cli/argument_parser/option"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	argumentParserErrors "github.com/altshiftab/utils_go/pkg/cli/argument_parser/errors"
+	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 const (

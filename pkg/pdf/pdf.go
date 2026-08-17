@@ -3,7 +3,7 @@ package pdf
 import (
 	"bytes"
 
-	"github.com/Motmedel/utils_go/pkg/types/file_validator"
+	"github.com/altshiftab/utils_go/pkg/types/file_validator"
 )
 
 func IsSigned(documentData []byte) bool {

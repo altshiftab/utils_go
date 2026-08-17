@@ -10,7 +10,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
+	"github.com/altshiftab/utils_go/pkg/cbor"
 )
 
 // Key type identifiers from the IANA COSE Key Types registry.

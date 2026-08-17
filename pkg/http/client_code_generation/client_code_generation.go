@@ -32,15 +32,15 @@ import (
 	"text/template"
 	"unicode"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	clientCodeGenerationErrors "github.com/Motmedel/utils_go/pkg/http/client_code_generation/errors"
-	clientCodeGenerationTypes "github.com/Motmedel/utils_go/pkg/http/client_code_generation/types"
-	"github.com/Motmedel/utils_go/pkg/http/client_code_generation/types/template_options"
-	endpointPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	typeGenerationTypesContext "github.com/Motmedel/utils_go/pkg/type_export/types/context"
-	typeGenerationTypescriptTypes "github.com/Motmedel/utils_go/pkg/type_export/typescript/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	clientCodeGenerationErrors "github.com/altshiftab/utils_go/pkg/http/client_code_generation/errors"
+	clientCodeGenerationTypes "github.com/altshiftab/utils_go/pkg/http/client_code_generation/types"
+	"github.com/altshiftab/utils_go/pkg/http/client_code_generation/types/template_options"
+	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	typeGenerationTypesContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
+	typeGenerationTypescriptTypes "github.com/altshiftab/utils_go/pkg/type_export/typescript/types"
 )
 
 //go:embed script.ts.tmpl

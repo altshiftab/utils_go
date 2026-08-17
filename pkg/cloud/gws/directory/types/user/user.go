@@ -1,6 +1,6 @@
 package user
 
-import "github.com/Motmedel/utils_go/pkg/cloud/gws/directory/types/user/name"
+import "github.com/altshiftab/utils_go/pkg/cloud/gws/directory/types/user/name"
 
 type User struct {
 	Kind       string `json:"kind,omitempty"`

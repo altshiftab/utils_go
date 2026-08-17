@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/json/schema/draft202012"
-	_ "github.com/Motmedel/utils_go/pkg/json/schema/format"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/json/schema/draft202012"
+	_ "github.com/altshiftab/utils_go/pkg/json/schema/format"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // suiteGroup is one entry of a suite test file: a schema and the

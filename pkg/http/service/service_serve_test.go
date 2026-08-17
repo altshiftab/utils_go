@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	muxResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	muxResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/service/service_config"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/service/service_config"
 )
 
 // get performs a request the linters accept: with a context, and closing the body.

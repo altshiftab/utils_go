@@ -11,7 +11,7 @@ import (
 	"testing"
 	"unique"
 
-	"github.com/Motmedel/utils_go/pkg/type_export/types/shape"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/shape"
 )
 
 func TestParseTypeArgs(t *testing.T) {

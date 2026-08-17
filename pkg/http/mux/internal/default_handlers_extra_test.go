@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	muxTypesResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
+	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 )
 
 func TestDefaultResponseErrorHandler_EffectiveProblemDetailError(t *testing.T) {

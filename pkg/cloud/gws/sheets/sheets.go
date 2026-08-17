@@ -4,16 +4,16 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/internal/rest"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/sheets/get_spreadsheet_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/sheets/get_values_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/sheets/sheets_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/sheets/types/spreadsheet"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/sheets/types/value_range"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/sheets/get_spreadsheet_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/sheets/get_values_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/sheets/sheets_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/sheets/types/spreadsheet"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/sheets/types/value_range"
 )
 
 const Domain = "sheets.googleapis.com"

@@ -3,7 +3,7 @@ package body_parser_config
 import (
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwe"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwe"
 )
 
 func TestNew(t *testing.T) {

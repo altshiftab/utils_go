@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	motmedelHttpContext "github.com/Motmedel/utils_go/pkg/http/context"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	"github.com/Motmedel/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
-	motmedelSchemaTypes "github.com/Motmedel/utils_go/pkg/schema"
+	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
+	motmedelSchemaTypes "github.com/altshiftab/utils_go/pkg/schema"
 )
 
 func TestMaskJws(t *testing.T) {

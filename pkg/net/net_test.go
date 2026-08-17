@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	motmedelNetErrors "github.com/Motmedel/utils_go/pkg/net/errors"
+	motmedelNetErrors "github.com/altshiftab/utils_go/pkg/net/errors"
 )
 
 func TestSplitAddress(t *testing.T) {

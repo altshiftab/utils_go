@@ -1,7 +1,7 @@
 package content
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/part"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/part"
 )
 
 type Content struct {

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/groups_settings/groups_settings_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/groups_settings/types/group"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/groups_settings/groups_settings_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/groups_settings/types/group"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {

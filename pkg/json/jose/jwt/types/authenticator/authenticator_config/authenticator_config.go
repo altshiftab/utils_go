@@ -1,8 +1,8 @@
 package authenticator_config
 
 import (
-	motmedelCryptoInterfaces "github.com/Motmedel/utils_go/pkg/crypto/interfaces"
-	"github.com/Motmedel/utils_go/pkg/interfaces/validator"
+	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	"github.com/altshiftab/utils_go/pkg/interfaces/validator"
 )
 
 type Config struct {

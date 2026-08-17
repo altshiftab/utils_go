@@ -13,19 +13,19 @@ import (
 	"strings"
 	"time"
 
-	motmedelContext "github.com/Motmedel/utils_go/pkg/context"
-	motmedelUtilsEnv "github.com/Motmedel/utils_go/pkg/env"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/go/code_generation"
-	motmedelHttpContext "github.com/Motmedel/utils_go/pkg/http/context"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
-	"github.com/Motmedel/utils_go/pkg/http/types/http_context_extractor"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
-	motmedelLog "github.com/Motmedel/utils_go/pkg/log"
-	motmedelContextLogger "github.com/Motmedel/utils_go/pkg/log/context_logger"
-	errorLogger "github.com/Motmedel/utils_go/pkg/log/error_logger"
+	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
+	motmedelUtilsEnv "github.com/altshiftab/utils_go/pkg/env"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/go/code_generation"
+	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	motmedelContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
+	errorLogger "github.com/altshiftab/utils_go/pkg/log/error_logger"
 )
 
 func main() {
@@ -148,7 +148,7 @@ func main() {
 	output, err := code_generation.GetGeneratedFileContents(
 		endpoints,
 		packageName,
-		"github.com/Motmedel/utils_go/cmd/generate_endpoints",
+		"github.com/altshiftab/utils_go/cmd/generate_endpoints",
 		variableName,
 		nil,
 	)

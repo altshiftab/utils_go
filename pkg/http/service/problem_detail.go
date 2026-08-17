@@ -3,12 +3,12 @@ package service
 import (
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/Motmedel/utils_go/pkg/http/mux"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 )
 
 const (

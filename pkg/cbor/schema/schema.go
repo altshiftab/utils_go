@@ -1,5 +1,5 @@
 // Package schema implements validation of decoded CBOR values (the value model produced by
-// github.com/Motmedel/utils_go/pkg/cbor) against schemas. Schemas can be authored directly or
+// github.com/altshiftab/utils_go/pkg/cbor) against schemas. Schemas can be authored directly or
 // derived from Go types with NewFromType, using the same struct tag grammar as the jsonschema
 // library. The keyword set is deliberately small; unknown map keys are rejected unless
 // AdditionalProperties is set.
@@ -13,8 +13,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/cbor"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 var (

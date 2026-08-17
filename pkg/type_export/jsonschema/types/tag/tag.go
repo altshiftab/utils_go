@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 type Tag struct {

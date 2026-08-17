@@ -3,7 +3,7 @@ package message_config
 import (
 	"net/mail"
 
-	"github.com/Motmedel/utils_go/pkg/mail/types/message/message_header"
+	"github.com/altshiftab/utils_go/pkg/mail/types/message/message_header"
 )
 
 type Config struct {

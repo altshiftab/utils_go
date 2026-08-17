@@ -6,16 +6,16 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/internal/rest"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/drive/create_permission_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/drive/drive_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/drive/types/permission"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/drive/update_permission_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/create_permission_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/drive_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/types/permission"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/update_permission_config"
 )
 
 const Domain = "www.googleapis.com"

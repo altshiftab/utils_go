@@ -5,12 +5,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	endpointPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser"
-	muxResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	muxResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
-	"github.com/Motmedel/utils_go/pkg/schema"
+	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
+	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
+	"github.com/altshiftab/utils_go/pkg/schema"
 )
 
 type stubUserer struct{ user *schema.User }

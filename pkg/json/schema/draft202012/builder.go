@@ -10,11 +10,11 @@ import (
 	"reflect"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/json/schema/internal/schemacache"
-	"github.com/Motmedel/utils_go/pkg/json/schema/builder"
-	"github.com/Motmedel/utils_go/pkg/json/schema/jsonpointer"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/json/schema/builder"
+	"github.com/altshiftab/utils_go/pkg/json/schema/internal/schemacache"
+	"github.com/altshiftab/utils_go/pkg/json/schema/jsonpointer"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // Names of the core keywords handled during reference resolution.

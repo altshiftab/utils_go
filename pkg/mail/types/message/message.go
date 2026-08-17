@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelMailErrors "github.com/Motmedel/utils_go/pkg/mail/errors"
-	"github.com/Motmedel/utils_go/pkg/mail/types/message/message_config"
-	"github.com/Motmedel/utils_go/pkg/mail/types/message/message_header"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelMailErrors "github.com/altshiftab/utils_go/pkg/mail/errors"
+	"github.com/altshiftab/utils_go/pkg/mail/types/message/message_config"
+	"github.com/altshiftab/utils_go/pkg/mail/types/message/message_header"
 )
 
 type Body struct {

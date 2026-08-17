@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"testing"
 
-	motmedelLog "github.com/Motmedel/utils_go/pkg/log"
+	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
 )
 
 func dropTime(groups []string, attr slog.Attr) slog.Attr {

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/artifact_registry/artifact_registry_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/artifact_registry/types/descriptor"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/artifact_registry/types/index"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/artifact_registry/types/manifest"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/artifact_registry_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/types/descriptor"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/types/index"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/types/manifest"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {

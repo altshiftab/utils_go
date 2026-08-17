@@ -6,11 +6,11 @@ import (
 	"errors"
 	"testing"
 
-	sqltesting "github.com/Motmedel/utils_go/pkg/database/sql/testing"
-	"github.com/Motmedel/utils_go/pkg/database/sql/types/tx_authorizer"
-	"github.com/Motmedel/utils_go/pkg/database/sql/types/tx_caller"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	sqltesting "github.com/altshiftab/utils_go/pkg/database/sql/testing"
+	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_authorizer"
+	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_caller"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
 var _ tx_caller.TxCaller[int] = (*AuthorizedTxCaller[int])(nil)

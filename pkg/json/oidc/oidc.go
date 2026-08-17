@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/url"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
-	"github.com/Motmedel/utils_go/pkg/json/oidc/types/provider_metadata"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	"github.com/altshiftab/utils_go/pkg/json/oidc/types/provider_metadata"
 )
 
 func FetchProviderMetadata(

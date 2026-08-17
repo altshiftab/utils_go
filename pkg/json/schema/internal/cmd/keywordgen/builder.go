@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/json/schema/internal/argtype"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	"github.com/altshiftab/utils_go/pkg/json/schema/internal/argtype"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // writeBuilderHeader writes the start of the Builder section.

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/claims/registered_claims"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/numeric_date"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/claims/registered_claims"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/numeric_date"
 )
 
 // referenceTime is a fixed reference instant so time-based tests are deterministic.

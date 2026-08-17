@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/mismatch_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
 func TestValidate(t *testing.T) {

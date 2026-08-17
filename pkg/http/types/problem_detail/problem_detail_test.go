@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail/problem_detail_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
 )
 
 type testValidationError struct {

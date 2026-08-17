@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/pubsub/pubsub_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/pubsub/types/publish_request"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/pubsub/types/publish_response"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/pubsub_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/types/publish_request"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/types/publish_response"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const Domain = "pubsub.googleapis.com"

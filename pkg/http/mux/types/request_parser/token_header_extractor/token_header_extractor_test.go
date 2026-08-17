@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/token_header_extractor/token_header_extractor_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/token_header_extractor/token_header_extractor_config"
 )
 
 func TestParse(t *testing.T) {

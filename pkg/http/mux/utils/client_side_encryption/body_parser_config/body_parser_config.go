@@ -1,6 +1,6 @@
 package body_parser_config
 
-import "github.com/Motmedel/utils_go/pkg/json/jose/jwe"
+import "github.com/altshiftab/utils_go/pkg/json/jose/jwe"
 
 const (
 	DefaultKeyAlgorithm      = jwe.KeyAlgorithmEcdhEs

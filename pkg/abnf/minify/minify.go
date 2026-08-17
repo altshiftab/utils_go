@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/abnf"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // maxSimplificationPasses bounds the passes made to reach a fixed point.

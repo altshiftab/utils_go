@@ -1,7 +1,7 @@
 package candidate
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/content"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/content"
 )
 
 type Candidate struct {

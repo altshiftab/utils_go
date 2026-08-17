@@ -5,16 +5,16 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/redirector/redirector_config"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	motmedelStrings "github.com/Motmedel/utils_go/pkg/strings"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/redirector/redirector_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	motmedelStrings "github.com/altshiftab/utils_go/pkg/strings"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 var errMissingXForwardedProto = errors.New("missing X-Forwarded-Proto header")

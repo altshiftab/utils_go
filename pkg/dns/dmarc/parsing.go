@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	abnfUtils "github.com/Motmedel/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 var (

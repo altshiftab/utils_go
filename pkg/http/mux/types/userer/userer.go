@@ -1,7 +1,7 @@
 package userer
 
 import (
-	"github.com/Motmedel/utils_go/pkg/schema"
+	"github.com/altshiftab/utils_go/pkg/schema"
 )
 
 type Userer interface {

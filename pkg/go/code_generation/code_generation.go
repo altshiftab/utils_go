@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	codeGenerationErrors "github.com/Motmedel/utils_go/pkg/go/code_generation/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	codeGenerationErrors "github.com/altshiftab/utils_go/pkg/go/code_generation/errors"
 )
 
 var defaultPackagePath = "main"

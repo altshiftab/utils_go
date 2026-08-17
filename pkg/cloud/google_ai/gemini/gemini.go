@@ -6,15 +6,15 @@ import (
 	"net/http"
 	"net/url"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/gemini_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/generate_content_request"
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/generate_content_response"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/gemini_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/generate_content_request"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/generate_content_response"
 )
 
 const Domain = "generativelanguage.googleapis.com"

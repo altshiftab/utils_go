@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/netip"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // ipv4Format requires a valid IPv4 address.

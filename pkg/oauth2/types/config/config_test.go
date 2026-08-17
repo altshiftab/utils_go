@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
-	oauth2Errors "github.com/Motmedel/utils_go/pkg/oauth2/errors"
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/auth_code_option"
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/endpoint"
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/token"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	oauth2Errors "github.com/altshiftab/utils_go/pkg/oauth2/errors"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/auth_code_option"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/endpoint"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/token"
 )
 
 // capturedRequest records the parts of a token-endpoint request the tests assert on.

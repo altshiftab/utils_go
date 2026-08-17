@@ -8,13 +8,13 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/gemini_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/candidate"
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/content"
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/generate_content_request"
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/generate_content_response"
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/generation_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/part"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/gemini_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/candidate"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/content"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/generate_content_request"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/generate_content_response"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/generation_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/part"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {

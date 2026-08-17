@@ -16,12 +16,12 @@ import (
 	jsonv2 "encoding/json/v2"
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	_ "github.com/Motmedel/utils_go/pkg/json/schema/draft202012"
-	_ "github.com/Motmedel/utils_go/pkg/json/schema/format"
-	"github.com/Motmedel/utils_go/pkg/json/schema/types"
-	motmedelReflect "github.com/Motmedel/utils_go/pkg/reflect"
-	typeExportJsonschema "github.com/Motmedel/utils_go/pkg/type_export/jsonschema"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	_ "github.com/altshiftab/utils_go/pkg/json/schema/draft202012"
+	_ "github.com/altshiftab/utils_go/pkg/json/schema/format"
+	"github.com/altshiftab/utils_go/pkg/json/schema/types"
+	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	typeExportJsonschema "github.com/altshiftab/utils_go/pkg/type_export/jsonschema"
 )
 
 // Schema is a JSON schema.

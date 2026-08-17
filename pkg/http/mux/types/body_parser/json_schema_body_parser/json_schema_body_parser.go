@@ -7,16 +7,16 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/body_parser"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/body_parser/json_body_parser"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail/problem_detail_config"
-	motmedelJsonSchema "github.com/Motmedel/utils_go/pkg/json/schema"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_parser"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_parser/json_body_parser"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
+	motmedelJsonSchema "github.com/altshiftab/utils_go/pkg/json/schema"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 var jsonMapBodyParser = json_body_parser.New[map[string]any]()

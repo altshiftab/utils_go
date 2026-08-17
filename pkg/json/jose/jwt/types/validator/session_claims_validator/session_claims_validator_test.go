@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/interfaces/comparer"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/interfaces/comparer"
 )
 
 // mockComparer is a test comparer that returns a predefined result.

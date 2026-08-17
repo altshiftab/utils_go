@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	csp "github.com/Motmedel/utils_go/pkg/http/types/content_security_policy"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	csp "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 )
 
 // trustedTypePolicyNameKind is the kind of trusted-types expression that names a policy, as opposed

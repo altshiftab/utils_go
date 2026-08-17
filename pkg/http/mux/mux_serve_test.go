@@ -9,13 +9,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	endpointPkg "github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/firewall_verdict"
-	muxTypesMiddleware "github.com/Motmedel/utils_go/pkg/http/mux/types/middleware"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser"
-	muxResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	muxResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
+	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/firewall_verdict"
+	muxTypesMiddleware "github.com/altshiftab/utils_go/pkg/http/mux/types/middleware"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
+	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 )
 
 var errMissingContextValue = errors.New("missing context value")

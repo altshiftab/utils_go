@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"reflect"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // setDefault sets a location in the instance to its default value.

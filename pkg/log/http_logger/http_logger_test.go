@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/log/entry_size_guard"
-	"github.com/Motmedel/utils_go/pkg/log/http_logger/http_logger_config"
+	"github.com/altshiftab/utils_go/pkg/log/entry_size_guard"
+	"github.com/altshiftab/utils_go/pkg/log/http_logger/http_logger_config"
 )
 
 func logRecord(t *testing.T, buffer *bytes.Buffer) map[string]any {

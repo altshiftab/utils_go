@@ -3,7 +3,7 @@ package authenticated_token_config
 import (
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
 )
 
 type stubVerifier struct{}

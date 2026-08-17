@@ -4,9 +4,9 @@ import (
 	jsonv2 "encoding/json/v2"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/types/integrity_policy"
-	"github.com/Motmedel/utils_go/pkg/http/types/reporting_api"
-	motmedelJsonSchema "github.com/Motmedel/utils_go/pkg/json/schema"
+	"github.com/altshiftab/utils_go/pkg/http/types/integrity_policy"
+	"github.com/altshiftab/utils_go/pkg/http/types/reporting_api"
+	motmedelJsonSchema "github.com/altshiftab/utils_go/pkg/json/schema"
 )
 
 // A report is serialized by the browser, so the schema has to take what engines actually send.

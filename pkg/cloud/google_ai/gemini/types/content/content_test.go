@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/google_ai/gemini/types/part"
+	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/part"
 )
 
 func TestNewText(t *testing.T) {

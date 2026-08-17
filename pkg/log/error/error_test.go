@@ -10,8 +10,8 @@ import (
 	"os/exec"
 	"testing"
 
-	context2 "github.com/Motmedel/utils_go/pkg/context"
-	logerror "github.com/Motmedel/utils_go/pkg/log/error"
+	context2 "github.com/altshiftab/utils_go/pkg/context"
+	logerror "github.com/altshiftab/utils_go/pkg/log/error"
 )
 
 var (

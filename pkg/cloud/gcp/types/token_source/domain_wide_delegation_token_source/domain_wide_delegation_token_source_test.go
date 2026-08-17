@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/token"
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/token_source"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/token"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/token_source"
 )
 
 // errNoToken is returned by errTokenSource.Token to short-circuit the OAuth

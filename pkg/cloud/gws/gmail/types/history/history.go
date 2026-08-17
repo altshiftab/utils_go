@@ -1,7 +1,7 @@
 package history
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/types/message"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
 )
 
 type MessageChange struct {

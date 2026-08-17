@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 
-	motmedelEnvErrors "github.com/Motmedel/utils_go/pkg/env/errors"
+	motmedelEnvErrors "github.com/altshiftab/utils_go/pkg/env/errors"
 )
 
 func TestGetEnvWithDefault_Set(t *testing.T) {

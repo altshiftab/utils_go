@@ -9,9 +9,9 @@ import (
 	"net/url"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/json/schema/internal/validator"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/json/schema/internal/validator"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // resolvedRefKeyword is a special Keyword used to record what a

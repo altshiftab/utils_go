@@ -15,8 +15,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/abnf"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // Options holds the settings of a lint run.

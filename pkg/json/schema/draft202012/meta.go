@@ -8,8 +8,8 @@ import (
 	"embed"
 	"net/url"
 
-	"github.com/Motmedel/utils_go/pkg/json/schema/internal/metaschema"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	"github.com/altshiftab/utils_go/pkg/json/schema/internal/metaschema"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 //go:embed metaschema/*.json metaschema/*/*.json

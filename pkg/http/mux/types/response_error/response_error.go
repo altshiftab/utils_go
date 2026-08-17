@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	muxErrors "github.com/Motmedel/utils_go/pkg/http/mux/errors"
-	muxTypesResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
+	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 type ResponseErrorType int

@@ -12,8 +12,8 @@ import (
 	"go/format"
 	"os"
 
-	"github.com/Motmedel/utils_go/pkg/json/schema/internal/argtype"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	"github.com/altshiftab/utils_go/pkg/json/schema/internal/argtype"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 type keyword struct {
@@ -33,7 +33,7 @@ package validator
 import (
 	"fmt"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 `
 

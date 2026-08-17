@@ -12,10 +12,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
-	"github.com/Motmedel/utils_go/pkg/cose"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	webauthnErrors "github.com/Motmedel/utils_go/pkg/webauthn/errors"
+	"github.com/altshiftab/utils_go/pkg/cbor"
+	"github.com/altshiftab/utils_go/pkg/cose"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	webauthnErrors "github.com/altshiftab/utils_go/pkg/webauthn/errors"
 )
 
 const (

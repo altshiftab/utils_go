@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/json/schema/draft202012"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	"github.com/altshiftab/utils_go/pkg/json/schema/draft202012"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // mustUnmarshal parses schemaJSON into a resolved schema.

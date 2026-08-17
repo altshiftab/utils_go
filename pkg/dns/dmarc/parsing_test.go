@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestParseDmarcRecord(t *testing.T) {

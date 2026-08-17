@@ -1,7 +1,7 @@
 package asset_list
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/asset"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/asset"
 )
 
 type AssetList struct {

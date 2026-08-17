@@ -13,13 +13,13 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/type_export/types/generic_type_info"
-	"github.com/Motmedel/utils_go/pkg/type_export/types/shape"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/generic_type_info"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/shape"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelReflect "github.com/Motmedel/utils_go/pkg/reflect"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
 )
 
 var (

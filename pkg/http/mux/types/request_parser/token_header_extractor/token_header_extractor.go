@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/header_extractor"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/header_extractor/header_extractor_config"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/token_header_extractor/token_header_extractor_config"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/header_extractor"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/header_extractor/header_extractor_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/token_header_extractor/token_header_extractor_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 )
 
 type Parser struct {

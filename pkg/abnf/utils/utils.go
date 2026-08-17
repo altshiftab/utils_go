@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/abnf"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
 func ExtractPathValue(input []byte, path *abnf.Path) []byte {

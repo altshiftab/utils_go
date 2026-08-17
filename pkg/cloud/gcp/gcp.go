@@ -9,17 +9,17 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/gcp_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/credentials_file"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/token_source/authorized_user_token_source"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/token_source/metadata_token_source"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/token_source/service_account_token_source"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/token_source"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/gcp_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/credentials_file"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/authorized_user_token_source"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/metadata_token_source"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/service_account_token_source"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/token_source"
 )
 
 const (

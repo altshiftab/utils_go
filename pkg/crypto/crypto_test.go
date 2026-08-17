@@ -13,7 +13,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
 func mustGenerateRsaKey(t *testing.T) *rsa.PrivateKey {

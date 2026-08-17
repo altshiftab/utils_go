@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"testing"
 
-	motmedelTlsContext "github.com/Motmedel/utils_go/pkg/tls/context"
-	motmedelTlsTypes "github.com/Motmedel/utils_go/pkg/tls/types"
+	motmedelTlsContext "github.com/altshiftab/utils_go/pkg/tls/context"
+	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
 )
 
 func TestParseTlsContextNil(t *testing.T) {

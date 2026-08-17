@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	motmedelHttpErrors "github.com/Motmedel/utils_go/pkg/http/errors"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config/retry_config"
+	motmedelHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config/retry_config"
 )
 
 // serve starts an httptest server that is closed when the test ends.

@@ -11,17 +11,17 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/query_extractor/query_extractor_config"
-	queryTag "github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/query_extractor/tag"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail/problem_detail_config"
-	motmedelJsonTag "github.com/Motmedel/utils_go/pkg/json/types/tag"
-	motmedelReflect "github.com/Motmedel/utils_go/pkg/reflect"
-	motmedelReflectErrors "github.com/Motmedel/utils_go/pkg/reflect/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/query_extractor/query_extractor_config"
+	queryTag "github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/query_extractor/tag"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
+	motmedelJsonTag "github.com/altshiftab/utils_go/pkg/json/types/tag"
+	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	motmedelReflectErrors "github.com/altshiftab/utils_go/pkg/reflect/errors"
 )
 
 var uuidRegexp = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)

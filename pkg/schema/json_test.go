@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/net/types/domain_parts"
+	"github.com/altshiftab/utils_go/pkg/net/types/domain_parts"
 )
 
 // marshalToMap marshals v and unmarshals the result into a generic map so that

@@ -16,13 +16,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/credentials_file"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/token_response"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config"
-	"github.com/Motmedel/utils_go/pkg/http/utils"
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/token"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/credentials_file"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_response"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/http/utils"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/token"
 )
 
 func parsePrivateKey(pemData string) (*rsa.PrivateKey, error) {

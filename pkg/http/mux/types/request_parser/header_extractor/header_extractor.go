@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelHttpErrors "github.com/Motmedel/utils_go/pkg/http/errors"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/header_extractor/header_extractor_config"
-	muxResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail/problem_detail_config"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/header_extractor/header_extractor_config"
+	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 type Parser struct {

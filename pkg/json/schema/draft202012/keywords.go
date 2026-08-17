@@ -9,8 +9,8 @@ package draft202012
 import (
 	"cmp"
 
-	"github.com/Motmedel/utils_go/pkg/json/schema/internal/validator"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	"github.com/altshiftab/utils_go/pkg/json/schema/internal/validator"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 var _ = validator.ValidateTrue // avoid warning if we don't use validator below

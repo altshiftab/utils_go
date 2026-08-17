@@ -3,7 +3,7 @@ package type_declaration
 import (
 	"reflect"
 
-	"github.com/Motmedel/utils_go/pkg/type_export/types/generic_type_info"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/generic_type_info"
 )
 
 type PropertySignature struct {

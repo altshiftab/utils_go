@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config/retry_config/response_checker"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config/retry_config/response_checker"
 )
 
 var DefaultResponseChecker = response_checker.New(

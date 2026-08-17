@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
-	abnfUtils "github.com/Motmedel/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/abnf"
+	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 //go:embed grammar.abnf

@@ -4,11 +4,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/crypto/hmac"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelJwtToken "github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token/authenticated_token/authenticated_token_config"
+	"github.com/altshiftab/utils_go/pkg/crypto/hmac"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelJwtToken "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token/authenticated_token_config"
 )
 
 func newHmac(t *testing.T, algorithm string, secret string) *hmac.Method {

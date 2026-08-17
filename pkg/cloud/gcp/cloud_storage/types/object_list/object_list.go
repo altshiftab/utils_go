@@ -1,7 +1,7 @@
 package object_list
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_storage/types/object"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/object"
 )
 
 type ObjectList struct {

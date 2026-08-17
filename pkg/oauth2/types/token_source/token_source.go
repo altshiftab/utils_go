@@ -3,7 +3,7 @@ package token_source
 import (
 	"sync"
 
-	oauth2Token "github.com/Motmedel/utils_go/pkg/oauth2/types/token"
+	oauth2Token "github.com/altshiftab/utils_go/pkg/oauth2/types/token"
 )
 
 type TokenSource interface {

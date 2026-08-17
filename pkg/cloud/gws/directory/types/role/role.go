@@ -1,6 +1,6 @@
 package role
 
-import "github.com/Motmedel/utils_go/pkg/cloud/gws/directory/types/role/role_privilege"
+import "github.com/altshiftab/utils_go/pkg/cloud/gws/directory/types/role/role_privilege"
 
 type Role struct {
 	Kind string `json:"kind,omitempty"`

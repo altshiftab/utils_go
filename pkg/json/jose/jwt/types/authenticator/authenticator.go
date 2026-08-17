@@ -4,17 +4,17 @@ import (
 	"context"
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelJwkErrors "github.com/Motmedel/utils_go/pkg/json/jose/jwk/errors"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwk/types/key_handler"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/authenticator/authenticator_config"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/authenticator/authenticator_with_key_handler_config"
-	motmedelJwkToken "github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token/authenticated_token"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token/authenticated_token/authenticated_token_config"
-	motmedelJwtValidator "github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/validator"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/authenticator/authenticator_config"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/authenticator/authenticator_with_key_handler_config"
+	motmedelJwkToken "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token/authenticated_token_config"
+	motmedelJwtValidator "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/validator"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Authenticator struct {

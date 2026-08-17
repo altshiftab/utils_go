@@ -9,12 +9,12 @@ import (
 	"encoding/asn1"
 	"fmt"
 
-	"github.com/Motmedel/utils_go/pkg/cose"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/empty_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/mismatch_error"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	webauthnErrors "github.com/Motmedel/utils_go/pkg/webauthn/errors"
+	"github.com/altshiftab/utils_go/pkg/cose"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	webauthnErrors "github.com/altshiftab/utils_go/pkg/webauthn/errors"
 )
 
 // AttestationType is the type of attestation conveyed by a verified attestation statement

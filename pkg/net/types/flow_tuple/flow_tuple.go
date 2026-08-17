@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net"
 
-	motmedelNet "github.com/Motmedel/utils_go/pkg/net"
+	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
 )
 
 var icmpV4PortEquivalents = map[uint8]uint8{

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	csp "github.com/Motmedel/utils_go/pkg/http/types/content_security_policy"
+	csp "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 )
 
 func sourceStrings(sources []csp.SourceI) []string {

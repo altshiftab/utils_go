@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
-	"github.com/Motmedel/utils_go/pkg/abnf/minify"
+	"github.com/altshiftab/utils_go/pkg/abnf"
+	"github.com/altshiftab/utils_go/pkg/abnf/minify"
 )
 
 // transformRuleIds names the check that each simplifying transform answers

@@ -1,8 +1,8 @@
 package context_logger
 
 import (
-	motmedelLog "github.com/Motmedel/utils_go/pkg/log"
-	motmedelLogHandler "github.com/Motmedel/utils_go/pkg/log/handler"
+	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	motmedelLogHandler "github.com/altshiftab/utils_go/pkg/log/handler"
 	"log/slog"
 )
 

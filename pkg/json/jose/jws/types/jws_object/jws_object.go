@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/crypto/interfaces"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jws"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	"github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jws"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 // TODO: Not sure whether I should be exporting like this.

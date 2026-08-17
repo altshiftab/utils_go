@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"math/big"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelJwkErrors "github.com/Motmedel/utils_go/pkg/json/jose/jwk/errors"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 func curveFromCrv(crv string) elliptic.Curve {

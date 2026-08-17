@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/schema"
-	motmedelTlsTypes "github.com/Motmedel/utils_go/pkg/tls/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/schema"
+	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
 )
 
 type HttpContext struct {

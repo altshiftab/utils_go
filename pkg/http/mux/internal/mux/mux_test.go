@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	muxTypesResponseError "github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
+	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 )
 
 // checkResult asserts the shape of a ResponseError: wantServerError expects a

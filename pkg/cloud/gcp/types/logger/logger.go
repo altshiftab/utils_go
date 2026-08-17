@@ -4,7 +4,7 @@ import (
 	"io"
 	"log/slog"
 
-	motmedelLogHandler "github.com/Motmedel/utils_go/pkg/log/handler"
+	motmedelLogHandler "github.com/altshiftab/utils_go/pkg/log/handler"
 )
 
 func ReplaceAttr(groups []string, attr slog.Attr) slog.Attr {

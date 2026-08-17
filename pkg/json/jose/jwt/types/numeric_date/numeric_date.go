@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 var TimePrecision = time.Second

@@ -11,8 +11,8 @@ import (
 	"regexp"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelSbomTypes "github.com/Motmedel/utils_go/pkg/sbom/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
 )
 
 const (

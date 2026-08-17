@@ -9,8 +9,8 @@
 package format
 
 import (
-	"github.com/Motmedel/utils_go/pkg/json/schema/internal/validator"
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	"github.com/altshiftab/utils_go/pkg/json/schema/internal/validator"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // init registers the defined formats.

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/types/fetch_config/retry_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config/retry_config"
 )
 
 func TestNewDefaults(t *testing.T) {

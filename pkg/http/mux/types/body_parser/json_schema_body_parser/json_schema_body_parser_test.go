@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelJsonSchema "github.com/Motmedel/utils_go/pkg/json/schema"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelJsonSchema "github.com/altshiftab/utils_go/pkg/json/schema"
 )
 
 type payload struct {

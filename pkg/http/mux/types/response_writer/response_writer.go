@@ -7,16 +7,16 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelContext "github.com/Motmedel/utils_go/pkg/context"
-	motmedelGzip "github.com/Motmedel/utils_go/pkg/encoding/gzip"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	muxErrors "github.com/Motmedel/utils_go/pkg/http/mux/errors"
-	muxTypesResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	"github.com/Motmedel/utils_go/pkg/http/types/content_type"
-	motmedelHttpUtils "github.com/Motmedel/utils_go/pkg/http/utils"
+	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
+	motmedelGzip "github.com/altshiftab/utils_go/pkg/encoding/gzip"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
+	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/content_type"
+	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const (

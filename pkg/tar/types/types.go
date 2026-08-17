@@ -4,7 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"fmt"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"io"
 	"path/filepath"
 	"strings"

@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
-	"github.com/Motmedel/utils_go/pkg/abnf/minify"
+	"github.com/altshiftab/utils_go/pkg/abnf"
+	"github.com/altshiftab/utils_go/pkg/abnf/minify"
 )
 
 // Rule names of the ABNF grammar of ABNF, as they appear in the MatchRule of

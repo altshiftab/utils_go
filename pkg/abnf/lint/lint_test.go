@@ -8,9 +8,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/abnf"
-	"github.com/Motmedel/utils_go/pkg/abnf/minify"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/abnf"
+	"github.com/altshiftab/utils_go/pkg/abnf/minify"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // ruleIds returns the checks the findings answer to, in order.
@@ -168,8 +168,8 @@ func TestLint(t *testing.T) {
 			expected: []RuleId{RuleIdJoinableLiterals, RuleIdUnreferencedRule},
 		},
 		{
-			name:     "incremental alternative is folded",
-			input:    "root=\"a\"\r\nother=root\r\nroot=/\"b\"\r\n",
+			name:  "incremental alternative is folded",
+			input: "root=\"a\"\r\nother=root\r\nroot=/\"b\"\r\n",
 			expected: []RuleId{
 				RuleIdIncrementalAlternative,
 				RuleIdUnreferencedRule,

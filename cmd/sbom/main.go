@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelSbom "github.com/Motmedel/utils_go/pkg/sbom"
-	motmedelSbomTypes "github.com/Motmedel/utils_go/pkg/sbom/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelSbom "github.com/altshiftab/utils_go/pkg/sbom"
+	motmedelSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
 )
 
 func run() error {

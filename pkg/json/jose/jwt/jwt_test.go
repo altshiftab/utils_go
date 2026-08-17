@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	jwtErrors "github.com/Motmedel/utils_go/pkg/json/jose/jwt/errors"
+	jwtErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwt/errors"
 )
 
 func TestValidateExpiresAt(t *testing.T) {

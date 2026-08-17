@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	jwtErrors "github.com/Motmedel/utils_go/pkg/json/jose/jwt/errors"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/numeric_date"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/token"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/validator/registered_claims_validator"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	jwtErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwt/errors"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/numeric_date"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/validator/registered_claims_validator"
 )
 
 var errStub = errors.New("stub validator error")

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"regexp/syntax"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // regexFormat requires a valid regex.

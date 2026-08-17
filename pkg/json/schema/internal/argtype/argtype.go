@@ -9,7 +9,7 @@ package argtype
 import (
 	"fmt"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // nameToString maps [types.ArgType] to a name used in generated

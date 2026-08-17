@@ -3,8 +3,8 @@ package types
 import (
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelUtils "github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelUtils "github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Type interface {

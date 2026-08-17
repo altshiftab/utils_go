@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/cookie_extractor"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/cookie_extractor/cookie_extractor_config"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/token_cookie_extractor/token_cookie_extractor_config"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/cookie_extractor"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/cookie_extractor/cookie_extractor_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/token_cookie_extractor/token_cookie_extractor_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 )
 
 type Parser struct {

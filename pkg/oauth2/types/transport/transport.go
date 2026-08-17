@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/token_source"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/token_source"
 )
 
 // Transport is an http.RoundTripper that makes OAuth2-authenticated requests.

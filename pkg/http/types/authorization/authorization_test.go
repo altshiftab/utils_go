@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
-	"github.com/Motmedel/utils_go/pkg/testing/cmp"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/testing/cmp"
 )
 
 func TestParseAuthorization(t *testing.T) {

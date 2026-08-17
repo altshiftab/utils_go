@@ -3,7 +3,7 @@ package context
 import (
 	"context"
 
-	"github.com/Motmedel/utils_go/pkg/whois/types"
+	"github.com/altshiftab/utils_go/pkg/whois/types"
 )
 
 type contextType struct{}

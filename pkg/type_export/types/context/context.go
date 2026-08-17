@@ -7,14 +7,14 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	typeExportErrors "github.com/Motmedel/utils_go/pkg/type_export/errors"
-	"github.com/Motmedel/utils_go/pkg/type_export/internal/generic_type_info"
-	"github.com/Motmedel/utils_go/pkg/type_export/types/shape"
-	"github.com/Motmedel/utils_go/pkg/type_export/types/type_declaration"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	typeExportErrors "github.com/altshiftab/utils_go/pkg/type_export/errors"
+	"github.com/altshiftab/utils_go/pkg/type_export/internal/generic_type_info"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/shape"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelReflect "github.com/Motmedel/utils_go/pkg/reflect"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
 )
 
 var nonNumberPrimitiveKinds = map[reflect.Kind]bool{

@@ -2,10 +2,10 @@ package error_logger
 
 import (
 	"fmt"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelLog "github.com/Motmedel/utils_go/pkg/log"
-	motmedelContextLogger "github.com/Motmedel/utils_go/pkg/log/context_logger"
-	motmedelLogError "github.com/Motmedel/utils_go/pkg/log/error"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	motmedelContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
+	motmedelLogError "github.com/altshiftab/utils_go/pkg/log/error"
 	"log/slog"
 )
 

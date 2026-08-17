@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelNetErrors "github.com/Motmedel/utils_go/pkg/net/errors"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelNetErrors "github.com/altshiftab/utils_go/pkg/net/errors"
 )
 
 const (

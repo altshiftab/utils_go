@@ -3,9 +3,9 @@ package typescript
 import (
 	"fmt"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	typeExportTypesContext "github.com/Motmedel/utils_go/pkg/type_export/types/context"
-	"github.com/Motmedel/utils_go/pkg/type_export/typescript/types"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	typeExportTypesContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
+	"github.com/altshiftab/utils_go/pkg/type_export/typescript/types"
 )
 
 func Convert(values ...any) (string, error) {

@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/types/http_context_extractor/http_context_extractor_config"
-	motmedelHttpContext "github.com/Motmedel/utils_go/pkg/http/context"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/http_context_extractor/http_context_extractor_config"
+	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 func TestNew(t *testing.T) {

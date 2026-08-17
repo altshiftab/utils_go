@@ -7,17 +7,17 @@ import (
 	"fmt"
 	"net/http"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/header_extractor"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
-	"github.com/Motmedel/utils_go/pkg/http/mux/utils/client_side_encryption/body_parser_config"
-	"github.com/Motmedel/utils_go/pkg/http/mux/utils/client_side_encryption/header_parser_config"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail"
-	"github.com/Motmedel/utils_go/pkg/http/types/problem_detail/problem_detail_config"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwe"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwk/types/key"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/header_extractor"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/utils/client_side_encryption/body_parser_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/utils/client_side_encryption/header_parser_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwe"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type HeaderParser struct {

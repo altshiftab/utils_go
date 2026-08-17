@@ -1,3 +1,3 @@
-module github.com/Motmedel/utils_go
+module github.com/altshiftab/utils_go
 
 go 1.26

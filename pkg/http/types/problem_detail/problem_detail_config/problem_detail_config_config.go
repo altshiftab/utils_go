@@ -1,6 +1,6 @@
 package problem_detail_config
 
-import "github.com/Motmedel/utils_go/pkg/uuid"
+import "github.com/altshiftab/utils_go/pkg/uuid"
 
 type Config struct {
 	Type      string

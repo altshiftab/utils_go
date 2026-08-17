@@ -1,8 +1,8 @@
 package message_part
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/types/message/message_part/body"
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/gmail/types/message/message_part/header"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message/message_part/body"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message/message_part/header"
 )
 
 type MessagePart struct {

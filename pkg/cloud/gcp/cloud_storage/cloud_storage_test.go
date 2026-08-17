@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_storage/cloud_storage_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_storage/types/bucket"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_storage/types/object"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/cloud_storage/types/object_list"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/cloud_storage_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/bucket"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/object"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/object_list"
 )
 
 // fakeSigner records the payload it was asked to sign and returns a fixed signature.

@@ -4,7 +4,7 @@ import (
 	stdContext "context"
 	"testing"
 
-	motmedelTlsTypes "github.com/Motmedel/utils_go/pkg/tls/types"
+	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
 )
 
 func TestWithTlsContextValue(t *testing.T) {

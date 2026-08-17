@@ -7,15 +7,15 @@ import (
 	"slices"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelReflect "github.com/Motmedel/utils_go/pkg/reflect"
-	typeExportErrors "github.com/Motmedel/utils_go/pkg/type_export/errors"
-	postgresErrors "github.com/Motmedel/utils_go/pkg/type_export/postgres/errors"
-	"github.com/Motmedel/utils_go/pkg/type_export/postgres/types/tag"
-	typeExportContext "github.com/Motmedel/utils_go/pkg/type_export/types/context"
-	"github.com/Motmedel/utils_go/pkg/type_export/types/type_declaration"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	typeExportErrors "github.com/altshiftab/utils_go/pkg/type_export/errors"
+	postgresErrors "github.com/altshiftab/utils_go/pkg/type_export/postgres/errors"
+	"github.com/altshiftab/utils_go/pkg/type_export/postgres/types/tag"
+	typeExportContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 // TODO: Move.

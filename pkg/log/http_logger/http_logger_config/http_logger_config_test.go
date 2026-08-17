@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"testing"
 
-	gcpHttpContextExtractor "github.com/Motmedel/utils_go/pkg/cloud/gcp/types/http_context_extractor"
-	"github.com/Motmedel/utils_go/pkg/http/types/http_context_extractor"
+	gcpHttpContextExtractor "github.com/altshiftab/utils_go/pkg/cloud/gcp/types/http_context_extractor"
+	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor"
 )
 
 func TestNew(t *testing.T) {

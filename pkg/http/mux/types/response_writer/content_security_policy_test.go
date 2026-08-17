@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	muxTypesResponse "github.com/Motmedel/utils_go/pkg/http/mux/types/response"
+	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 )
 
 const testInlineScriptHash = "sha256-L2121qypPdYD4EOJ6AR1Amd2YKHYClryjHjORJFpR7U="

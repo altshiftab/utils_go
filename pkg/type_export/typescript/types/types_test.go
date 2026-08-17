@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/type_export/types/shape"
-	"github.com/Motmedel/utils_go/pkg/type_export/types/type_declaration"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/shape"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
 
-	typeExportContext "github.com/Motmedel/utils_go/pkg/type_export/types/context"
+	typeExportContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
 )
 
 type genericValue[V any] struct {

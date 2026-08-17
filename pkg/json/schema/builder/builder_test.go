@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Motmedel/utils_go/pkg/json/schema/builder"
-	"github.com/Motmedel/utils_go/pkg/json/schema/draft202012"
+	"github.com/altshiftab/utils_go/pkg/json/schema/builder"
+	"github.com/altshiftab/utils_go/pkg/json/schema/draft202012"
 )
 
 type basicStruct struct {

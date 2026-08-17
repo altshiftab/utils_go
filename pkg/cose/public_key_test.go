@@ -13,7 +13,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cbor"
+	"github.com/altshiftab/utils_go/pkg/cbor"
 )
 
 // The COSE_Key embedded in the attested credential data of a real WebAuthn registration, and the

@@ -9,7 +9,7 @@ package validator
 import (
 	"fmt"
 
-	schema "github.com/Motmedel/utils_go/pkg/json/schema/types"
+	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
 
 // ArgTypeBool converts a validator function that accepts

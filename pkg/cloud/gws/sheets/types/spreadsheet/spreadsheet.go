@@ -1,7 +1,7 @@
 package spreadsheet
 
 import (
-	"github.com/Motmedel/utils_go/pkg/cloud/gws/sheets/types/spreadsheet/sheet"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/sheets/types/spreadsheet/sheet"
 )
 
 type Spreadsheet struct {

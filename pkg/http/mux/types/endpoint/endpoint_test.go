@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/endpoint/static_content"
-	motmedelHttpTypes "github.com/Motmedel/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
+	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 func cacheControlValue(endpoint *Endpoint) string {

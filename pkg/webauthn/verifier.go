@@ -7,15 +7,15 @@ import (
 	"crypto/rsa"
 	"fmt"
 
-	"github.com/Motmedel/utils_go/pkg/cose"
-	motmedelCrypto "github.com/Motmedel/utils_go/pkg/crypto"
-	motmedelEcdsa "github.com/Motmedel/utils_go/pkg/crypto/ecdsa"
-	motmedelEddsa "github.com/Motmedel/utils_go/pkg/crypto/eddsa"
-	motmedelCryptoInterfaces "github.com/Motmedel/utils_go/pkg/crypto/interfaces"
-	motmedelRsa "github.com/Motmedel/utils_go/pkg/crypto/rsa"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	"github.com/altshiftab/utils_go/pkg/cose"
+	motmedelCrypto "github.com/altshiftab/utils_go/pkg/crypto"
+	motmedelEcdsa "github.com/altshiftab/utils_go/pkg/crypto/ecdsa"
+	motmedelEddsa "github.com/altshiftab/utils_go/pkg/crypto/eddsa"
+	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	motmedelRsa "github.com/altshiftab/utils_go/pkg/crypto/rsa"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 // NewVerifier returns a verifier for WebAuthn assertion signatures produced with the given COSE

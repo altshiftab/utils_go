@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/iam_credentials/iam_credentials_config"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/iam_credentials/types/sign_blob_request"
-	"github.com/Motmedel/utils_go/pkg/cloud/gcp/iam_credentials/types/sign_blob_response"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials/iam_credentials_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials/types/sign_blob_request"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials/types/sign_blob_response"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {

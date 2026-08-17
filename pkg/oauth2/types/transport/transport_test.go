@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	oauth2Token "github.com/Motmedel/utils_go/pkg/oauth2/types/token"
-	"github.com/Motmedel/utils_go/pkg/oauth2/types/token_source"
+	oauth2Token "github.com/altshiftab/utils_go/pkg/oauth2/types/token"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/token_source"
 )
 
 var errNoToken = errors.New("no token")

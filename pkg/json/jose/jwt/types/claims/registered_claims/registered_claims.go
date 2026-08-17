@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"maps"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/claim_strings"
-	"github.com/Motmedel/utils_go/pkg/json/jose/jwt/types/numeric_date"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/claim_strings"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/numeric_date"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Claims struct {

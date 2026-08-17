@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	oauth2Token "github.com/Motmedel/utils_go/pkg/oauth2/types/token"
+	oauth2Token "github.com/altshiftab/utils_go/pkg/oauth2/types/token"
 )
 
 var errBoom = errors.New("boom")

@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	context2 "github.com/Motmedel/utils_go/pkg/context"
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	motmedelStrings "github.com/Motmedel/utils_go/pkg/strings"
+	context2 "github.com/altshiftab/utils_go/pkg/context"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	motmedelStrings "github.com/altshiftab/utils_go/pkg/strings"
 )
 
 type ContextExtractor interface {

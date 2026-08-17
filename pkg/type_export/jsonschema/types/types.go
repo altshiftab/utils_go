@@ -6,15 +6,15 @@ import (
 	"reflect"
 	"strings"
 
-	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
-	"github.com/Motmedel/utils_go/pkg/errors/types/nil_error"
-	motmedelJsonTag "github.com/Motmedel/utils_go/pkg/json/types/tag"
-	motmedelReflect "github.com/Motmedel/utils_go/pkg/reflect"
-	typeExportErrors "github.com/Motmedel/utils_go/pkg/type_export/errors"
-	"github.com/Motmedel/utils_go/pkg/type_export/jsonschema/types/tag"
-	typeExportContext "github.com/Motmedel/utils_go/pkg/type_export/types/context"
-	"github.com/Motmedel/utils_go/pkg/type_export/types/type_declaration"
-	"github.com/Motmedel/utils_go/pkg/utils"
+	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	motmedelJsonTag "github.com/altshiftab/utils_go/pkg/json/types/tag"
+	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	typeExportErrors "github.com/altshiftab/utils_go/pkg/type_export/errors"
+	"github.com/altshiftab/utils_go/pkg/type_export/jsonschema/types/tag"
+	typeExportContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Context struct {

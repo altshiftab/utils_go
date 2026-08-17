@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/request_parser/url_allower/url_allower_config"
-	"github.com/Motmedel/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/url_allower/url_allower_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 )
 
 func urlParser(value string) request_parser.RequestParser[stringURL] {
