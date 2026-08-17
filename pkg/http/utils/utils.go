@@ -12,6 +12,7 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptrace"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -378,8 +379,12 @@ func FetchJson[U any](ctx context.Context, url string, options ...fetch_config.O
 		headers["Accept"] = "application/json"
 	}
 
-	options = append(options, fetch_config.WithHeaders(headers))
-	response, responseBody, err := Fetch(ctx, url, options...)
+	// The headers option is added to a copy. options is the caller's slice, and appending to it
+	// writes into the caller's array whenever that array has room to spare -- which it does as soon
+	// as a caller builds its options with make and spreads them here.
+	fetchOptions := append(slices.Clone(options), fetch_config.WithHeaders(headers))
+
+	response, responseBody, err := Fetch(ctx, url, fetchOptions...)
 	if err != nil {
 		return response, zero, fmt.Errorf("fetch: %w", err)
 	}
@@ -420,7 +425,8 @@ func FetchJsonWithBody[U any, T any](ctx context.Context, url string, bodyValue 
 			)
 		}
 
-		options = append(options, fetch_config.WithBody(requestBody))
+		// Added to a copy, the caller's array being the caller's; see FetchJson.
+		options = append(slices.Clone(options), fetch_config.WithBody(requestBody))
 	}
 
 	return FetchJson[U](ctx, url, options...)
