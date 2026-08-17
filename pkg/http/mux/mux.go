@@ -715,9 +715,16 @@ func produceResponse(
 		}
 	}
 
+	// A handler that produced a status of its own has answered the request. An endpoint can then
+	// carry static content and still respond with something else when the occasion calls for it --
+	// a redirect, say -- rather than having to choose between the two up front. A handler that
+	// produced no status is taken to be contributing headers to the static content instead, which
+	// is the arrangement further down.
+	handlerAnswered := response != nil && response.StatusCode != 0
+
 	// Respond with static content.
 	staticContent := endpoint.StaticContent
-	if staticContent != nil {
+	if staticContent != nil && !handlerAnswered {
 		var isCached bool
 		isCached, responseError = muxInternalMux.ObtainIsCached(staticContent, requestHeader)
 		if responseError != nil {
@@ -746,8 +753,9 @@ func produceResponse(
 	}
 
 	// If both a handler and static content are specified, the handler response headers are added to the static content
-	// response headers.
-	if handler != nil && staticContent != nil {
+	// response headers. When the handler answered, its response is already the one being returned,
+	// headers and all.
+	if handler != nil && staticContent != nil && !handlerAnswered {
 		response.Headers = append(response.Headers, handlerResponseHeaders...)
 	}
 
