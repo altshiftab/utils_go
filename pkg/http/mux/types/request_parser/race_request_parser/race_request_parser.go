@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/race_request_parser/race_request_parser_config"
@@ -23,7 +23,7 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 
 	if request == nil {
 		return zero, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("http request")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("http request")),
 		}
 	}
 

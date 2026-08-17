@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/json/schema/builder"
 	"github.com/altshiftab/utils_go/pkg/json/schema/internal/schemacache"
 	"github.com/altshiftab/utils_go/pkg/json/schema/jsonpointer"
@@ -288,7 +288,7 @@ func resolveID(subSchema *schema.Schema, value schema.PartValue, state *resolveS
 	arg := value.(schema.PartString)
 	uri, err := url.Parse(string(arg))
 	if err != nil {
-		return subInfo{}, motmedelErrors.NewWithTrace(
+		return subInfo{}, altshiftErrors.NewWithTrace(
 			fmt.Errorf(`%s: failed to parse "$id" %q: %w`, subData.Name(), arg, err),
 			string(arg),
 		)
@@ -390,7 +390,7 @@ func resolveRef(subSchema *schema.Schema, dynamic bool, value schema.PartValue, 
 	ref := string(value.(schema.PartString))
 	refURI, err := url.Parse(ref)
 	if err != nil {
-		return motmedelErrors.NewWithTrace(
+		return altshiftErrors.NewWithTrace(
 			fmt.Errorf("%s: failed to parse reference %q: %w", subData.Name(), ref, err),
 			ref,
 		)
@@ -519,7 +519,7 @@ func resolveURI(refURI *url.URL, state *resolveState, subData subInfo) (*schema.
 	// Load the schema remotely.
 	refSchema, err = state.ropts.Loader(SchemaID, noFragURI)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("%s: loading of URI %q failed: %w", subData.Name(), noFragURI, err),
 			noFragStr,
 		)

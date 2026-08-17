@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 func TestNew(t *testing.T) {
@@ -106,7 +106,7 @@ func TestNew(t *testing.T) {
 			name: "with security txt content",
 			options: []Option{
 				WithSecurityTxtContent(
-					&motmedelHttpTypes.SecurityTxt{Contacts: []string{"mailto:security@example.com"}},
+					&altshiftHttpTypes.SecurityTxt{Contacts: []string{"mailto:security@example.com"}},
 				),
 			},
 			check: func(t *testing.T, config *Config) {

@@ -10,8 +10,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 //go:embed grammar.abnf
@@ -23,16 +23,16 @@ var (
 	ErrInvalidQvalue = errors.New("invalid qvalue")
 )
 
-func Parse(data []byte) (*motmedelHttpTypes.AcceptEncoding, error) {
+func Parse(data []byte) (*altshiftHttpTypes.AcceptEncoding, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(Grammar, data, "Accept-Encoding")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
-	var acceptEncoding motmedelHttpTypes.AcceptEncoding
+	var acceptEncoding altshiftHttpTypes.AcceptEncoding
 
 	interestingPaths := abnfUtils.SearchPath(
 		paths[0],
@@ -46,8 +46,8 @@ func Parse(data []byte) (*motmedelHttpTypes.AcceptEncoding, error) {
 			false,
 		)
 		if codingsPath == nil {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, nil_error.New("codings path")),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, nil_error.New("codings path")),
 			)
 		}
 		codingsValue := abnfUtils.ExtractPathValue(data, codingsPath)
@@ -64,10 +64,10 @@ func Parse(data []byte) (*motmedelHttpTypes.AcceptEncoding, error) {
 			bitSize := 32
 			parsedQualityValue, err := strconv.ParseFloat(qvalueString, bitSize)
 			if err != nil {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf(
 						"%w: %w: strvconv parse float (qvalue): %w",
-						motmedelErrors.ErrSemanticError,
+						altshiftErrors.ErrSemanticError,
 						ErrInvalidQvalue,
 						err,
 					),
@@ -80,7 +80,7 @@ func Parse(data []byte) (*motmedelHttpTypes.AcceptEncoding, error) {
 
 		acceptEncoding.Encodings = append(
 			acceptEncoding.Encodings,
-			&motmedelHttpTypes.Encoding{Coding: string(codingsValue), QualityValue: qualityValue},
+			&altshiftHttpTypes.Encoding{Coding: string(codingsValue), QualityValue: qualityValue},
 		)
 	}
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	processorPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/processor"
 	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/utils"
@@ -35,12 +35,12 @@ func (p *RequestParserWithProcessor[T, U]) Parse(request *http.Request) (U, *mux
 
 	requestParser := p.RequestParser
 	if utils.IsNil(requestParser) {
-		return zero, &muxTypesResponseError.ResponseError{ServerError: motmedelErrors.NewWithTrace(nil_error.New("request parser"))}
+		return zero, &muxTypesResponseError.ResponseError{ServerError: altshiftErrors.NewWithTrace(nil_error.New("request parser"))}
 	}
 
 	processor := p.Processor
 	if utils.IsNil(processor) {
-		return zero, &muxTypesResponseError.ResponseError{ServerError: motmedelErrors.NewWithTrace(nil_error.New("processor"))}
+		return zero, &muxTypesResponseError.ResponseError{ServerError: altshiftErrors.NewWithTrace(nil_error.New("processor"))}
 	}
 
 	result, responseError := requestParser.Parse(request)

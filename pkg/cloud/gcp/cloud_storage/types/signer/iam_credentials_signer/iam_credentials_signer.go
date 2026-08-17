@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
@@ -24,11 +24,11 @@ type Signer struct {
 
 func New(client *iam_credentials.Client, email string, fetchOptions ...fetch_config.Option) (*Signer, error) {
 	if client == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("iam credentials client"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("iam credentials client"))
 	}
 
 	if email == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("email"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("email"))
 	}
 
 	return &Signer{client: client, email: email, fetchOptions: fetchOptions}, nil
@@ -41,12 +41,12 @@ func (s *Signer) Email() string {
 func (s *Signer) Sign(ctx context.Context, payload []byte) ([]byte, error) {
 	response, err := s.client.SignBlob(ctx, s.email, payload, s.fetchOptions...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("iam credentials sign blob: %w", err), s.email)
+		return nil, altshiftErrors.New(fmt.Errorf("iam credentials sign blob: %w", err), s.email)
 	}
 
 	signature, err := base64.StdEncoding.DecodeString(response.SignedBlob)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("base64 decode signed blob: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("base64 decode signed blob: %w", err))
 	}
 
 	return signature, nil

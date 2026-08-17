@@ -18,7 +18,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/credentials_file"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_response"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	"github.com/altshiftab/utils_go/pkg/http/utils"
@@ -28,28 +28,28 @@ import (
 func parsePrivateKey(pemData string) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode([]byte(pemData))
 	if block == nil {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.New("pem decode: no PEM block found"))
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.New("pem decode: no PEM block found"))
 	}
 
 	switch block.Type {
 	case "RSA PRIVATE KEY":
 		rsaKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("x509 parse pkcs1 private key: %w", err))
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("x509 parse pkcs1 private key: %w", err))
 		}
 		return rsaKey, nil
 	case "PRIVATE KEY":
 		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("x509 parse pkcs8 private key: %w", err))
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("x509 parse pkcs8 private key: %w", err))
 		}
 		rsaKey, ok := key.(*rsa.PrivateKey)
 		if !ok {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: %T", motmedelErrors.ErrUnexpectedType, key))
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %T", altshiftErrors.ErrUnexpectedType, key))
 		}
 		return rsaKey, nil
 	default:
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: unsupported PEM block type: %s", motmedelErrors.ErrUnexpectedType, block.Type))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: unsupported PEM block type: %s", altshiftErrors.ErrUnexpectedType, block.Type))
 	}
 }
 
@@ -81,7 +81,7 @@ func (s *TokenSource) Token() (*token.Token, error) {
 		"kid": s.privateKeyID,
 	})
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("json marshal (jwt header): %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json marshal (jwt header): %w", err))
 	}
 
 	claims := map[string]any{
@@ -99,7 +99,7 @@ func (s *TokenSource) Token() (*token.Token, error) {
 
 	claimsJSON, err := json.Marshal(claims)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("json marshal (jwt claims): %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json marshal (jwt claims): %w", err))
 	}
 
 	signingInput := base64.RawURLEncoding.EncodeToString(headerJSON) +
@@ -109,7 +109,7 @@ func (s *TokenSource) Token() (*token.Token, error) {
 	h := sha256.Sum256([]byte(signingInput))
 	signature, err := rsa.SignPKCS1v15(rand.Reader, s.privateKey, crypto.SHA256, h[:])
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("rsa sign pkcs1v15: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("rsa sign pkcs1v15: %w", err))
 	}
 
 	assertion := signingInput + "." + base64.RawURLEncoding.EncodeToString(signature)
@@ -132,10 +132,10 @@ func (s *TokenSource) Token() (*token.Token, error) {
 
 	_, tokenResponse, err := utils.FetchJson[*token_response.Response](s.ctx, s.tokenURI, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json: %w", err), s.tokenURI)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), s.tokenURI)
 	}
 	if tokenResponse == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("token response"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("token response"))
 	}
 
 	return tokenResponse.Token(), nil
@@ -175,16 +175,16 @@ func NewFromCredentialsFileWithSubject(
 	options ...fetch_config.Option,
 ) (*TokenSource, error) {
 	if tokenUrl == "" {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.New("token url"))
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.New("token url"))
 	}
 
 	if credentialsFile == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("credentials file"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("credentials file"))
 	}
 
 	rsaKey, err := parsePrivateKey(credentialsFile.PrivateKey)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("parse private key: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("parse private key: %w", err))
 	}
 
 	return &TokenSource{

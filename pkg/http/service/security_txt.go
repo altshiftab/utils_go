@@ -4,17 +4,17 @@ import (
 	"net/http"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	muxUtils "github.com/altshiftab/utils_go/pkg/http/mux/utils"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const (
@@ -37,13 +37,13 @@ func redirectEndpoint(path string, location string) *endpointPkg.Endpoint {
 }
 
 // patchSecurityTxtUrl points both security.txt paths at one served elsewhere.
-func patchSecurityTxtUrl(mux *motmedelMux.Mux, securityTxtUrl string) error {
+func patchSecurityTxtUrl(mux *altshiftMux.Mux, securityTxtUrl string) error {
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	if securityTxtUrl == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("security txt url"))
+		return altshiftErrors.NewWithTrace(empty_error.New("security txt url"))
 	}
 
 	mux.Add(
@@ -56,24 +56,24 @@ func patchSecurityTxtUrl(mux *motmedelMux.Mux, securityTxtUrl string) error {
 
 // patchSecurityTxt serves the security.txt at the well-known path RFC 9116 gives it, with the
 // path it had before the RFC redirecting there.
-func patchSecurityTxt(mux *motmedelMux.Mux, securityTxt *motmedelHttpTypes.SecurityTxt) error {
+func patchSecurityTxt(mux *altshiftMux.Mux, securityTxt *altshiftHttpTypes.SecurityTxt) error {
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	if securityTxt == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("security txt"))
+		return altshiftErrors.NewWithTrace(nil_error.New("security txt"))
 	}
 
 	securityTxtString := securityTxt.String()
 	if securityTxtString == "" {
 		// A security.txt renders as empty only when it names no contact, which is what it exists to
 		// say. Serving it would tell a reporter less than serving nothing.
-		return motmedelErrors.NewWithTrace(empty_error.NewWithInstance("contacts", "security txt"))
+		return altshiftErrors.NewWithTrace(empty_error.NewWithInstance("contacts", "security txt"))
 	}
 
 	data := []byte(securityTxtString)
-	etag := motmedelHttpUtils.MakeStrongEtag(data)
+	etag := altshiftHttpUtils.MakeStrongEtag(data)
 	lastModified := time.Now().UTC().Format(http.TimeFormat)
 
 	mux.Add(

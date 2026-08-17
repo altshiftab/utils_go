@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
@@ -59,7 +59,7 @@ func TestGetParsedDataPaths(t *testing.T) {
 			grammar:       grammar,
 			data:          nil,
 			rootRulename:  "root",
-			expectedError: motmedelErrors.ErrSyntaxError,
+			expectedError: altshiftErrors.ErrSyntaxError,
 		},
 		{
 			name:             "empty root rulename",

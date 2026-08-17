@@ -9,10 +9,10 @@ import (
 
 	gcpHttpContextExtractor "github.com/altshiftab/utils_go/pkg/cloud/gcp/types/http_context_extractor"
 	gcpLogger "github.com/altshiftab/utils_go/pkg/cloud/gcp/types/logger"
-	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
-	motmedelContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
+	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
+	altshiftContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
 	"github.com/altshiftab/utils_go/pkg/log/entry_size_guard"
-	motmedelErrorLogger "github.com/altshiftab/utils_go/pkg/log/error_logger"
+	altshiftErrorLogger "github.com/altshiftab/utils_go/pkg/log/error_logger"
 	"github.com/altshiftab/utils_go/pkg/log/http_logger/http_logger_config"
 )
 
@@ -20,7 +20,7 @@ import (
 // built from, and when. What a log says happened is worth little without knowing what was running.
 var buildSettingKeys = []string{"vcs.revision", "vcs.time"}
 
-func New(options ...http_logger_config.Option) *motmedelErrorLogger.Logger {
+func New(options ...http_logger_config.Option) *altshiftErrorLogger.Logger {
 	config := http_logger_config.New(options...)
 
 	writer := config.Writer
@@ -28,12 +28,12 @@ func New(options ...http_logger_config.Option) *motmedelErrorLogger.Logger {
 
 	httpContextExtractor := config.HttpContextExtractor
 
-	errorContextExtractor := &motmedelLog.ErrorContextExtractor{}
+	errorContextExtractor := &altshiftLog.ErrorContextExtractor{}
 	if httpContextExtractor != nil {
-		errorContextExtractor.ContextExtractors = []motmedelLog.ContextExtractor{httpContextExtractor}
+		errorContextExtractor.ContextExtractors = []altshiftLog.ContextExtractor{httpContextExtractor}
 	}
 
-	extractors := []motmedelLog.ContextExtractor{errorContextExtractor}
+	extractors := []altshiftLog.ContextExtractor{errorContextExtractor}
 	if httpContextExtractor != nil {
 		extractors = append(extractors, httpContextExtractor)
 	}
@@ -53,7 +53,7 @@ func New(options ...http_logger_config.Option) *motmedelErrorLogger.Logger {
 		extractors = append(extractors, gcpExtractor)
 	}
 
-	slogger := motmedelContextLogger.New(slog.NewJSONHandler(writer, handlerOptions), extractors...)
+	slogger := altshiftContextLogger.New(slog.NewJSONHandler(writer, handlerOptions), extractors...)
 
 	if buildInfo, ok := debug.ReadBuildInfo(); ok && buildInfo != nil {
 		var labelAttrs []any
@@ -70,5 +70,5 @@ func New(options ...http_logger_config.Option) *motmedelErrorLogger.Logger {
 		}
 	}
 
-	return &motmedelErrorLogger.Logger{Logger: slogger}
+	return &altshiftErrorLogger.Logger{Logger: slogger}
 }

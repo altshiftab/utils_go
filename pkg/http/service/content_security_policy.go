@@ -3,9 +3,9 @@ package service
 import (
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_writer"
 	csp "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 	cspUtils "github.com/altshiftab/utils_go/pkg/http/utils/content_security_policy"
@@ -30,20 +30,20 @@ const ApiContentSecurityPolicy = "default-src 'none'; base-uri 'none'; form-acti
 // must go through, what the browser reports -- is worth saying about a document, and a document is
 // what carries it.
 func patchContentSecurityPolicy(
-	mux *motmedelMux.Mux,
+	mux *altshiftMux.Mux,
 	patch func(*csp.ContentSecurityPolicy) error,
 ) error {
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	if patch == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("patch"))
+		return altshiftErrors.NewWithTrace(nil_error.New("patch"))
 	}
 
 	headers := mux.DefaultDocumentHeaders
 	if headers == nil {
-		return motmedelErrors.NewWithTrace(nil_error.NewWithInstance("map", "default document headers"))
+		return altshiftErrors.NewWithTrace(nil_error.NewWithInstance("map", "default document headers"))
 	}
 
 	contentSecurityPolicyString := headers[contentSecurityPolicyHeaderName]
@@ -53,13 +53,13 @@ func patchContentSecurityPolicy(
 
 	contentSecurityPolicy, err := csp.Parse([]byte(contentSecurityPolicyString))
 	if err != nil {
-		return motmedelErrors.New(
+		return altshiftErrors.New(
 			fmt.Errorf("content security policy parse: %w", err),
 			contentSecurityPolicyString,
 		)
 	}
 	if contentSecurityPolicy == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("content security policy"))
+		return altshiftErrors.NewWithTrace(nil_error.New("content security policy"))
 	}
 
 	if err := patch(contentSecurityPolicy); err != nil {
@@ -84,7 +84,7 @@ func patchContentSecurityPolicy(
 // whose bodies a hash source matches as it is. Edge's styles through style attributes, which a hash
 // source reaches only where 'unsafe-hashes' is permitted with it -- so that is permitted for Edge's
 // viewer alone, rather than for every service on the chance that it serves a PDF.
-func patchViewerStyleHashes(mux *motmedelMux.Mux, chromeXmlViewer bool, edgePdfViewer bool) error {
+func patchViewerStyleHashes(mux *altshiftMux.Mux, chromeXmlViewer bool, edgePdfViewer bool) error {
 	if !chromeXmlViewer && !edgePdfViewer {
 		return nil
 	}
@@ -130,7 +130,7 @@ func patchViewerStyleHashes(mux *motmedelMux.Mux, chromeXmlViewer bool, edgePdfV
 }
 
 // patchTrustedTypes requires the named trusted types policies of the scripts the documents run.
-func patchTrustedTypes(mux *motmedelMux.Mux, policies ...string) error {
+func patchTrustedTypes(mux *altshiftMux.Mux, policies ...string) error {
 	if len(policies) == 0 {
 		return nil
 	}
@@ -156,14 +156,14 @@ func patchTrustedTypes(mux *motmedelMux.Mux, policies ...string) error {
 // The policy for documents is left as it is, and replaces this one on a response that is one: a
 // service answering a request it will not serve answers with a problem detail, which a browser asks
 // for as XML and renders, and what a rendered document is answered with is said there.
-func patchApiContentSecurityPolicy(mux *motmedelMux.Mux) error {
+func patchApiContentSecurityPolicy(mux *altshiftMux.Mux) error {
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	defaultHeaders := mux.DefaultHeaders
 	if defaultHeaders == nil {
-		return motmedelErrors.NewWithTrace(nil_error.NewWithInstance("map", "default headers"))
+		return altshiftErrors.NewWithTrace(nil_error.NewWithInstance("map", "default headers"))
 	}
 
 	defaultHeaders[contentSecurityPolicyHeaderName] = ApiContentSecurityPolicy

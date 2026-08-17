@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
 	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	muxUtils "github.com/altshiftab/utils_go/pkg/http/mux/utils"
 	"github.com/altshiftab/utils_go/pkg/http/service/service_config"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 	cspUtils "github.com/altshiftab/utils_go/pkg/http/utils/content_security_policy"
 )
@@ -45,7 +45,7 @@ func staticContentEndpoint(path string, contentType string) *endpointPkg.Endpoin
 
 // staticContentData is what an endpoint of the mux serves as it is, and fails the test where the
 // endpoint is not one that does.
-func staticContentData(t *testing.T, mux *motmedelMux.Mux, path string) string {
+func staticContentData(t *testing.T, mux *altshiftMux.Mux, path string) string {
 	t.Helper()
 
 	endpoint := mux.Get(path, http.MethodGet)
@@ -574,7 +574,7 @@ func TestSecurityTxt(t *testing.T) {
 	service, err := New(
 		service_config.WithHost("example.com"),
 		service_config.WithSecurityTxtContent(
-			&motmedelHttpTypes.SecurityTxt{PreferredLanguages: []string{"sv", "en"}},
+			&altshiftHttpTypes.SecurityTxt{PreferredLanguages: []string{"sv", "en"}},
 		),
 	)
 	if err != nil {
@@ -613,7 +613,7 @@ func TestSecurityTxtExpiresIsKeptWhereConfigured(t *testing.T) {
 	service, err := New(
 		service_config.WithHost("example.com"),
 		service_config.WithSecurityTxtContent(
-			&motmedelHttpTypes.SecurityTxt{
+			&altshiftHttpTypes.SecurityTxt{
 				Contacts: []string{"mailto:security@elsewhere.example"},
 				Expires:  expires,
 			},

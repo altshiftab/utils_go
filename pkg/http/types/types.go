@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/schema"
-	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
+	altshiftTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
 )
 
 type HttpContext struct {
@@ -21,7 +21,7 @@ type HttpContext struct {
 	Response     *http.Response
 	ResponseBody []byte
 	Reporting    *schema.HttpReporting
-	TlsContext   *motmedelTlsTypes.TlsContext
+	TlsContext   *altshiftTlsTypes.TlsContext
 	User         *schema.User
 	Extra        []*HttpContext
 	LocalAddr    net.Addr
@@ -544,12 +544,12 @@ var ErrDirectiveNotPresent = errors.New("directive not present")
 func (cacheControl *CacheControl) deltaSeconds(name string) (int, error) {
 	directive := cacheControl.findDirective(name)
 	if directive == nil {
-		return 0, motmedelErrors.NewWithTrace(ErrDirectiveNotPresent)
+		return 0, altshiftErrors.NewWithTrace(ErrDirectiveNotPresent)
 	}
 
 	value, err := strconv.Atoi(directive.Value)
 	if err != nil {
-		return 0, motmedelErrors.NewWithTrace(fmt.Errorf("strconv atoi: %w", err), directive.Value)
+		return 0, altshiftErrors.NewWithTrace(fmt.Errorf("strconv atoi: %w", err), directive.Value)
 	}
 
 	return value, nil

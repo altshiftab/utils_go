@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/header_extractor"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
@@ -36,7 +36,7 @@ func (p *HeaderParser) Parse(request *http.Request) (*jwe.Encrypter, *response_e
 	var clientJwkMap map[string]any
 	if err := json.Unmarshal([]byte(clientJwkRaw), &clientJwkMap); err != nil {
 		return nil, &response_error.ResponseError{
-			ClientError: motmedelErrors.NewWithTrace(
+			ClientError: altshiftErrors.NewWithTrace(
 				fmt.Errorf("json unmarshal (client jwk): %w", err),
 				clientJwkRaw,
 			),
@@ -50,7 +50,7 @@ func (p *HeaderParser) Parse(request *http.Request) (*jwe.Encrypter, *response_e
 	clientJwk, err := key.New(clientJwkMap)
 	if err != nil {
 		return nil, &response_error.ResponseError{
-			ClientError: motmedelErrors.New(fmt.Errorf("key new (client jwk): %w", err), clientJwkMap),
+			ClientError: altshiftErrors.New(fmt.Errorf("key new (client jwk): %w", err), clientJwkMap),
 			ProblemDetail: problem_detail.New(
 				http.StatusBadRequest,
 				problem_detail_config.WithDetail("Invalid JWK header."),
@@ -69,7 +69,7 @@ func (p *HeaderParser) Parse(request *http.Request) (*jwe.Encrypter, *response_e
 	clientPublicKey, err := clientJwk.Material.PublicKey()
 	if err != nil {
 		return nil, &response_error.ResponseError{
-			ClientError: motmedelErrors.New(fmt.Errorf("public key (client jwk): %w", err), clientJwk),
+			ClientError: altshiftErrors.New(fmt.Errorf("public key (client jwk): %w", err), clientJwk),
 			ProblemDetail: problem_detail.New(
 				http.StatusBadRequest,
 				problem_detail_config.WithDetail("Malformed JWK key."),
@@ -80,7 +80,7 @@ func (p *HeaderParser) Parse(request *http.Request) (*jwe.Encrypter, *response_e
 	clientEcdsaPublicKey, ok := clientPublicKey.(*ecdsa.PublicKey)
 	if !ok {
 		return nil, &response_error.ResponseError{
-			ClientError: motmedelErrors.NewWithTrace(
+			ClientError: altshiftErrors.NewWithTrace(
 				fmt.Errorf("%w (client jwk): %T", jwe.ErrUnsupportedKeyType, clientPublicKey),
 			),
 			ProblemDetail: problem_detail.New(
@@ -93,7 +93,7 @@ func (p *HeaderParser) Parse(request *http.Request) (*jwe.Encrypter, *response_e
 	responseEncrypter, err := jwe.NewEncrypter(p.KeyAlgorithm, p.ContentEncryption, clientEcdsaPublicKey)
 	if err != nil {
 		return nil, &response_error.ResponseError{
-			ClientError: motmedelErrors.New(
+			ClientError: altshiftErrors.New(
 				fmt.Errorf("jwe new encrypter: %w", err),
 				clientEcdsaPublicKey,
 			),
@@ -141,7 +141,7 @@ func (p *BodyParser) Parse(_ *http.Request, body []byte) ([]byte, *response_erro
 	)
 	if err != nil {
 		return nil, &response_error.ResponseError{
-			ClientError: motmedelErrors.New(
+			ClientError: altshiftErrors.New(
 				fmt.Errorf("jwe parse compact: %w", err),
 				body, p.KeyAlgorithm, p.ContentEncryption,
 			),
@@ -163,9 +163,9 @@ func (p *BodyParser) Parse(_ *http.Request, body []byte) ([]byte, *response_erro
 
 	plaintext, err := encryption.Decrypt(p.PrivateKey)
 	if err != nil {
-		wrappedErr := motmedelErrors.New(fmt.Errorf("jwe decrypt: %w", err))
+		wrappedErr := altshiftErrors.New(fmt.Errorf("jwe decrypt: %w", err))
 
-		if errors.Is(err, motmedelErrors.ErrVerificationError) || errors.Is(err, motmedelErrors.ErrValidationError) {
+		if errors.Is(err, altshiftErrors.ErrVerificationError) || errors.Is(err, altshiftErrors.ErrValidationError) {
 			return nil, &response_error.ResponseError{
 				ClientError: wrappedErr,
 				ProblemDetail: problem_detail.New(
@@ -183,7 +183,7 @@ func (p *BodyParser) Parse(_ *http.Request, body []byte) ([]byte, *response_erro
 
 func NewBodyParser(privateKey any, options ...body_parser_config.Option) (*BodyParser, error) {
 	if utils.IsNil(privateKey) {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("private key"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("private key"))
 	}
 
 	config := body_parser_config.New(options...)

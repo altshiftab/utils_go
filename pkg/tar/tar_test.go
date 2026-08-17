@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"testing"
 
-	motmedelTarTypes "github.com/altshiftab/utils_go/pkg/tar/types"
+	altshiftTarTypes "github.com/altshiftab/utils_go/pkg/tar/types"
 )
 
 func writeTar(t *testing.T, files map[string][]byte) []byte {
@@ -99,20 +99,20 @@ func TestMakeArchiveFromData_Garbage(t *testing.T) {
 func TestMakeArchive_Filtering(t *testing.T) {
 	t.Parallel()
 
-	regular := &motmedelTarTypes.Entry{
+	regular := &altshiftTarTypes.Entry{
 		Header:  &tar.Header{Name: "file.txt", Typeflag: tar.TypeReg},
 		Content: []byte("content"),
 	}
-	dir := &motmedelTarTypes.Entry{
+	dir := &altshiftTarTypes.Entry{
 		Header: &tar.Header{Name: "dir/", Typeflag: tar.TypeDir},
 	}
-	symlink := &motmedelTarTypes.Entry{
+	symlink := &altshiftTarTypes.Entry{
 		Header: &tar.Header{Name: "link", Typeflag: tar.TypeSymlink},
 	}
-	noName := &motmedelTarTypes.Entry{
+	noName := &altshiftTarTypes.Entry{
 		Header: &tar.Header{Name: "", Typeflag: tar.TypeReg},
 	}
-	noHeader := &motmedelTarTypes.Entry{}
+	noHeader := &altshiftTarTypes.Entry{}
 
 	archive := MakeArchive(regular, dir, symlink, noName, noHeader, nil)
 

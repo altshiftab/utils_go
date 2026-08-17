@@ -8,13 +8,13 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
 	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 type ResponseErrorType int
@@ -26,21 +26,21 @@ const (
 )
 
 type ProblemDetailConverter interface {
-	Convert(*problem_detail.Detail, *motmedelHttpTypes.ContentNegotiation) ([]byte, string, error)
+	Convert(*problem_detail.Detail, *altshiftHttpTypes.ContentNegotiation) ([]byte, string, error)
 }
 
-type ProblemDetailConverterFunction func(*problem_detail.Detail, *motmedelHttpTypes.ContentNegotiation) ([]byte, string, error)
+type ProblemDetailConverterFunction func(*problem_detail.Detail, *altshiftHttpTypes.ContentNegotiation) ([]byte, string, error)
 
 func (f ProblemDetailConverterFunction) Convert(
 	problemDetail *problem_detail.Detail,
-	contentNegotiation *motmedelHttpTypes.ContentNegotiation,
+	contentNegotiation *altshiftHttpTypes.ContentNegotiation,
 ) ([]byte, string, error) {
 	return f(problemDetail, contentNegotiation)
 }
 
 const applicationType = "application"
 
-var DefaultProblemDetailMediaRanges = []*motmedelHttpTypes.ServerMediaRange{
+var DefaultProblemDetailMediaRanges = []*altshiftHttpTypes.ServerMediaRange{
 	{Type: applicationType, Subtype: "problem+json"},
 	{Type: applicationType, Subtype: "json"},
 	{Type: applicationType, Subtype: "problem+xml"},
@@ -51,7 +51,7 @@ var DefaultProblemDetailMediaRanges = []*motmedelHttpTypes.ServerMediaRange{
 // TODO: Move to `problem_detail` package.
 func ConvertProblemDetail(
 	detail *problem_detail.Detail,
-	negotiation *motmedelHttpTypes.ContentNegotiation,
+	negotiation *altshiftHttpTypes.ContentNegotiation,
 ) ([]byte, string, error) {
 	if detail == nil {
 		return nil, "", nil
@@ -59,7 +59,7 @@ func ConvertProblemDetail(
 
 	if negotiation != nil {
 		if negotiation.NegotiatedAccept == "" && negotiation.Accept != nil {
-			matchingServerMediaRange := motmedelHttpUtils.GetMatchingAccept(
+			matchingServerMediaRange := altshiftHttpUtils.GetMatchingAccept(
 				negotiation.Accept.GetPriorityOrderedEncodings(),
 				DefaultProblemDetailMediaRanges,
 			)
@@ -72,7 +72,7 @@ func ConvertProblemDetail(
 		case "application/problem+xml", "application/xml":
 			data, err := xml.Marshal(detail)
 			if err != nil {
-				return nil, "", motmedelErrors.New(fmt.Errorf("xml marshal: %w", err), detail)
+				return nil, "", altshiftErrors.New(fmt.Errorf("xml marshal: %w", err), detail)
 			}
 
 			output := []byte(`<?xml version="1.0" encoding="UTF-8"?>`)
@@ -82,7 +82,7 @@ func ConvertProblemDetail(
 		case "text/plain":
 			text, err := detail.String()
 			if err != nil {
-				return nil, "", motmedelErrors.New(fmt.Errorf("problem detail string: %w", err), detail)
+				return nil, "", altshiftErrors.New(fmt.Errorf("problem detail string: %w", err), detail)
 			}
 			return []byte(text), negotiatedAccept, nil
 		}
@@ -91,7 +91,7 @@ func ConvertProblemDetail(
 	// Default to using JSON.
 	data, err := json.Marshal(detail)
 	if err != nil {
-		return nil, "", motmedelErrors.New(fmt.Errorf("json marshal: %w", err), detail)
+		return nil, "", altshiftErrors.New(fmt.Errorf("json marshal: %w", err), detail)
 	}
 
 	return data, "application/problem+json", nil
@@ -130,7 +130,7 @@ func (responseError *ResponseError) GetEffectiveProblemDetail() (*problem_detail
 	}
 
 	if responseError.ClientError != nil && responseError.ServerError != nil {
-		return nil, motmedelErrors.NewWithTrace(muxErrors.ErrMultipleResponseErrorErrors)
+		return nil, altshiftErrors.NewWithTrace(muxErrors.ErrMultipleResponseErrorErrors)
 	}
 
 	if responseError.ServerError != nil {
@@ -141,7 +141,7 @@ func (responseError *ResponseError) GetEffectiveProblemDetail() (*problem_detail
 		return problem_detail.New(http.StatusBadRequest), nil
 	}
 
-	return nil, motmedelErrors.NewWithTrace(
+	return nil, altshiftErrors.NewWithTrace(
 		fmt.Errorf(
 			"%w: %w, %w",
 			muxErrors.ErrUnusableResponseError,
@@ -152,18 +152,18 @@ func (responseError *ResponseError) GetEffectiveProblemDetail() (*problem_detail
 }
 
 func (responseError *ResponseError) MakeResponse(
-	negotiation *motmedelHttpTypes.ContentNegotiation,
+	negotiation *altshiftHttpTypes.ContentNegotiation,
 ) (*muxTypesResponse.Response, error) {
 	problemDetail := responseError.ProblemDetail
 	if problemDetail == nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: %w", muxErrors.ErrUnusableResponseError, nil_error.New("problem detail")),
 		)
 	}
 
 	statusCode := problemDetail.Status
 	if statusCode == 0 {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: problem detail: %w", muxErrors.ErrUnusableResponseError, empty_error.New("status")),
 		)
 	}
@@ -190,10 +190,10 @@ func (responseError *ResponseError) MakeResponse(
 
 	supportsResponseBody := true
 	if negotiation != nil && negotiation.AcceptEncoding != nil {
-		supportsResponseBody = motmedelHttpUtils.GetMatchingContentEncoding(
+		supportsResponseBody = altshiftHttpUtils.GetMatchingContentEncoding(
 			negotiation.AcceptEncoding.GetPriorityOrderedEncodings(),
-			[]string{motmedelHttpUtils.AcceptContentIdentity},
-		) == motmedelHttpUtils.AcceptContentIdentity
+			[]string{altshiftHttpUtils.AcceptContentIdentity},
+		) == altshiftHttpUtils.AcceptContentIdentity
 	}
 
 	var body []byte
@@ -208,7 +208,7 @@ func (responseError *ResponseError) MakeResponse(
 		var err error
 		body, contentType, err = converter.Convert(problemDetail, negotiation)
 		if err != nil {
-			return nil, motmedelErrors.New(
+			return nil, altshiftErrors.New(
 				fmt.Errorf("convert: %w", err),
 				problemDetail, negotiation,
 			)
@@ -216,7 +216,7 @@ func (responseError *ResponseError) MakeResponse(
 
 		if len(body) != 0 {
 			if contentType == "" {
-				return nil, motmedelErrors.NewWithTrace(empty_error.New("response error content type"))
+				return nil, altshiftErrors.NewWithTrace(empty_error.New("response error content type"))
 			}
 
 			headers = append(

@@ -180,13 +180,13 @@ type LogicalLocation struct {
 }
 
 type Location struct {
-	Id               *int                      `json:"id,omitzero"`
-	PhysicalLocation *PhysicalLocation         `json:"physicalLocation,omitzero"`
-	LogicalLocations []*LogicalLocation        `json:"logicalLocations,omitzero"`
-	Message          *Message                  `json:"message,omitzero"`
-	Annotations      []*Region                 `json:"annotations,omitzero"`
-	Relationships    []*LocationRelationship   `json:"relationships,omitzero"`
-	Properties       PropertyBag               `json:"properties,omitzero"`
+	Id               *int                    `json:"id,omitzero"`
+	PhysicalLocation *PhysicalLocation       `json:"physicalLocation,omitzero"`
+	LogicalLocations []*LogicalLocation      `json:"logicalLocations,omitzero"`
+	Message          *Message                `json:"message,omitzero"`
+	Annotations      []*Region               `json:"annotations,omitzero"`
+	Relationships    []*LocationRelationship `json:"relationships,omitzero"`
+	Properties       PropertyBag             `json:"properties,omitzero"`
 }
 
 type LocationRelationship struct {
@@ -236,20 +236,20 @@ type ReportingDescriptorRelationship struct {
 }
 
 type ReportingDescriptor struct {
-	Id                   string                                 `json:"id"`
-	DeprecatedIds        []string                               `json:"deprecatedIds,omitzero"`
-	Guid                 string                                 `json:"guid,omitzero"`
-	DeprecatedGuids      []string                               `json:"deprecatedGuids,omitzero"`
-	Name                 string                                 `json:"name,omitzero"`
-	DeprecatedNames      []string                               `json:"deprecatedNames,omitzero"`
-	ShortDescription     *MultiformatMessageString              `json:"shortDescription,omitzero"`
-	FullDescription      *MultiformatMessageString              `json:"fullDescription,omitzero"`
-	MessageStrings       map[string]*MultiformatMessageString   `json:"messageStrings,omitzero"`
-	DefaultConfiguration *ReportingConfiguration                `json:"defaultConfiguration,omitzero"`
-	HelpUri              string                                 `json:"helpUri,omitzero"`
-	Help                 *MultiformatMessageString              `json:"help,omitzero"`
-	Relationships        []*ReportingDescriptorRelationship     `json:"relationships,omitzero"`
-	Properties           PropertyBag                            `json:"properties,omitzero"`
+	Id                   string                               `json:"id"`
+	DeprecatedIds        []string                             `json:"deprecatedIds,omitzero"`
+	Guid                 string                               `json:"guid,omitzero"`
+	DeprecatedGuids      []string                             `json:"deprecatedGuids,omitzero"`
+	Name                 string                               `json:"name,omitzero"`
+	DeprecatedNames      []string                             `json:"deprecatedNames,omitzero"`
+	ShortDescription     *MultiformatMessageString            `json:"shortDescription,omitzero"`
+	FullDescription      *MultiformatMessageString            `json:"fullDescription,omitzero"`
+	MessageStrings       map[string]*MultiformatMessageString `json:"messageStrings,omitzero"`
+	DefaultConfiguration *ReportingConfiguration              `json:"defaultConfiguration,omitzero"`
+	HelpUri              string                               `json:"helpUri,omitzero"`
+	Help                 *MultiformatMessageString            `json:"help,omitzero"`
+	Relationships        []*ReportingDescriptorRelationship   `json:"relationships,omitzero"`
+	Properties           PropertyBag                          `json:"properties,omitzero"`
 }
 
 type ToolComponentReference struct {
@@ -640,27 +640,27 @@ type Run struct {
 }
 
 type ExternalProperties struct {
-	Schema                 string                 `json:"schema,omitzero"`
-	Version                string                 `json:"version,omitzero"`
-	Guid                   string                 `json:"guid,omitzero"`
-	RunGuid                string                 `json:"runGuid,omitzero"`
-	Conversion             *Conversion            `json:"conversion,omitzero"`
-	Graphs                 []*Graph               `json:"graphs,omitzero"`
-	ExternalizedProperties PropertyBag            `json:"externalizedProperties,omitzero"`
-	Artifacts              []*Artifact            `json:"artifacts,omitzero"`
-	Invocations            []*Invocation          `json:"invocations,omitzero"`
-	LogicalLocations       []*LogicalLocation     `json:"logicalLocations,omitzero"`
-	ThreadFlowLocations    []*ThreadFlowLocation  `json:"threadFlowLocations,omitzero"`
-	Results                []*Result              `json:"results,omitzero"`
-	Taxonomies             []*ToolComponent       `json:"taxonomies,omitzero"`
-	Driver                 *ToolComponent         `json:"driver,omitzero"`
-	Extensions             []*ToolComponent       `json:"extensions,omitzero"`
-	Policies               []*ToolComponent       `json:"policies,omitzero"`
-	Translations           []*ToolComponent       `json:"translations,omitzero"`
-	Addresses              []*Address             `json:"addresses,omitzero"`
-	WebRequests            []*WebRequest          `json:"webRequests,omitzero"`
-	WebResponses           []*WebResponse         `json:"webResponses,omitzero"`
-	Properties             PropertyBag            `json:"properties,omitzero"`
+	Schema                 string                `json:"schema,omitzero"`
+	Version                string                `json:"version,omitzero"`
+	Guid                   string                `json:"guid,omitzero"`
+	RunGuid                string                `json:"runGuid,omitzero"`
+	Conversion             *Conversion           `json:"conversion,omitzero"`
+	Graphs                 []*Graph              `json:"graphs,omitzero"`
+	ExternalizedProperties PropertyBag           `json:"externalizedProperties,omitzero"`
+	Artifacts              []*Artifact           `json:"artifacts,omitzero"`
+	Invocations            []*Invocation         `json:"invocations,omitzero"`
+	LogicalLocations       []*LogicalLocation    `json:"logicalLocations,omitzero"`
+	ThreadFlowLocations    []*ThreadFlowLocation `json:"threadFlowLocations,omitzero"`
+	Results                []*Result             `json:"results,omitzero"`
+	Taxonomies             []*ToolComponent      `json:"taxonomies,omitzero"`
+	Driver                 *ToolComponent        `json:"driver,omitzero"`
+	Extensions             []*ToolComponent      `json:"extensions,omitzero"`
+	Policies               []*ToolComponent      `json:"policies,omitzero"`
+	Translations           []*ToolComponent      `json:"translations,omitzero"`
+	Addresses              []*Address            `json:"addresses,omitzero"`
+	WebRequests            []*WebRequest         `json:"webRequests,omitzero"`
+	WebResponses           []*WebResponse        `json:"webResponses,omitzero"`
+	Properties             PropertyBag           `json:"properties,omitzero"`
 }
 
 type Log struct {

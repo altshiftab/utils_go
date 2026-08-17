@@ -11,7 +11,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
@@ -41,7 +41,7 @@ func extractTagPath(tagName string, tagValue []byte, tagType string) (*abnf.Path
 	}
 
 	if tagType == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("tag type"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("tag type"))
 	}
 
 	var ruleName string
@@ -62,21 +62,21 @@ func extractTagPath(tagName string, tagValue []byte, tagType string) (*abnf.Path
 			return nil, nil
 		}
 	default:
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: %s", ErrUnexpectedTagType, tagType), tagType)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %s", ErrUnexpectedTagType, tagType), tagType)
 	}
 
 	tagPaths, err := abnf.Parse(tagValue, DkimGrammar, ruleName)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("go abnf parse: %w", err), tagValue, DkimGrammar)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("go abnf parse: %w", err), tagValue, DkimGrammar)
 	}
 	if len(tagPaths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w: %q", motmedelErrors.ErrSyntaxError, ErrMalformedTag, tagName),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w: %q", altshiftErrors.ErrSyntaxError, ErrMalformedTag, tagName),
 			tagValue, DkimGrammar,
 		)
 	}
 	if len(tagPaths) > 1 {
-		return nil, motmedelErrors.NewWithTrace(ErrMultipleTagPaths, tagValue, DkimGrammar)
+		return nil, altshiftErrors.NewWithTrace(ErrMultipleTagPaths, tagValue, DkimGrammar)
 	}
 
 	return tagPaths[0], nil
@@ -88,7 +88,7 @@ func extractBase64String(path *abnf.Path, value []byte) (string, error) {
 	}
 
 	if len(value) == 0 {
-		return "", motmedelErrors.NewWithTrace(empty_error.New("path input"))
+		return "", altshiftErrors.NewWithTrace(empty_error.New("path input"))
 	}
 
 	var segments []string
@@ -119,27 +119,27 @@ type tagSpecItem struct {
 func getTagSpecItems(path *abnf.Path, tagMap map[string]struct{}, data []byte) iter.Seq2[*tagSpecItem, error] {
 	return func(yield func(*tagSpecItem, error) bool) {
 		if tagMap == nil {
-			yield(nil, motmedelErrors.NewWithTrace(nil_error.New("tag map")))
+			yield(nil, altshiftErrors.NewWithTrace(nil_error.New("tag map")))
 			return
 		}
 
 		if len(data) == 0 {
-			yield(nil, motmedelErrors.NewWithTrace(empty_error.New("path input")))
+			yield(nil, altshiftErrors.NewWithTrace(empty_error.New("path input")))
 			return
 		}
 
 		for _, tagSpecPath := range abnfUtils.SearchPath(path, []string{"tag-spec"}, 2, false) {
 			tagNamePath := abnfUtils.SearchPathSingleName(tagSpecPath, "tag-name", 1, false)
 			if tagNamePath == nil {
-				yield(nil, motmedelErrors.NewWithTrace(nil_error.New("tag name path")))
+				yield(nil, altshiftErrors.NewWithTrace(nil_error.New("tag name path")))
 				return
 			}
 			tagName := string(abnfUtils.ExtractPathValue(data, tagNamePath))
 			if _, ok := tagMap[tagName]; ok {
 				yield(
 					nil,
-					motmedelErrors.NewWithTrace(
-						fmt.Errorf("%w: %w: %s", motmedelErrors.ErrSemanticError, ErrDuplicateTags, tagName),
+					altshiftErrors.NewWithTrace(
+						fmt.Errorf("%w: %w: %s", altshiftErrors.ErrSemanticError, ErrDuplicateTags, tagName),
 					),
 				)
 				return
@@ -162,10 +162,10 @@ func getTagSpecItems(path *abnf.Path, tagMap map[string]struct{}, data []byte) i
 func ParseRecord(data []byte) (*Record, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(DkimGrammar, data, "tag-list")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
 	var record Record
@@ -179,7 +179,7 @@ func ParseRecord(data []byte) (*Record, error) {
 			return nil, fmt.Errorf("get tag spec item: %w", err)
 		}
 		if item == nil {
-			return nil, motmedelErrors.NewWithTrace(nil_error.New("item"))
+			return nil, altshiftErrors.NewWithTrace(nil_error.New("item"))
 		}
 
 		i += 1
@@ -188,7 +188,7 @@ func ParseRecord(data []byte) (*Record, error) {
 
 		tagPath, err := extractTagPath(tagName, tagValue, "key")
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("extract tag path: %w", err), tagName, tagValue)
+			return nil, altshiftErrors.New(fmt.Errorf("extract tag path: %w", err), tagName, tagValue)
 		}
 		if tagPath == nil {
 			record.Extensions = append(record.Extensions, [2]string{tagName, string(tagValue)})
@@ -201,8 +201,8 @@ func ParseRecord(data []byte) (*Record, error) {
 		switch tagName {
 		case "v":
 			if i != 1 {
-				return nil, motmedelErrors.NewWithTrace(
-					fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, ErrVNotFirstTag),
+				return nil, altshiftErrors.NewWithTrace(
+					fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, ErrVNotFirstTag),
 				)
 			}
 			record.Version = 1
@@ -229,7 +229,7 @@ func ParseRecord(data []byte) (*Record, error) {
 		case "p":
 			base64String, err := extractBase64String(tagPath, tagValue)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("extract base64 string: %w", err), tagName, tagValue)
+				return nil, altshiftErrors.New(fmt.Errorf("extract base64 string: %w", err), tagName, tagValue)
 			}
 			record.PublicKeyData = base64String
 		case "s":
@@ -249,14 +249,14 @@ func ParseRecord(data []byte) (*Record, error) {
 	}
 
 	if _, ok := tagMap["p"]; !ok {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, ErrMissingPublicKeyData),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, ErrMissingPublicKeyData),
 		)
 	}
 
 	if _, err := record.GetPublicKey(); err != nil {
-		return nil, motmedelErrors.New(
-			fmt.Errorf("%w: %w: get public key: %w", motmedelErrors.ErrSemanticError, ErrMalformedPublicKeyData, err),
+		return nil, altshiftErrors.New(
+			fmt.Errorf("%w: %w: get public key: %w", altshiftErrors.ErrSemanticError, ErrMalformedPublicKeyData, err),
 			record,
 		)
 	}
@@ -268,10 +268,10 @@ func ParseHeader(data []byte) (*Header, error) {
 	normalizedData := normalizeEmailHeader(data)
 	paths, err := abnfUtils.GetParsedDataPaths(DkimGrammar, normalizedData, "tag-list")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), normalizedData)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), normalizedData)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, normalizedData)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, normalizedData)
 	}
 
 	var header Header
@@ -284,7 +284,7 @@ func ParseHeader(data []byte) (*Header, error) {
 			return nil, fmt.Errorf("get tag spec item: %w", err)
 		}
 		if item == nil {
-			return nil, motmedelErrors.NewWithTrace(nil_error.New("item"))
+			return nil, altshiftErrors.NewWithTrace(nil_error.New("item"))
 		}
 
 		tagName := item.Name
@@ -292,7 +292,7 @@ func ParseHeader(data []byte) (*Header, error) {
 
 		tagPath, err := extractTagPath(tagName, tagValue, "signature")
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("extract tag path: %w", err), tagName, tagValue)
+			return nil, altshiftErrors.New(fmt.Errorf("extract tag path: %w", err), tagName, tagValue)
 		}
 		if tagPath == nil {
 			header.Extensions = append(header.Extensions, [2]string{tagName, string(tagValue)})
@@ -310,13 +310,13 @@ func ParseHeader(data []byte) (*Header, error) {
 		case "b":
 			base64String, err := extractBase64String(tagPath, tagValue)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("extract base64 string: %w", err), tagName, tagValue)
+				return nil, altshiftErrors.New(fmt.Errorf("extract base64 string: %w", err), tagName, tagValue)
 			}
 			header.Signature = base64String
 		case "bh":
 			base64String, err := extractBase64String(tagPath, tagValue)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("extract base64 string: %w", err), tagName, tagValue)
+				return nil, altshiftErrors.New(fmt.Errorf("extract base64 string: %w", err), tagName, tagValue)
 			}
 			header.Hash = base64String
 		case "c":
@@ -350,12 +350,12 @@ func ParseHeader(data []byte) (*Header, error) {
 			for _, path := range abnfUtils.SearchPath(tagPath, []string{"sig-z-tag-copy"}, 2, false) {
 				namePath := abnfUtils.SearchPathSingleName(path, "hdr-name", 1, false)
 				if namePath == nil {
-					return nil, motmedelErrors.NewWithTrace(nil_error.New("header name"))
+					return nil, altshiftErrors.NewWithTrace(nil_error.New("header name"))
 				}
 
 				valuePath := abnfUtils.SearchPathSingleName(path, "qp-hdr-value", 1, false)
 				if valuePath == nil {
-					return nil, motmedelErrors.NewWithTrace(nil_error.New("header value"))
+					return nil, altshiftErrors.NewWithTrace(nil_error.New("header value"))
 				}
 
 				name := string(abnfUtils.ExtractPathValue(tagValue, namePath))
@@ -370,8 +370,8 @@ func ParseHeader(data []byte) (*Header, error) {
 
 	for _, tag := range []string{"v", "a", "b", "bh", "d", "h", "s"} {
 		if _, ok := tagMap[tag]; !ok {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: %w: %s", motmedelErrors.ErrSemanticError, ErrMissingRequiredTag, tag),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: %w: %s", altshiftErrors.ErrSemanticError, ErrMissingRequiredTag, tag),
 			)
 		}
 	}
@@ -384,14 +384,14 @@ func ParseHeader(data []byte) (*Header, error) {
 		case "bh":
 			data = header.Hash
 		default:
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: %s", ErrUnexpectedTag, tag))
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %s", ErrUnexpectedTag, tag))
 		}
 
 		if _, err = base64.StdEncoding.DecodeString(data); err != nil {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: %s: base64 std encoding decode string: %w",
-					motmedelErrors.ErrSemanticError, tag, err,
+					altshiftErrors.ErrSemanticError, tag, err,
 				),
 				data,
 			)

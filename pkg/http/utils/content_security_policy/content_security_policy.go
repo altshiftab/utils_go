@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	csp "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 )
 
@@ -282,8 +282,8 @@ func PatchCspStyleSrcWithHash(contentSecurityPolicy *csp.ContentSecurityPolicy, 
 
 		hashAlgorithm, hash, found := strings.Cut(value, "-")
 		if !found {
-			return motmedelErrors.NewWithTrace(
-				motmedelErrors.ErrBadSplit,
+			return altshiftErrors.NewWithTrace(
+				altshiftErrors.ErrBadSplit,
 				value,
 			)
 		}

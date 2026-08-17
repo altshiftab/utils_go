@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"testing"
 
-	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
+	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 )
 
 func TestCurveFromCrv(t *testing.T) {
@@ -109,7 +109,7 @@ func TestKey_PublicKey(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelJwkErrors.ErrUnsupportedCrv)
+				return errors.Is(err, altshiftJwkErrors.ErrUnsupportedCrv)
 			},
 		},
 		{
@@ -201,7 +201,7 @@ func TestNew(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelJwkErrors.ErrKtyMismatch)
+				return errors.Is(err, altshiftJwkErrors.ErrKtyMismatch)
 			},
 		},
 		{
@@ -375,7 +375,7 @@ func TestNewFromPublicKey_UnsupportedCurve(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
-	if _, err := NewFromPublicKey(&priv.PublicKey); !errors.Is(err, motmedelJwkErrors.ErrUnsupportedCrv) {
+	if _, err := NewFromPublicKey(&priv.PublicKey); !errors.Is(err, altshiftJwkErrors.ErrUnsupportedCrv) {
 		t.Fatalf("err = %v, want ErrUnsupportedCrv", err)
 	}
 }

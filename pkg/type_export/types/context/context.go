@@ -13,8 +13,8 @@ import (
 	"github.com/altshiftab/utils_go/pkg/type_export/types/shape"
 	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftReflect "github.com/altshiftab/utils_go/pkg/reflect"
 )
 
 var nonNumberPrimitiveKinds = map[reflect.Kind]bool{
@@ -95,11 +95,11 @@ func (g *Context) populateProperties(
 	structType reflect.Type,
 	optionalFieldPolicy optionalFieldPolicy,
 ) error {
-	structType = motmedelReflect.RemoveIndirection(structType)
+	structType = altshiftReflect.RemoveIndirection(structType)
 
 	structTypeKind := structType.Kind()
 	if structTypeKind != reflect.Struct {
-		return motmedelErrors.NewWithTrace(typeExportErrors.ErrUnsupportedKind, structTypeKind)
+		return altshiftErrors.NewWithTrace(typeExportErrors.ErrUnsupportedKind, structTypeKind)
 	}
 
 	// Iterate over normal fields first, and embedded structs last. This ensures that outer fields
@@ -111,7 +111,7 @@ func (g *Context) populateProperties(
 			continue
 		}
 
-		if field.Anonymous && motmedelReflect.RemoveIndirection(field.Type).Kind() == reflect.Struct {
+		if field.Anonymous && altshiftReflect.RemoveIndirection(field.Type).Kind() == reflect.Struct {
 			embeddedFields = append(embeddedFields, field)
 			continue
 		}
@@ -132,22 +132,22 @@ func (g *Context) populateProperties(
 			continue
 		}
 
-		directType := motmedelReflect.RemoveIndirection(field.Type)
+		directType := altshiftReflect.RemoveIndirection(field.Type)
 
 		//exhaustive:ignore
 		switch directType.Kind() {
 		case reflect.Struct:
 			if _, err := g.GetOrCreateInterfaceDeclaration(directType); err != nil {
-				return motmedelErrors.New(
+				return altshiftErrors.New(
 					fmt.Errorf("get or create interface declaration: %w", err),
 					directType,
 				)
 			}
 		case reflect.Map, reflect.Slice, reflect.Array:
-			directTypeElem := motmedelReflect.RemoveIndirection(directType.Elem())
+			directTypeElem := altshiftReflect.RemoveIndirection(directType.Elem())
 			if directTypeElem.Kind() == reflect.Struct {
 				if _, err := g.GetOrCreateInterfaceDeclaration(directTypeElem); err != nil {
-					return motmedelErrors.New(
+					return altshiftErrors.New(
 						fmt.Errorf("get or create interface declaration: %w", err),
 						directTypeElem,
 					)
@@ -160,7 +160,7 @@ func (g *Context) populateProperties(
 
 		if useTypeAlias {
 			if _, ok := g.TypeDeclarations[directType]; !ok {
-				typeName, _ := motmedelReflect.GetTypeName(directType)
+				typeName, _ := altshiftReflect.GetTypeName(directType)
 				identifier := title(typeName)
 				if identifier == "" {
 					identifier = g.makeUniqueAnonymousIdentifier()
@@ -206,10 +206,10 @@ func (g *Context) populateProperties(
 }
 
 func (g *Context) GetOrCreateInterfaceDeclaration(structType reflect.Type) (*type_declaration.InterfaceDeclaration, error) {
-	structType = motmedelReflect.RemoveIndirection(structType)
+	structType = altshiftReflect.RemoveIndirection(structType)
 	structTypeKind := structType.Kind()
 	if structTypeKind != reflect.Struct {
-		return nil, motmedelErrors.NewWithTrace(typeExportErrors.ErrUnsupportedKind, structTypeKind)
+		return nil, altshiftErrors.NewWithTrace(typeExportErrors.ErrUnsupportedKind, structTypeKind)
 	}
 
 	if isTime(structType) {
@@ -220,7 +220,7 @@ func (g *Context) GetOrCreateInterfaceDeclaration(structType reflect.Type) (*typ
 		return existingTypeDeclaration.(*type_declaration.InterfaceDeclaration), nil
 	}
 
-	typeName, isGenericType := motmedelReflect.GetTypeName(structType)
+	typeName, isGenericType := altshiftReflect.GetTypeName(structType)
 	interfaceName := title(typeName)
 	if interfaceName == "" {
 		interfaceName = g.makeUniqueAnonymousIdentifier()
@@ -243,7 +243,7 @@ func (g *Context) GetOrCreateInterfaceDeclaration(structType reflect.Type) (*typ
 			return nil, fmt.Errorf("get generic type info: %w", err)
 		}
 		if genericTypeInfo == nil {
-			return nil, motmedelErrors.NewWithTrace(nil_error.New("generic type info"))
+			return nil, altshiftErrors.NewWithTrace(nil_error.New("generic type info"))
 		}
 
 		interfaceDeclaration.GenericTypeInfo = genericTypeInfo
@@ -266,7 +266,7 @@ func (g *Context) GetOrCreateInterfaceDeclaration(structType reflect.Type) (*typ
 				}
 				switch fieldShape.Kind {
 				case shape.KindPointer:
-					argReflectType = motmedelReflect.RemoveIndirection(argReflectType)
+					argReflectType = altshiftReflect.RemoveIndirection(argReflectType)
 				case shape.KindSlice, shape.KindArray:
 					argReflectType = argReflectType.Elem()
 				case shape.KindMapValue:
@@ -279,9 +279,9 @@ func (g *Context) GetOrCreateInterfaceDeclaration(structType reflect.Type) (*typ
 				break
 			}
 
-			if directType := motmedelReflect.RemoveIndirection(argReflectType); directType.Kind() == reflect.Struct {
+			if directType := altshiftReflect.RemoveIndirection(argReflectType); directType.Kind() == reflect.Struct {
 				if _, err = g.GetOrCreateInterfaceDeclaration(directType); err != nil {
-					return nil, motmedelErrors.New(
+					return nil, altshiftErrors.New(
 						fmt.Errorf("get or create interface declaration: %w", err),
 						directType,
 					)
@@ -314,10 +314,10 @@ func (g *Context) Add(values ...any) error {
 			reflectType = reflect.TypeOf(v)
 		}
 
-		reflectType = motmedelReflect.RemoveIndirection(reflectType)
+		reflectType = altshiftReflect.RemoveIndirection(reflectType)
 
 		if kind := reflectType.Kind(); kind == reflect.Map || kind == reflect.Slice || kind == reflect.Array {
-			reflectType = motmedelReflect.RemoveIndirection(reflectType.Elem())
+			reflectType = altshiftReflect.RemoveIndirection(reflectType.Elem())
 		}
 
 		if reflectType.Kind() != reflect.Struct {

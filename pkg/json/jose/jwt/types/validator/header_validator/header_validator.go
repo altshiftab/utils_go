@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/missing_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -27,7 +27,7 @@ type Validator struct {
 
 func (validator *Validator) Validate(fields map[string]any) error {
 	if fields == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("fields"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("fields"))
 	}
 
 	expected := validator.Expected
@@ -52,13 +52,13 @@ func (validator *Validator) Validate(fields map[string]any) error {
 		case "alg":
 			alg, err := utils.Convert[string](value)
 			if err != nil {
-				return motmedelErrors.New(fmt.Errorf("convert (%s): %w", key, err), value)
+				return altshiftErrors.New(fmt.Errorf("convert (%s): %w", key, err), value)
 			}
 
 			if algComparer := expected.Alg; !utils.IsNil(algComparer) {
 				ok, err := algComparer.Compare(alg)
 				if err != nil {
-					return motmedelErrors.New(fmt.Errorf("compare (%s): %w", key, err), alg)
+					return altshiftErrors.New(fmt.Errorf("compare (%s): %w", key, err), alg)
 				}
 				if !ok {
 					errs = append(errs, mismatch_error.New(key))
@@ -67,13 +67,13 @@ func (validator *Validator) Validate(fields map[string]any) error {
 		case "typ":
 			typ, err := utils.Convert[string](value)
 			if err != nil {
-				return motmedelErrors.New(fmt.Errorf("convert (%s): %w", key, err), value)
+				return altshiftErrors.New(fmt.Errorf("convert (%s): %w", key, err), value)
 			}
 
 			if typComparer := expected.Typ; !utils.IsNil(typComparer) {
 				ok, err := typComparer.Compare(typ)
 				if err != nil {
-					return motmedelErrors.New(fmt.Errorf("compare (%s): %w", key, err), typ)
+					return altshiftErrors.New(fmt.Errorf("compare (%s): %w", key, err), typ)
 				}
 				if !ok {
 					errs = append(errs, mismatch_error.New(key))
@@ -83,7 +83,7 @@ func (validator *Validator) Validate(fields map[string]any) error {
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, errors.Join(errs...))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, errors.Join(errs...))
 	}
 
 	return nil

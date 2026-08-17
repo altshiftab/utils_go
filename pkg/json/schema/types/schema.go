@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/json/schema/notes"
 )
 
@@ -366,7 +366,7 @@ func (s *Schema) marshalSchema(buf *bytes.Buffer) error {
 		case PartAny:
 			data, err := jsonv2.Marshal(v.V, jsonv2.Deterministic(true))
 			if err != nil {
-				return motmedelErrors.NewWithTrace(fmt.Errorf("json marshal %q value: %w", part.Keyword.Name, err), v.V)
+				return altshiftErrors.NewWithTrace(fmt.Errorf("json marshal %q value: %w", part.Keyword.Name, err), v.V)
 			}
 			buf.Write(data)
 		default:
@@ -415,7 +415,7 @@ func (s *Schema) MarshalJSONTo(enc *jsontext.Encoder) error {
 		return err
 	}
 	if err := enc.WriteValue(data); err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext encoder write value: %w", err))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext encoder write value: %w", err))
 	}
 	return nil
 }

@@ -11,8 +11,8 @@ import (
 	"regexp"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
 )
 
 const (
@@ -111,12 +111,12 @@ func dockerPurl(name string, version string) string {
 	return fmt.Sprintf("%s@%s", purlBase, version)
 }
 
-func ParseGoModules(goListOutput []byte) ([]motmedelSbomTypes.Component, error) {
+func ParseGoModules(goListOutput []byte) ([]altshiftSbomTypes.Component, error) {
 	if len(goListOutput) == 0 {
 		return nil, nil
 	}
 
-	var components []motmedelSbomTypes.Component
+	var components []altshiftSbomTypes.Component
 
 	decoder := jsontext.NewDecoder(bytes.NewReader(goListOutput))
 	for {
@@ -126,7 +126,7 @@ func ParseGoModules(goListOutput []byte) ([]motmedelSbomTypes.Component, error) 
 				break
 			}
 
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf("json unmarshal decode: %w", err),
 				decoder, module,
 			)
@@ -143,8 +143,8 @@ func ParseGoModules(goListOutput []byte) ([]motmedelSbomTypes.Component, error) 
 		version := module.Version
 		purl := goModulePurl(module.Path, version)
 
-		components = append(components, motmedelSbomTypes.Component{
-			Type:    motmedelSbomTypes.ComponentTypeLibrary,
+		components = append(components, altshiftSbomTypes.Component{
+			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    module.Path,
 			Version: version,
 			Purl:    purl,
@@ -155,17 +155,17 @@ func ParseGoModules(goListOutput []byte) ([]motmedelSbomTypes.Component, error) 
 	return components, nil
 }
 
-func ParseNodePackageLock(data []byte) ([]motmedelSbomTypes.Component, error) {
+func ParseNodePackageLock(data []byte) ([]altshiftSbomTypes.Component, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
 
 	var packageLock nodePackageLock
 	if err := json.Unmarshal(data, &packageLock); err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), data)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), data)
 	}
 
-	var components []motmedelSbomTypes.Component
+	var components []altshiftSbomTypes.Component
 	seen := make(map[string]bool)
 
 	for path, detail := range packageLock.Packages {
@@ -196,8 +196,8 @@ func ParseNodePackageLock(data []byte) ([]motmedelSbomTypes.Component, error) {
 
 		purl := npmPurl(name, version)
 
-		component := motmedelSbomTypes.Component{
-			Type:    motmedelSbomTypes.ComponentTypeLibrary,
+		component := altshiftSbomTypes.Component{
+			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    name,
 			Version: version,
 			Purl:    purl,
@@ -205,8 +205,8 @@ func ParseNodePackageLock(data []byte) ([]motmedelSbomTypes.Component, error) {
 		}
 
 		if detail.License != "" {
-			component.Licenses = []motmedelSbomTypes.LicenseChoice{
-				{License: &motmedelSbomTypes.License{Id: detail.License}},
+			component.Licenses = []altshiftSbomTypes.LicenseChoice{
+				{License: &altshiftSbomTypes.License{Id: detail.License}},
 			}
 		}
 
@@ -226,7 +226,7 @@ func ParseNodePackageLock(data []byte) ([]motmedelSbomTypes.Component, error) {
 	return components, nil
 }
 
-func collectNodeDependencies(name string, dep *nodeDependency, seen map[string]bool, components *[]motmedelSbomTypes.Component) {
+func collectNodeDependencies(name string, dep *nodeDependency, seen map[string]bool, components *[]altshiftSbomTypes.Component) {
 	if dep == nil {
 		return
 	}
@@ -241,8 +241,8 @@ func collectNodeDependencies(name string, dep *nodeDependency, seen map[string]b
 
 	purl := npmPurl(name, version)
 
-	*components = append(*components, motmedelSbomTypes.Component{
-		Type:    motmedelSbomTypes.ComponentTypeLibrary,
+	*components = append(*components, altshiftSbomTypes.Component{
+		Type:    altshiftSbomTypes.ComponentTypeLibrary,
 		Name:    name,
 		Version: version,
 		Purl:    purl,
@@ -265,12 +265,12 @@ func extractNodeModuleName(path string) string {
 	return path[idx+len(nodeModulesPrefix):]
 }
 
-func ParseGoSum(data []byte) ([]motmedelSbomTypes.Component, error) {
+func ParseGoSum(data []byte) ([]altshiftSbomTypes.Component, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
 
-	var components []motmedelSbomTypes.Component
+	var components []altshiftSbomTypes.Component
 	seen := make(map[string]bool)
 
 	for line := range strings.SplitSeq(string(data), "\n") {
@@ -302,8 +302,8 @@ func ParseGoSum(data []byte) ([]motmedelSbomTypes.Component, error) {
 
 		purl := goModulePurl(name, version)
 
-		components = append(components, motmedelSbomTypes.Component{
-			Type:    motmedelSbomTypes.ComponentTypeLibrary,
+		components = append(components, altshiftSbomTypes.Component{
+			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    name,
 			Version: version,
 			Purl:    purl,
@@ -314,7 +314,7 @@ func ParseGoSum(data []byte) ([]motmedelSbomTypes.Component, error) {
 	return components, nil
 }
 
-func ParseDockerfile(data []byte) ([]motmedelSbomTypes.Component, error) {
+func ParseDockerfile(data []byte) ([]altshiftSbomTypes.Component, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
@@ -324,7 +324,7 @@ func ParseDockerfile(data []byte) ([]motmedelSbomTypes.Component, error) {
 		return nil, nil
 	}
 
-	var components []motmedelSbomTypes.Component
+	var components []altshiftSbomTypes.Component
 	seen := make(map[string]bool)
 
 	for _, match := range matches {
@@ -352,8 +352,8 @@ func ParseDockerfile(data []byte) ([]motmedelSbomTypes.Component, error) {
 
 		purl := dockerPurl(name, version)
 
-		components = append(components, motmedelSbomTypes.Component{
-			Type:    motmedelSbomTypes.ComponentTypeContainer,
+		components = append(components, altshiftSbomTypes.Component{
+			Type:    altshiftSbomTypes.ComponentTypeContainer,
 			Name:    name,
 			Version: version,
 			Purl:    purl,
@@ -364,13 +364,13 @@ func ParseDockerfile(data []byte) ([]motmedelSbomTypes.Component, error) {
 	return components, nil
 }
 
-func deduplicateComponents(components []motmedelSbomTypes.Component) []motmedelSbomTypes.Component {
+func deduplicateComponents(components []altshiftSbomTypes.Component) []altshiftSbomTypes.Component {
 	if len(components) == 0 {
 		return components
 	}
 
 	seen := make(map[string]bool)
-	result := make([]motmedelSbomTypes.Component, 0, len(components))
+	result := make([]altshiftSbomTypes.Component, 0, len(components))
 
 	for _, c := range components {
 		key := fmt.Sprintf("%s|%s|%s", c.Type, c.Name, c.Version)
@@ -384,13 +384,13 @@ func deduplicateComponents(components []motmedelSbomTypes.Component) []motmedelS
 	return result
 }
 
-func GenerateBom(components []motmedelSbomTypes.Component) *motmedelSbomTypes.Bom {
-	return &motmedelSbomTypes.Bom{
-		BomFormat:   motmedelSbomTypes.BomFormatCycloneDX,
+func GenerateBom(components []altshiftSbomTypes.Component) *altshiftSbomTypes.Bom {
+	return &altshiftSbomTypes.Bom{
+		BomFormat:   altshiftSbomTypes.BomFormatCycloneDX,
 		SpecVersion: specVersion,
 		Version:     bomVersion,
-		Metadata: &motmedelSbomTypes.Metadata{
-			Tools: []motmedelSbomTypes.Tool{
+		Metadata: &altshiftSbomTypes.Metadata{
+			Tools: []altshiftSbomTypes.Tool{
 				{Name: toolName, Version: toolVersion},
 			},
 		},
@@ -398,12 +398,12 @@ func GenerateBom(components []motmedelSbomTypes.Component) *motmedelSbomTypes.Bo
 	}
 }
 
-func GenerateBomJson(components []motmedelSbomTypes.Component) ([]byte, error) {
+func GenerateBomJson(components []altshiftSbomTypes.Component) ([]byte, error) {
 	bom := GenerateBom(components)
 
 	data, err := json.Marshal(bom, jsontext.WithIndent("  "))
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("json marshal indent: %w", err), bom)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json marshal indent: %w", err), bom)
 	}
 
 	return data, nil

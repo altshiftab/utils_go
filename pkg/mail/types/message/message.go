@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelMailErrors "github.com/altshiftab/utils_go/pkg/mail/errors"
+	altshiftMailErrors "github.com/altshiftab/utils_go/pkg/mail/errors"
 	"github.com/altshiftab/utils_go/pkg/mail/types/message/message_config"
 	"github.com/altshiftab/utils_go/pkg/mail/types/message/message_header"
 )
@@ -53,7 +53,7 @@ func (body *Body) writeMIME(builder *strings.Builder) error {
 	if len(body.Parts) > 0 {
 		boundary, err := makeBoundary()
 		if err != nil {
-			return motmedelErrors.NewWithTrace(err)
+			return altshiftErrors.NewWithTrace(err)
 		}
 		fmt.Fprintf(builder, "Content-Type: multipart/%s; boundary=%q\r\n", body.Subtype, boundary)
 		body.writeExtraHeaders(builder)
@@ -207,16 +207,16 @@ func (message *Message) String() (string, error) {
 		if at := strings.LastIndex(fromAddress, "@"); at != -1 && at+1 < len(fromAddress) {
 			domain = fromMailAddress.Address[at+1:]
 		} else {
-			return "", motmedelErrors.NewWithTrace(motmedelMailErrors.ErrBadFromAddress)
+			return "", altshiftErrors.NewWithTrace(altshiftMailErrors.ErrBadFromAddress)
 		}
 	}
 	if domain == "" {
-		return "", motmedelErrors.NewWithTrace(empty_error.New("domain"))
+		return "", altshiftErrors.NewWithTrace(empty_error.New("domain"))
 	}
 
 	messageIdRandomBuffer := make([]byte, 16)
 	if _, err := rand.Read(messageIdRandomBuffer); err != nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("rand read: %w", err))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("rand read: %w", err))
 	}
 	fmt.Fprintf(
 		&builder,
@@ -245,19 +245,19 @@ func (message *Message) String() (string, error) {
 
 func New(from *mail.Address, to []*mail.Address, subject string, body *Body, options ...message_config.Option) (*Message, error) {
 	if from == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.NewWithInstance("address", "from"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.NewWithInstance("address", "from"))
 	}
 
 	if len(to) == 0 {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("to"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("to"))
 	}
 
 	if subject == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("subject"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("subject"))
 	}
 
 	if err := body.Validate(); err != nil {
-		return nil, motmedelErrors.NewWithTrace(err)
+		return nil, altshiftErrors.NewWithTrace(err)
 	}
 
 	config := message_config.New(options...)

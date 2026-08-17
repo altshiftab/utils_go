@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestNew(t *testing.T) {
@@ -70,8 +70,8 @@ func TestNewValidate(t *testing.T) {
 			if (err != nil) != testCase.wantErr {
 				t.Fatalf("Validate: error %v, wantErr %t", err, testCase.wantErr)
 			}
-			if err != nil && !errors.Is(err, motmedelErrors.ErrValidationError) {
-				t.Error("errors.Is(err, motmedelErrors.ErrValidationError) = false, want true")
+			if err != nil && !errors.Is(err, altshiftErrors.ErrValidationError) {
+				t.Error("errors.Is(err, altshiftErrors.ErrValidationError) = false, want true")
 			}
 		})
 	}

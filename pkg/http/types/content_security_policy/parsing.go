@@ -12,7 +12,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 //go:embed grammar.abnf
@@ -94,7 +94,7 @@ func makeSourcesFromPaths(
 				false,
 			)
 			if hostPartPath == nil {
-				return nil, motmedelErrors.NewWithTrace(nil_error.New("host part path"), concreteSourcePath)
+				return nil, altshiftErrors.NewWithTrace(nil_error.New("host part path"), concreteSourcePath)
 			}
 
 			hostSource.Host = string(abnfUtils.ExtractPathValue(data, hostPartPath))
@@ -151,7 +151,7 @@ func makeSourcesFromPaths(
 				},
 			)
 		default:
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf("%w: %s", ErrUnexpectedSourceRuleName, matchRuleName),
 				matchRuleName,
 			)
@@ -164,10 +164,10 @@ func makeSourcesFromPaths(
 func Parse(data []byte) (*ContentSecurityPolicy, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(Grammar, data, "serialized-policy")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
 	directiveNameSet := make(map[string]struct{})
@@ -184,7 +184,7 @@ func Parse(data []byte) (*ContentSecurityPolicy, error) {
 			false,
 		)
 		if directiveNamePath == nil {
-			return nil, motmedelErrors.NewWithTrace(nil_error.New("directive name path"), interestingPath)
+			return nil, altshiftErrors.NewWithTrace(nil_error.New("directive name path"), interestingPath)
 		}
 		directiveName := string(abnfUtils.ExtractPathValue(data, directiveNamePath))
 
@@ -221,14 +221,14 @@ func Parse(data []byte) (*ContentSecurityPolicy, error) {
 			} else {
 				serializedSourceListPaths, err := abnf.Parse(directiveValue, Grammar, "serialized-source-list")
 				if err != nil {
-					return nil, motmedelErrors.New(
+					return nil, altshiftErrors.New(
 						fmt.Errorf("goabnf parse (serialized source list): %w", err),
 						directiveValue,
 					)
 				}
 				if len(serializedSourceListPaths) == 0 {
-					return nil, motmedelErrors.New(
-						fmt.Errorf("%w (serialized-source-list)", motmedelErrors.ErrSyntaxError),
+					return nil, altshiftErrors.New(
+						fmt.Errorf("%w (serialized-source-list)", altshiftErrors.ErrSyntaxError),
 						directiveValue,
 					)
 				}
@@ -239,15 +239,15 @@ func Parse(data []byte) (*ContentSecurityPolicy, error) {
 					"source-expression",
 				)
 				if err != nil {
-					return nil, motmedelErrors.New(
+					return nil, altshiftErrors.New(
 						fmt.Errorf("make sources from paths (source expression): %w", err),
 						directiveValue,
 						serializedSourceListPaths,
 					)
 				}
 				if len(sources) == 0 {
-					return nil, motmedelErrors.New(
-						fmt.Errorf("%w (source-expression)", motmedelErrors.ErrSyntaxError),
+					return nil, altshiftErrors.New(
+						fmt.Errorf("%w (source-expression)", altshiftErrors.ErrSyntaxError),
 						directiveValue,
 						serializedSourceListPaths,
 					)
@@ -325,14 +325,14 @@ func Parse(data []byte) (*ContentSecurityPolicy, error) {
 				"sandbox-directive-value-root",
 			)
 			if err != nil {
-				return nil, motmedelErrors.New(
+				return nil, altshiftErrors.New(
 					fmt.Errorf("goabnf parse (sandbox directive value root): %w", err),
 					directiveValue,
 				)
 			}
 			if len(sandboxDirectiveValuePaths) == 0 {
-				return nil, motmedelErrors.New(
-					fmt.Errorf("%w (sandbox directive value root)", motmedelErrors.ErrSyntaxError),
+				return nil, altshiftErrors.New(
+					fmt.Errorf("%w (sandbox directive value root)", altshiftErrors.ErrSyntaxError),
 					directiveValue,
 				)
 			}
@@ -349,8 +349,8 @@ func Parse(data []byte) (*ContentSecurityPolicy, error) {
 			// Per CSP3 the value is the quoted keyword 'allow' or 'block'; directive-value retains the quotes.
 			rawValue := parsedDirective.Value
 			if rawValue != "'allow'" && rawValue != "'block'" {
-				return nil, motmedelErrors.New(
-					fmt.Errorf("%w (webrtc directive)", motmedelErrors.ErrSyntaxError),
+				return nil, altshiftErrors.New(
+					fmt.Errorf("%w (webrtc directive)", altshiftErrors.ErrSyntaxError),
 					rawValue,
 				)
 			}
@@ -364,14 +364,14 @@ func Parse(data []byte) (*ContentSecurityPolicy, error) {
 
 			reportUriDirectivePaths, err := abnf.Parse(directiveValue, Grammar, "report-uri-directive-value-root")
 			if err != nil {
-				return nil, motmedelErrors.New(
+				return nil, altshiftErrors.New(
 					fmt.Errorf("goabnf parse (report uri directive value root): %w", err),
 					directiveValue,
 				)
 			}
 			if len(reportUriDirectivePaths) == 0 {
-				return nil, motmedelErrors.New(
-					fmt.Errorf("%w (report uri directive value root)", motmedelErrors.ErrSyntaxError),
+				return nil, altshiftErrors.New(
+					fmt.Errorf("%w (report uri directive value root)", altshiftErrors.ErrSyntaxError),
 					directiveValue,
 				)
 			}
@@ -384,8 +384,8 @@ func Parse(data []byte) (*ContentSecurityPolicy, error) {
 				false,
 			)
 			if len(uriReferencePaths) == 0 {
-				return nil, motmedelErrors.New(
-					fmt.Errorf("%w (uri-reference)", motmedelErrors.ErrSyntaxError),
+				return nil, altshiftErrors.New(
+					fmt.Errorf("%w (uri-reference)", altshiftErrors.ErrSyntaxError),
 					directiveValue,
 				)
 			}
@@ -408,28 +408,28 @@ func Parse(data []byte) (*ContentSecurityPolicy, error) {
 			} else {
 				ancestorSourceListPaths, err := abnf.Parse(directiveValue, Grammar, "ancestor-source-list-root")
 				if err != nil {
-					return nil, motmedelErrors.New(
+					return nil, altshiftErrors.New(
 						fmt.Errorf("goabnf parse (ancestor soruce list root): %w", err),
 						directiveValue,
 					)
 				}
 				if len(ancestorSourceListPaths) == 0 {
-					return nil, motmedelErrors.New(
-						fmt.Errorf("%w (ancestor source list root)", motmedelErrors.ErrSyntaxError),
+					return nil, altshiftErrors.New(
+						fmt.Errorf("%w (ancestor source list root)", altshiftErrors.ErrSyntaxError),
 						directiveValue,
 					)
 				}
 
 				sources, err = makeSourcesFromPaths(directiveValue, ancestorSourceListPaths, "ancestor-source")
 				if err != nil {
-					return nil, motmedelErrors.New(
+					return nil, altshiftErrors.New(
 						fmt.Errorf("make sources from paths (ancestor source): %w", err),
 						directiveValue,
 					)
 				}
 				if sources == nil {
-					return nil, motmedelErrors.New(
-						fmt.Errorf("%w (ancestor source)", motmedelErrors.ErrSyntaxError),
+					return nil, altshiftErrors.New(
+						fmt.Errorf("%w (ancestor source)", altshiftErrors.ErrSyntaxError),
 						directiveValue,
 						ancestorSourceListPaths,
 					)
@@ -448,14 +448,14 @@ func Parse(data []byte) (*ContentSecurityPolicy, error) {
 
 			requireTrustedTypesForDirectiveValuePaths, err := abnf.Parse(directiveValue, Grammar, "require-trusted-types-for-directive-value-root")
 			if err != nil {
-				return nil, motmedelErrors.New(
+				return nil, altshiftErrors.New(
 					fmt.Errorf("goabnf parse (require trusted types for directive value root): %w", err),
 					directiveValue,
 				)
 			}
 			if len(requireTrustedTypesForDirectiveValuePaths) == 0 {
-				return nil, motmedelErrors.New(
-					fmt.Errorf("%w (require trusted types for directive value root)", motmedelErrors.ErrSyntaxError),
+				return nil, altshiftErrors.New(
+					fmt.Errorf("%w (require trusted types for directive value root)", altshiftErrors.ErrSyntaxError),
 				)
 			}
 
@@ -472,14 +472,14 @@ func Parse(data []byte) (*ContentSecurityPolicy, error) {
 
 			trustedTypesDirectiveValuePaths, err := abnf.Parse(directiveValue, Grammar, "trusted-types-directive-value-root")
 			if err != nil {
-				return nil, motmedelErrors.New(
+				return nil, altshiftErrors.New(
 					fmt.Errorf("goabnf parse (trusted types directive value root): %w", err),
 					directiveValue,
 				)
 			}
 			if len(trustedTypesDirectiveValuePaths) == 0 {
-				return nil, motmedelErrors.New(
-					fmt.Errorf("%w (trusted types directive value root)", motmedelErrors.ErrSyntaxError),
+				return nil, altshiftErrors.New(
+					fmt.Errorf("%w (trusted types directive value root)", altshiftErrors.ErrSyntaxError),
 				)
 			}
 
@@ -554,15 +554,15 @@ func init() {
 func ParseList(data []byte) ([]*ContentSecurityPolicy, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(Grammar, data, "serialized-policy-list")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
 	policyPaths := abnfUtils.SearchPath(paths[0], []string{"serialized-policy"}, -1, false)
 	if len(policyPaths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("serialized policy paths"), paths[0])
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("serialized policy paths"), paths[0])
 	}
 
 	// The first policy is a child of the list and the rest sit within its
@@ -574,7 +574,7 @@ func ParseList(data []byte) ([]*ContentSecurityPolicy, error) {
 	for _, policyPath := range policyPaths {
 		policy, err := Parse(abnfUtils.ExtractPathValue(data, policyPath))
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("parse: %w", err), policyPath)
+			return nil, altshiftErrors.New(fmt.Errorf("parse: %w", err), policyPath)
 		}
 		policies = append(policies, policy)
 	}

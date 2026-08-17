@@ -9,7 +9,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
+	altshiftCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
@@ -86,7 +86,7 @@ func TestNew_CurveMismatch(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected curve mismatch error")
 	}
-	if !errors.Is(err, motmedelCryptoErrors.ErrCurveMismatch) {
+	if !errors.Is(err, altshiftCryptoErrors.ErrCurveMismatch) {
 		t.Fatalf("expected ErrCurveMismatch, got %v", err)
 	}
 }
@@ -116,7 +116,7 @@ func TestNew_UnsupportedCurve(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected unsupported curve error")
 	}
-	if !errors.Is(err, motmedelCryptoErrors.ErrUnsupportedCurve) {
+	if !errors.Is(err, altshiftCryptoErrors.ErrUnsupportedCurve) {
 		t.Fatalf("expected ErrUnsupportedCurve, got %v", err)
 	}
 }
@@ -244,7 +244,7 @@ func TestVerify_WrongLengthIsMismatch(t *testing.T) {
 	}
 
 	err = m.Verify([]byte("hello"), []byte{0x01, 0x02})
-	if !errors.Is(err, motmedelCryptoErrors.ErrSignatureMismatch) {
+	if !errors.Is(err, altshiftCryptoErrors.ErrSignatureMismatch) {
 		t.Fatalf("expected ErrSignatureMismatch, got %v", err)
 	}
 }
@@ -270,7 +270,7 @@ func TestVerify_DifferentKeyFails(t *testing.T) {
 	}
 
 	err = verifier.Verify([]byte("hello"), sig)
-	if !errors.Is(err, motmedelCryptoErrors.ErrSignatureMismatch) {
+	if !errors.Is(err, altshiftCryptoErrors.ErrSignatureMismatch) {
 		t.Fatalf("expected ErrSignatureMismatch, got %v", err)
 	}
 }

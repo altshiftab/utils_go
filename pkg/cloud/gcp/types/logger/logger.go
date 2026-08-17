@@ -4,7 +4,7 @@ import (
 	"io"
 	"log/slog"
 
-	motmedelLogHandler "github.com/altshiftab/utils_go/pkg/log/handler"
+	altshiftLogHandler "github.com/altshiftab/utils_go/pkg/log/handler"
 )
 
 func ReplaceAttr(groups []string, attr slog.Attr) slog.Attr {
@@ -35,7 +35,7 @@ func ReplaceAttr(groups []string, attr slog.Attr) slog.Attr {
 
 func New(level slog.Leveler, writer io.Writer) *slog.Logger {
 	return slog.New(
-		motmedelLogHandler.New(
+		altshiftLogHandler.New(
 			slog.NewJSONHandler(
 				writer,
 				&slog.HandlerOptions{AddSource: true, Level: level, ReplaceAttr: ReplaceAttr},

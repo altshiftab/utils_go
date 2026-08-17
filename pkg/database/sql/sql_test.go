@@ -14,7 +14,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/database/sql/types/authorized_tx_caller"
 	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_authorizer"
 	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_caller"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/interfaces/parser"
@@ -328,7 +328,7 @@ func TestWithTxAuthorizer(t *testing.T) {
 		})
 
 		got, err := WithTx(t.Context(), db, authorized_tx_caller.New(id, caller, authorizer))
-		if !errors.Is(err, motmedelErrors.ErrUnauthorized) {
+		if !errors.Is(err, altshiftErrors.ErrUnauthorized) {
 			t.Fatalf("expected ErrUnauthorized, got %v", err)
 		}
 		if got != "" {

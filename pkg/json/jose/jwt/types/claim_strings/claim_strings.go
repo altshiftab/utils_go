@@ -5,7 +5,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
@@ -29,14 +29,14 @@ func (s *ClaimStrings) UnmarshalJSON(data []byte) error {
 		for _, vv := range v {
 			vs, err := utils.Convert[string](vv)
 			if err != nil {
-				return motmedelErrors.NewWithTrace(fmt.Errorf("convert: %w", err), vv)
+				return altshiftErrors.NewWithTrace(fmt.Errorf("convert: %w", err), vv)
 			}
 			aud = append(aud, vs)
 		}
 	case nil:
 		return nil
 	default:
-		return motmedelErrors.NewWithTrace(fmt.Errorf("%w: %T", motmedelErrors.ErrUnexpectedType, v), v)
+		return altshiftErrors.NewWithTrace(fmt.Errorf("%w: %T", altshiftErrors.ErrUnexpectedType, v), v)
 	}
 
 	*s = aud
@@ -89,13 +89,13 @@ func Convert(value any) (ClaimStrings, error) {
 		for _, a := range typedValue {
 			vs, err := utils.Convert[string](a)
 			if err != nil {
-				return nil, motmedelErrors.NewWithTrace(fmt.Errorf("convert: %w", err), a)
+				return nil, altshiftErrors.NewWithTrace(fmt.Errorf("convert: %w", err), a)
 			}
 			claimsString = append(claimsString, vs)
 		}
 	default:
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %T", motmedelErrors.ErrUnexpectedType, typedValue),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %T", altshiftErrors.ErrUnexpectedType, typedValue),
 			typedValue,
 		)
 	}

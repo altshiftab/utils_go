@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestMinify(t *testing.T) {
@@ -258,7 +258,7 @@ func TestMinifyErrors(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected an error, got %q", string(output))
 			}
-			if !errors.Is(err, motmedelErrors.ErrParseError) {
+			if !errors.Is(err, altshiftErrors.ErrParseError) {
 				t.Fatalf("expected a parse error, got: %v", err)
 			}
 		})

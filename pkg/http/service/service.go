@@ -13,14 +13,14 @@ import (
 	"strings"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
 	"github.com/altshiftab/utils_go/pkg/http/service/service_config"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
-	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftNet "github.com/altshiftab/utils_go/pkg/net"
 	"github.com/altshiftab/utils_go/pkg/net/types/domain_parts"
 )
 
@@ -28,7 +28,7 @@ import (
 // to stop lets the requests it is handling finish rather than ending them where they are.
 type Service struct {
 	Server *http.Server
-	Mux    *motmedelMux.Mux
+	Mux    *altshiftMux.Mux
 
 	shutdownTimeout time.Duration
 	signals         []os.Signal
@@ -61,18 +61,18 @@ func (service *Service) Serve() error {
 func (service *Service) ServeContext(ctx context.Context) error {
 	server := service.Server
 	if server == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("http server"))
+		return altshiftErrors.NewWithTrace(nil_error.New("http server"))
 	}
 
 	address := server.Addr
 	if address == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("http server address"))
+		return altshiftErrors.NewWithTrace(empty_error.New("http server address"))
 	}
 
 	var listenConfig net.ListenConfig
 	listener, err := listenConfig.Listen(ctx, "tcp", address)
 	if err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("listen config listen: %w", err), address)
+		return altshiftErrors.NewWithTrace(fmt.Errorf("listen config listen: %w", err), address)
 	}
 
 	if err := service.serve(ctx, listener); err != nil {
@@ -87,7 +87,7 @@ func (service *Service) ServeContext(ctx context.Context) error {
 // making it itself: a port picked by the operating system, a socket passed in by a supervisor.
 func (service *Service) ServeListener(ctx context.Context, listener net.Listener) error {
 	if listener == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("listener"))
+		return altshiftErrors.NewWithTrace(nil_error.New("listener"))
 	}
 
 	if err := service.serve(ctx, listener); err != nil {
@@ -100,11 +100,11 @@ func (service *Service) ServeListener(ctx context.Context, listener net.Listener
 func (service *Service) serve(ctx context.Context, listener net.Listener) error {
 	server := service.Server
 	if server == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("http server"))
+		return altshiftErrors.NewWithTrace(nil_error.New("http server"))
 	}
 
 	if listener == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("listener"))
+		return altshiftErrors.NewWithTrace(nil_error.New("listener"))
 	}
 
 	serveTls := server.TLSConfig != nil || service.certificateFile != "" || service.keyFile != ""
@@ -119,7 +119,7 @@ func (service *Service) serve(ctx context.Context, listener net.Listener) error 
 		}
 
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			served <- motmedelErrors.NewWithTrace(fmt.Errorf("http server serve: %w", err))
+			served <- altshiftErrors.NewWithTrace(fmt.Errorf("http server serve: %w", err))
 			return
 		}
 
@@ -146,7 +146,7 @@ func (service *Service) serve(ctx context.Context, listener net.Listener) error 
 	// Requests still being handled are given the remaining time; those that do not finish are ended
 	// when the process is killed anyway.
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("http server shutdown: %w", err))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("http server shutdown: %w", err))
 	}
 
 	return nil
@@ -170,7 +170,7 @@ func withDuplicatedEndpoints(
 
 		path := duplicatedEndpoint.Path
 		if path == "" {
-			return nil, motmedelErrors.NewWithTrace(empty_error.NewWithInstance("path", "duplicated endpoint"))
+			return nil, altshiftErrors.NewWithTrace(empty_error.NewWithInstance("path", "duplicated endpoint"))
 		}
 
 		// Every endpoint at the path is duplicated, a path being answered by one per method.
@@ -184,8 +184,8 @@ func withDuplicatedEndpoints(
 		if len(duplicates) == 0 {
 			// Serving nothing at the paths asked for would be found by a request arriving at a
 			// "not found"; saying so here is found by starting the service.
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: no endpoint to duplicate", motmedelErrors.ErrValidationError),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: no endpoint to duplicate", altshiftErrors.ErrValidationError),
 				path,
 			)
 		}
@@ -204,7 +204,7 @@ func makeBaseUrl(host string) *url.URL {
 	}
 
 	scheme := "https"
-	if motmedelNet.IsLocalhost(host) {
+	if altshiftNet.IsLocalhost(host) {
 		scheme = "http"
 	}
 
@@ -215,12 +215,12 @@ func makeBaseUrl(host string) *url.URL {
 // vulnerability is reported, how long the information is to be considered valid, and where the file
 // is expected to be found.
 func securityTxtWithDefaults(
-	securityTxt *motmedelHttpTypes.SecurityTxt,
+	securityTxt *altshiftHttpTypes.SecurityTxt,
 	baseUrl *url.URL,
 	registeredDomain string,
-) *motmedelHttpTypes.SecurityTxt {
+) *altshiftHttpTypes.SecurityTxt {
 	// The configured security.txt is the caller's; it is filled in as a copy.
-	var filled motmedelHttpTypes.SecurityTxt
+	var filled altshiftHttpTypes.SecurityTxt
 	if securityTxt != nil {
 		filled = *securityTxt
 	}
@@ -248,13 +248,13 @@ func securityTxtWithDefaults(
 // calls for: a service on a registered domain says how a vulnerability in it is reported, and a
 // service on a subdomain of one points at what the registered domain says, which is where a
 // reporter looks first.
-func patchServiceSecurityTxt(mux *motmedelMux.Mux, config *service_config.Config, baseUrl *url.URL) error {
+func patchServiceSecurityTxt(mux *altshiftMux.Mux, config *service_config.Config, baseUrl *url.URL) error {
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	if config == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("service config"))
+		return altshiftErrors.NewWithTrace(nil_error.New("service config"))
 	}
 
 	if !config.SecurityTxt {
@@ -273,7 +273,7 @@ func patchServiceSecurityTxt(mux *motmedelMux.Mux, config *service_config.Config
 
 	// A service with no host of its own, or one on the machine it runs on, has no domain to derive
 	// a contact from and no reporter to derive it for. What is said outright is still served.
-	if baseUrl == nil || motmedelNet.IsLocalhost(baseUrl.Hostname()) {
+	if baseUrl == nil || altshiftNet.IsLocalhost(baseUrl.Hostname()) {
 		if content == nil || len(content.Contacts) == 0 {
 			return nil
 		}
@@ -289,12 +289,12 @@ func patchServiceSecurityTxt(mux *motmedelMux.Mux, config *service_config.Config
 
 	domainParts := domain_parts.New(hostname)
 	if domainParts == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("domain parts"), hostname)
+		return altshiftErrors.NewWithTrace(nil_error.New("domain parts"), hostname)
 	}
 
 	registeredDomain := domainParts.RegisteredDomain
 	if registeredDomain == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("registered domain"), hostname)
+		return altshiftErrors.NewWithTrace(empty_error.New("registered domain"), hostname)
 	}
 
 	if !strings.EqualFold(hostname, registeredDomain) {
@@ -302,7 +302,7 @@ func patchServiceSecurityTxt(mux *motmedelMux.Mux, config *service_config.Config
 
 		securityTxtUrl := registeredBaseUrl.JoinPath(wellKnownSecurityTxtPath)
 		if securityTxtUrl == nil {
-			return motmedelErrors.NewWithTrace(nil_error.New("security txt url"), registeredDomain)
+			return altshiftErrors.NewWithTrace(nil_error.New("security txt url"), registeredDomain)
 		}
 
 		if err := patchSecurityTxtUrl(mux, securityTxtUrl.String()); err != nil {
@@ -321,13 +321,13 @@ func patchServiceSecurityTxt(mux *motmedelMux.Mux, config *service_config.Config
 
 // patchMux makes the mux answer with what the service was configured to answer with beyond what its
 // endpoints were written to answer.
-func patchMux(mux *motmedelMux.Mux, config *service_config.Config) error {
+func patchMux(mux *altshiftMux.Mux, config *service_config.Config) error {
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	if config == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("service config"))
+		return altshiftErrors.NewWithTrace(nil_error.New("service config"))
 	}
 
 	host := config.Host
@@ -367,7 +367,7 @@ func patchMux(mux *motmedelMux.Mux, config *service_config.Config) error {
 
 	// A browser told to reach localhost over HTTPS only cannot reach a development server at all,
 	// and remembers so for as long as the max-age says.
-	if config.StrictTransportSecurity && !motmedelNet.IsLocalhost(host) {
+	if config.StrictTransportSecurity && !altshiftNet.IsLocalhost(host) {
 		if err := patchStrictTransportSecurity(mux); err != nil {
 			return fmt.Errorf("patch strict transport security: %w", err)
 		}
@@ -376,7 +376,7 @@ func patchMux(mux *motmedelMux.Mux, config *service_config.Config) error {
 	var sitemapUrl string
 	if config.Sitemap {
 		if baseUrl == nil {
-			return motmedelErrors.NewWithTrace(empty_error.NewWithInstance("host", "sitemap"))
+			return altshiftErrors.NewWithTrace(empty_error.NewWithInstance("host", "sitemap"))
 		}
 
 		var err error
@@ -402,24 +402,24 @@ func patchMux(mux *motmedelMux.Mux, config *service_config.Config) error {
 // makeHandler makes what the server serves with: the mux itself, or -- where the service answers
 // for a host of its own -- a vhost mux that tells that host apart from the ones redirected away.
 func makeHandler(
-	serviceMux *motmedelMux.Mux,
+	serviceMux *altshiftMux.Mux,
 	host string,
 	redirects []*service_config.Redirect,
 ) (http.Handler, error) {
 	if serviceMux == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	if host == "" {
 		if len(redirects) != 0 {
 			// Without a host of its own, the service has nothing to tell the redirected hosts from.
-			return nil, motmedelErrors.NewWithTrace(empty_error.NewWithInstance("host", "redirects"))
+			return nil, altshiftErrors.NewWithTrace(empty_error.NewWithInstance("host", "redirects"))
 		}
 
 		return serviceMux, nil
 	}
 
-	hostToSpecification := map[string]*motmedelMux.VhostMuxSpecification{host: {Mux: serviceMux}}
+	hostToSpecification := map[string]*altshiftMux.VhostMuxSpecification{host: {Mux: serviceMux}}
 
 	for _, redirect := range redirects {
 		if redirect == nil {
@@ -427,20 +427,20 @@ func makeHandler(
 		}
 
 		if redirect.Host == "" {
-			return nil, motmedelErrors.NewWithTrace(empty_error.NewWithInstance("host", "redirect"))
+			return nil, altshiftErrors.NewWithTrace(empty_error.NewWithInstance("host", "redirect"))
 		}
 
 		if redirect.To == "" {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				empty_error.NewWithInstance("to", "redirect"),
 				redirect.Host,
 			)
 		}
 
-		hostToSpecification[redirect.Host] = &motmedelMux.VhostMuxSpecification{RedirectTo: redirect.To}
+		hostToSpecification[redirect.Host] = &altshiftMux.VhostMuxSpecification{RedirectTo: redirect.To}
 	}
 
-	vhostMux := &motmedelMux.VhostMux{HostToSpecification: hostToSpecification}
+	vhostMux := &altshiftMux.VhostMux{HostToSpecification: hostToSpecification}
 	// The mux's default headers are the vhost mux's too, so that a redirected host is answered with
 	// what the service is configured to answer with, and not with less.
 	vhostMux.DefaultHeaders = serviceMux.DefaultHeaders
@@ -451,12 +451,12 @@ func makeHandler(
 func New(options ...service_config.Option) (*Service, error) {
 	config := service_config.New(options...)
 	if config == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("service config"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("service config"))
 	}
 
 	if profile := config.Profile; profile != "" && !profile.IsValid() {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: service profile", motmedelErrors.ErrValidationError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: service profile", altshiftErrors.ErrValidationError),
 			profile,
 		)
 	}
@@ -466,7 +466,7 @@ func New(options ...service_config.Option) (*Service, error) {
 		return nil, fmt.Errorf("with duplicated endpoints: %w", err)
 	}
 
-	serviceMux := motmedelMux.New(endpoints...)
+	serviceMux := altshiftMux.New(endpoints...)
 
 	if err := patchMux(serviceMux, config); err != nil {
 		return nil, fmt.Errorf("patch mux: %w", err)

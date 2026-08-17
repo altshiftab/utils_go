@@ -17,8 +17,8 @@ import (
 	"time"
 
 	context2 "github.com/altshiftab/utils_go/pkg/context"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelLogHandler "github.com/altshiftab/utils_go/pkg/log/handler"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftLogHandler "github.com/altshiftab/utils_go/pkg/log/handler"
 )
 
 var (
@@ -306,7 +306,7 @@ func TestMakeErrorAttrs(t *testing.T) {
 		{
 			name:      "code id and stack trace",
 			extractor: &ErrorContextExtractor{},
-			err:       &motmedelErrors.Error{Message: "m", Code: "C1", Id: "I1", StackTrace: "trace"},
+			err:       &altshiftErrors.Error{Message: "m", Code: "C1", Id: "I1", StackTrace: "trace"},
 			assert: func(t *testing.T, m map[string]any) {
 				if m["code"] != "C1" || m["id"] != "I1" || m["stack_trace"] != "trace" {
 					t.Fatalf("unexpected attrs: %#v", m)
@@ -316,7 +316,7 @@ func TestMakeErrorAttrs(t *testing.T) {
 		{
 			name:      "skip stack trace",
 			extractor: &ErrorContextExtractor{SkipStackTrace: true},
-			err:       &motmedelErrors.Error{Message: "m", StackTrace: "trace"},
+			err:       &altshiftErrors.Error{Message: "m", StackTrace: "trace"},
 			assert: func(t *testing.T, m map[string]any) {
 				if _, ok := m["stack_trace"]; ok {
 					t.Fatalf("stack_trace should be skipped: %#v", m)
@@ -326,7 +326,7 @@ func TestMakeErrorAttrs(t *testing.T) {
 		{
 			name:      "input included",
 			extractor: &ErrorContextExtractor{},
-			err:       &motmedelErrors.Error{Message: "m", Input: "hello"},
+			err:       &altshiftErrors.Error{Message: "m", Input: "hello"},
 			assert: func(t *testing.T, m map[string]any) {
 				if got := dig(t, m, "input", "value"); got != "hello" {
 					t.Fatalf("input.value = %v, want hello", got)
@@ -339,7 +339,7 @@ func TestMakeErrorAttrs(t *testing.T) {
 		{
 			name:      "skip input",
 			extractor: &ErrorContextExtractor{SkipInput: true},
-			err:       &motmedelErrors.Error{Message: "m", Input: "hello"},
+			err:       &altshiftErrors.Error{Message: "m", Input: "hello"},
 			assert: func(t *testing.T, m map[string]any) {
 				if _, ok := m["input"]; ok {
 					t.Fatalf("input should be skipped: %#v", m)
@@ -349,7 +349,7 @@ func TestMakeErrorAttrs(t *testing.T) {
 		{
 			name:      "cause chain",
 			extractor: &ErrorContextExtractor{},
-			err:       &motmedelErrors.Error{Message: "mid", Cause: errBase},
+			err:       &altshiftErrors.Error{Message: "mid", Cause: errBase},
 			assert: func(t *testing.T, m map[string]any) {
 				if m["message"] != "mid" {
 					t.Fatalf("message = %v, want mid", m["message"])
@@ -362,7 +362,7 @@ func TestMakeErrorAttrs(t *testing.T) {
 		{
 			name:      "skip cause",
 			extractor: &ErrorContextExtractor{SkipCause: true},
-			err:       &motmedelErrors.Error{Message: "mid", Cause: errBase},
+			err:       &altshiftErrors.Error{Message: "mid", Cause: errBase},
 			assert: func(t *testing.T, m map[string]any) {
 				if _, ok := m["cause"]; ok {
 					t.Fatalf("cause should be skipped: %#v", m)
@@ -496,7 +496,7 @@ func TestMakeTlsCertAttrs(t *testing.T) {
 func logWithError(t *testing.T, extractor *ErrorContextExtractor, err error) map[string]any {
 	t.Helper()
 	buf := &bytes.Buffer{}
-	next := motmedelLogHandler.New(slog.NewJSONHandler(buf, &slog.HandlerOptions{ReplaceAttr: dropTime}))
+	next := altshiftLogHandler.New(slog.NewJSONHandler(buf, &slog.HandlerOptions{ReplaceAttr: dropTime}))
 	ch := &ContextHandler{Next: next, Extractors: []ContextExtractor{extractor}}
 	logger := slog.New(ch)
 	logger.ErrorContext(context2.WithError(context.Background(), err), "boom")
@@ -622,7 +622,7 @@ func TestHandleContextError(t *testing.T) {
 	t.Parallel()
 
 	innerCtx := context.WithValue(context.Background(), ctxKey, "ctxval")
-	extErr := motmedelErrors.NewCtx(innerCtx, "boom")
+	extErr := altshiftErrors.NewCtx(innerCtx, "boom")
 
 	sub := ContextExtractorFunction(func(ctx context.Context, record *slog.Record) error {
 		if v, ok := ctx.Value(ctxKey).(string); ok {

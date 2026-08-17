@@ -3,7 +3,7 @@ package image_reference
 import (
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/missing_error"
 	"github.com/altshiftab/utils_go/pkg/schema"
@@ -52,13 +52,13 @@ func Parse(data string) (*Reference, error) {
 
 	registry, repository, found := strings.Cut(data, "/")
 	if !found {
-		return nil, motmedelErrors.NewWithTrace(missing_error.New("registry"))
+		return nil, altshiftErrors.NewWithTrace(missing_error.New("registry"))
 	}
 	reference.Registry = registry
 	reference.Repository = repository
 
 	if reference.Repository == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("repository"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("repository"))
 	}
 
 	return reference, nil

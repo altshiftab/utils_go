@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/go/code_generation"
 )
 
@@ -74,7 +74,7 @@ func Map(m map[string]any) (string, error) {
 				nil,
 			)
 			if err != nil {
-				return "", motmedelErrors.New(fmt.Errorf("generate literal: %w", err), reflectValueOf)
+				return "", altshiftErrors.New(fmt.Errorf("generate literal: %w", err), reflectValueOf)
 			}
 
 			fmt.Fprintf(&out, "%s = %s\n", constPair.key, literal)
@@ -91,7 +91,7 @@ func Map(m map[string]any) (string, error) {
 				nil,
 			)
 			if err != nil {
-				return "", motmedelErrors.New(fmt.Errorf("generate literal: %w", err), reflectValueOf)
+				return "", altshiftErrors.New(fmt.Errorf("generate literal: %w", err), reflectValueOf)
 			}
 
 			fmt.Fprintf(&out, "%s = %s\n", varPair.key, literal)

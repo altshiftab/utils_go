@@ -7,7 +7,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
@@ -21,11 +21,11 @@ type Signer struct {
 
 func New(signer crypto.Signer, email string) (*Signer, error) {
 	if signer == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("signer"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("signer"))
 	}
 
 	if email == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("email"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("email"))
 	}
 
 	return &Signer{signer: signer, email: email}, nil
@@ -40,7 +40,7 @@ func (s *Signer) Sign(_ context.Context, payload []byte) ([]byte, error) {
 
 	signature, err := s.signer.Sign(rand.Reader, digest[:], crypto.SHA256)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("signer sign: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("signer sign: %w", err))
 	}
 
 	return signature, nil

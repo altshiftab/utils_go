@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // evaluateGrammar evaluates a rulelist path, as produced by parsing an ABNF
@@ -179,7 +179,7 @@ func evaluateRepetition(input []byte, path *Path) (*Repetition, error) {
 			countString := string(input[repeatPath.Start:repeatPath.End])
 			count, err := strconv.Atoi(countString)
 			if err != nil {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf("strconv atoi (repeat count): %w", err),
 					countString,
 				)
@@ -192,7 +192,7 @@ func evaluateRepetition(input []byte, path *Path) (*Repetition, error) {
 			} else {
 				count, err := strconv.Atoi(minString)
 				if err != nil {
-					return nil, motmedelErrors.NewWithTrace(
+					return nil, altshiftErrors.NewWithTrace(
 						fmt.Errorf("strconv atoi (repeat minimum): %w", err),
 						minString,
 					)
@@ -206,7 +206,7 @@ func evaluateRepetition(input []byte, path *Path) (*Repetition, error) {
 			} else {
 				count, err := strconv.Atoi(maxString)
 				if err != nil {
-					return nil, motmedelErrors.NewWithTrace(
+					return nil, altshiftErrors.NewWithTrace(
 						fmt.Errorf("strconv atoi (repeat maximum): %w", err),
 						maxString,
 					)
@@ -215,7 +215,7 @@ func evaluateRepetition(input []byte, path *Path) (*Repetition, error) {
 			}
 		}
 	default:
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: unexpected number of repetition subpaths: %d",
 				errUnexpectedPathStructure,
@@ -247,7 +247,7 @@ func evaluateElement(input []byte, path *Path) (Element, error) {
 				}
 			}
 			if alternationPath == nil {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf(
 						"%w: no alternation subpath in %s path",
 						errUnexpectedPathStructure,
@@ -327,7 +327,7 @@ func evaluateElement(input []byte, path *Path) (Element, error) {
 
 		// Pass through structural paths with a single subpath.
 		if len(path.Subpaths) != 1 {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: unhandled path from %d to %d",
 					errUnexpectedPathStructure,

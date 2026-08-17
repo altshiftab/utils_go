@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/altshiftab/utils_go/pkg/cbor"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // AttestationObject is a parsed attestation object (WebAuthn §6.5.4). The attestation statement
@@ -21,43 +21,43 @@ type AttestationObject struct {
 func ParseAttestationObject(data []byte) (*AttestationObject, error) {
 	value, err := cbor.Decode(data)
 	if err != nil {
-		return nil, motmedelErrors.New(
-			fmt.Errorf("%w: cbor decode: %w", motmedelErrors.ErrParseError, err),
+		return nil, altshiftErrors.New(
+			fmt.Errorf("%w: cbor decode: %w", altshiftErrors.ErrParseError, err),
 			data,
 		)
 	}
 
 	attestationObjectMap, ok := value.(map[any]any)
 	if !ok {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: attestation object is not a map", motmedelErrors.ErrParseError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: attestation object is not a map", altshiftErrors.ErrParseError),
 		)
 	}
 
 	format, ok := attestationObjectMap["fmt"].(string)
 	if !ok || format == "" {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: missing attestation statement format", motmedelErrors.ErrParseError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: missing attestation statement format", altshiftErrors.ErrParseError),
 		)
 	}
 
 	attestationStatement, ok := attestationObjectMap["attStmt"].(map[any]any)
 	if !ok {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: missing attestation statement", motmedelErrors.ErrParseError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: missing attestation statement", altshiftErrors.ErrParseError),
 		)
 	}
 
 	rawAuthenticatorData, ok := attestationObjectMap["authData"].([]byte)
 	if !ok || len(rawAuthenticatorData) == 0 {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: missing authenticator data", motmedelErrors.ErrParseError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: missing authenticator data", altshiftErrors.ErrParseError),
 		)
 	}
 
 	authenticatorData, err := ParseAuthenticatorData(rawAuthenticatorData)
 	if err != nil {
-		return nil, motmedelErrors.New(
+		return nil, altshiftErrors.New(
 			fmt.Errorf("parse authenticator data: %w", err),
 			rawAuthenticatorData,
 		)

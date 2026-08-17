@@ -2,7 +2,7 @@ package utils
 
 import (
 	"crypto/x509"
-	motmedelIter "github.com/altshiftab/utils_go/pkg/iter"
+	altshiftIter "github.com/altshiftab/utils_go/pkg/iter"
 )
 
 func ExtractAlternativeNames(certificate *x509.Certificate) []string {
@@ -22,5 +22,5 @@ func ExtractAlternativeNames(certificate *x509.Certificate) []string {
 		names = append(names, u.String())
 	}
 
-	return motmedelIter.Set(names)
+	return altshiftIter.Set(names)
 }

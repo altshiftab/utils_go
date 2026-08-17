@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	jwtErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwt/errors"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/numeric_date"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
@@ -34,7 +34,7 @@ func TestValidateNilToken(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for nil token")
 	}
-	if !errors.Is(err, motmedelErrors.ErrValidationError) {
+	if !errors.Is(err, altshiftErrors.ErrValidationError) {
 		t.Errorf("error = %v, want ErrValidationError", err)
 	}
 }
@@ -137,7 +137,7 @@ func TestValidatePayloadParseError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected parse error")
 	}
-	if !errors.Is(err, motmedelErrors.ErrParseError) {
+	if !errors.Is(err, altshiftErrors.ErrParseError) {
 		t.Errorf("error = %v, want ErrParseError", err)
 	}
 	if payloadValidator.called {

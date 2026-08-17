@@ -9,14 +9,14 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
-	motmedelGzip "github.com/altshiftab/utils_go/pkg/encoding/gzip"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
+	altshiftGzip "github.com/altshiftab/utils_go/pkg/encoding/gzip"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
 	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/content_type"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const (
@@ -91,7 +91,7 @@ func (responseWriter *ResponseWriter) Write(data []byte) (int, error) {
 
 	n, err := responseWriter.ResponseWriter.Write(data)
 	if err != nil {
-		return n, motmedelErrors.NewWithTrace(fmt.Errorf("http response writer write: %w", err))
+		return n, altshiftErrors.NewWithTrace(fmt.Errorf("http response writer write: %w", err))
 	}
 
 	return n, nil
@@ -100,7 +100,7 @@ func (responseWriter *ResponseWriter) Write(data []byte) (int, error) {
 func (responseWriter *ResponseWriter) WriteResponse(
 	ctx context.Context,
 	response *muxTypesResponse.Response,
-	acceptEncoding *motmedelHttpTypes.AcceptEncoding,
+	acceptEncoding *altshiftHttpTypes.AcceptEncoding,
 ) error {
 	if response == nil {
 		return nil
@@ -217,10 +217,10 @@ func (responseWriter *ResponseWriter) WriteResponse(
 		contentTypeData := []byte(*contentTypeString)
 		contentType, err := content_type.Parse(contentTypeData)
 		if err != nil {
-			return motmedelErrors.New(fmt.Errorf("parse content type: %w", err), contentTypeData)
+			return altshiftErrors.New(fmt.Errorf("parse content type: %w", err), contentTypeData)
 		}
 		if contentType == nil {
-			return motmedelErrors.NewWithTrace(nil_error.New("content type"), contentTypeData)
+			return altshiftErrors.NewWithTrace(nil_error.New("content type"), contentTypeData)
 		}
 
 		var useDocumentHeaders bool
@@ -286,14 +286,14 @@ func (responseWriter *ResponseWriter) WriteResponse(
 
 	if shouldTryToCompressBody {
 		// NOTE: The case where `identify` effectively has a quality value of 0 should be handled elsewhere.
-		switch motmedelHttpUtils.GetMatchingContentEncoding(acceptEncoding.GetPriorityOrderedEncodings(), []string{"gzip"}) {
+		switch altshiftHttpUtils.GetMatchingContentEncoding(acceptEncoding.GetPriorityOrderedEncodings(), []string{"gzip"}) {
 		case "gzip":
-			gzipBody, err := motmedelGzip.MakeGzipData(ctx, body)
+			gzipBody, err := altshiftGzip.MakeGzipData(ctx, body)
 			if err != nil {
 				slog.WarnContext(
-					motmedelContext.WithError(
+					altshiftContext.WithError(
 						ctx,
-						motmedelErrors.New(fmt.Errorf("make gzip data: %w", err), body),
+						altshiftErrors.New(fmt.Errorf("make gzip data: %w", err), body),
 					),
 					"An error occurred when making Gzip data.",
 				)

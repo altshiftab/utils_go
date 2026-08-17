@@ -19,15 +19,15 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 
-	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
-	motmedelHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	altshiftHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config/retry_config"
-	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
+	altshiftTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
@@ -115,9 +115,9 @@ func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config
 		return nil, nil, nil_error.New("fetch config")
 	}
 
-	httpContext, ok := ctx.Value(motmedelHttpContext.HttpContextContextKey).(*motmedelHttpTypes.HttpContext)
+	httpContext, ok := ctx.Value(altshiftHttpContext.HttpContextContextKey).(*altshiftHttpTypes.HttpContext)
 	if !ok || httpContext == nil {
-		httpContext = &motmedelHttpTypes.HttpContext{}
+		httpContext = &altshiftHttpTypes.HttpContext{}
 	}
 
 	httpContext.Request = request
@@ -127,10 +127,10 @@ func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config
 
 	defer func() {
 		if slog.Default().Enabled(ctx, slog.LevelDebug) {
-			debugCtx := motmedelHttpContext.WithHttpContextValue(ctx, httpContext)
+			debugCtx := altshiftHttpContext.WithHttpContextValue(ctx, httpContext)
 
 			if err != nil {
-				debugCtx = motmedelContext.WithError(debugCtx, err)
+				debugCtx = altshiftContext.WithError(debugCtx, err)
 			}
 
 			slog.DebugContext(
@@ -144,7 +144,7 @@ func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config
 		}
 	}()
 
-	ctxWithHttpContext := motmedelHttpContext.WithHttpContextValue(context.Background(), httpContext)
+	ctxWithHttpContext := altshiftHttpContext.WithHttpContextValue(context.Background(), httpContext)
 
 	trace := &httptrace.ClientTrace{
 		GotConn: func(info httptrace.GotConnInfo) {
@@ -159,17 +159,17 @@ func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config
 	response, err := fetchConfig.HttpClient.Do(request) //nolint:gosec // generic fetch utility; fetching caller-supplied URLs is intended
 	httpContext.Response = response
 	if err != nil {
-		return nil, nil, motmedelErrors.NewWithTraceCtx(
+		return nil, nil, altshiftErrors.NewWithTraceCtx(
 			ctxWithHttpContext,
 			fmt.Errorf("http client do: %w", err),
 		)
 	}
 	if response == nil {
-		return nil, nil, motmedelErrors.NewWithTraceCtx(ctxWithHttpContext, nil_error.New("http response"))
+		return nil, nil, altshiftErrors.NewWithTraceCtx(ctxWithHttpContext, nil_error.New("http response"))
 	}
 	responseBody := response.Body
 	if utils.IsNil(responseBody) {
-		return nil, nil, motmedelErrors.NewWithTraceCtx(ctxWithHttpContext, nil_error.New("http response body"))
+		return nil, nil, altshiftErrors.NewWithTraceCtx(ctxWithHttpContext, nil_error.New("http response body"))
 	}
 
 	var responseBodyData []byte
@@ -178,9 +178,9 @@ func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config
 		defer func() {
 			if err := responseBody.Close(); err != nil {
 				slog.WarnContext(
-					motmedelContext.WithError(
+					altshiftContext.WithError(
 						ctx,
-						motmedelErrors.NewWithTrace(fmt.Errorf("http response body close: %w", err)),
+						altshiftErrors.NewWithTrace(fmt.Errorf("http response body close: %w", err)),
 					),
 					"An error occurred when closing the response body.",
 				)
@@ -188,7 +188,7 @@ func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config
 		}()
 
 		if err != nil {
-			return response, nil, motmedelErrors.NewWithTraceCtx(
+			return response, nil, altshiftErrors.NewWithTraceCtx(
 				ctxWithHttpContext,
 				fmt.Errorf("io read all (response body): %w", err),
 			)
@@ -200,7 +200,7 @@ func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config
 	if responseTls := response.TLS; responseTls != nil {
 		tlsContext := httpContext.TlsContext
 		if tlsContext == nil {
-			tlsContext = &motmedelTlsTypes.TlsContext{}
+			tlsContext = &altshiftTlsTypes.TlsContext{}
 			httpContext.TlsContext = tlsContext
 		}
 
@@ -210,9 +210,9 @@ func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config
 
 	if !fetchConfig.SkipErrorOnStatus {
 		if !strings.HasPrefix(strconv.Itoa(response.StatusCode), "2") {
-			return response, responseBodyData, motmedelErrors.NewWithTraceCtx(
+			return response, responseBodyData, altshiftErrors.NewWithTraceCtx(
 				ctxWithHttpContext,
-				&motmedelHttpErrors.Non2xxStatusCodeError{StatusCode: response.StatusCode},
+				&altshiftHttpErrors.Non2xxStatusCodeError{StatusCode: response.StatusCode},
 			)
 		}
 	}
@@ -230,12 +230,12 @@ func fetchWithRetryConfig(
 	}
 
 	if fetchConfig == nil {
-		return nil, nil, motmedelErrors.NewWithTrace(nil_error.New("fetch config"))
+		return nil, nil, altshiftErrors.NewWithTrace(nil_error.New("fetch config"))
 	}
 
 	retryConfig := fetchConfig.RetryConfig
 	if retryConfig == nil {
-		return nil, nil, motmedelErrors.NewWithTrace(nil_error.New("fetch retry config"))
+		return nil, nil, altshiftErrors.NewWithTrace(nil_error.New("fetch retry config"))
 	}
 
 	var err error
@@ -265,7 +265,7 @@ func fetchWithRetryConfig(
 			if request.GetBody != nil {
 				newBody, bodyErr := request.GetBody()
 				if bodyErr != nil {
-					return nil, nil, motmedelErrors.NewWithTrace(
+					return nil, nil, altshiftErrors.NewWithTrace(
 						fmt.Errorf("request get body: %w", bodyErr),
 					)
 				}
@@ -280,7 +280,7 @@ func fetchWithRetryConfig(
 		}
 
 		if err != nil && i != 0 {
-			err = &motmedelHttpErrors.ReattemptFailedError{Cause: err, Attempt: i + 1}
+			err = &altshiftHttpErrors.ReattemptFailedError{Cause: err, Attempt: i + 1}
 		}
 	}
 	if err != nil {
@@ -330,7 +330,7 @@ func Fetch(ctx context.Context, url string, options ...fetch_config.Option) (*ht
 	}
 
 	if url == "" {
-		return nil, nil, motmedelErrors.NewWithTrace(empty_error.New("url"))
+		return nil, nil, altshiftErrors.NewWithTrace(empty_error.New("url"))
 	}
 
 	fetchConfig := fetch_config.New(options...)
@@ -338,15 +338,15 @@ func Fetch(ctx context.Context, url string, options ...fetch_config.Option) (*ht
 
 	request, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(fetchConfig.Body))
 	if err != nil {
-		return nil, nil, motmedelErrors.NewWithTrace(fmt.Errorf("http new request: %w", err), method)
+		return nil, nil, altshiftErrors.NewWithTrace(fmt.Errorf("http new request: %w", err), method)
 	}
 	if request == nil {
-		return nil, nil, motmedelErrors.NewWithTrace(nil_error.New("request"))
+		return nil, nil, altshiftErrors.NewWithTrace(nil_error.New("request"))
 	}
 
 	requestHeader := request.Header
 	if requestHeader == nil {
-		return nil, nil, motmedelErrors.NewWithTrace(nil_error.New("request header"))
+		return nil, nil, altshiftErrors.NewWithTrace(nil_error.New("request header"))
 	}
 
 	return FetchWithRequest(ctx, request, options...)
@@ -360,7 +360,7 @@ func FetchJson[U any](ctx context.Context, url string, options ...fetch_config.O
 	}
 
 	if url == "" {
-		return nil, zero, motmedelErrors.NewWithTrace(empty_error.New("url"))
+		return nil, zero, altshiftErrors.NewWithTrace(empty_error.New("url"))
 	}
 
 	fetchConfig := fetch_config.New(options...)
@@ -389,7 +389,7 @@ func FetchJson[U any](ctx context.Context, url string, options ...fetch_config.O
 
 	var responseValue U
 	if err = json.Unmarshal(responseBody, &responseValue); err != nil {
-		return response, zero, motmedelErrors.NewWithTrace(
+		return response, zero, altshiftErrors.NewWithTrace(
 			fmt.Errorf("json unmarshal (response body): %w", err),
 			responseBody,
 		)
@@ -406,7 +406,7 @@ func FetchJsonWithBody[U any, T any](ctx context.Context, url string, bodyValue 
 	}
 
 	if url == "" {
-		return nil, zero, motmedelErrors.NewWithTrace(empty_error.New("url"))
+		return nil, zero, altshiftErrors.NewWithTrace(empty_error.New("url"))
 	}
 
 	var requestBody []byte
@@ -414,7 +414,7 @@ func FetchJsonWithBody[U any, T any](ctx context.Context, url string, bodyValue 
 		var err error
 		requestBody, err = json.Marshal(bodyValue)
 		if err != nil {
-			return nil, zero, motmedelErrors.NewWithTrace(
+			return nil, zero, altshiftErrors.NewWithTrace(
 				fmt.Errorf("json marshal (body value): %w", err),
 				bodyValue,
 			)
@@ -431,14 +431,14 @@ func FetchJsonWithBody[U any, T any](ctx context.Context, url string, bodyValue 
 // groups; within a group of equal quality the server's preference order decides
 // (callers list their identifiers by preference, e.g. smallest variant first).
 func GetMatchingContentEncoding(
-	clientSupportedEncodings []*motmedelHttpTypes.Encoding,
+	clientSupportedEncodings []*altshiftHttpTypes.Encoding,
 	serverSupportedEncodingIdentifiers []string,
 ) string {
 	if len(clientSupportedEncodings) == 0 {
 		return AcceptContentIdentity
 	}
 
-	encodings := make([]*motmedelHttpTypes.Encoding, 0, len(clientSupportedEncodings))
+	encodings := make([]*altshiftHttpTypes.Encoding, 0, len(clientSupportedEncodings))
 	for _, clientEncoding := range clientSupportedEncodings {
 		if clientEncoding != nil {
 			encodings = append(encodings, clientEncoding)
@@ -522,9 +522,9 @@ func GetMatchingContentEncoding(
 }
 
 func GetMatchingAccept(
-	clientSupportedMediaRanges []*motmedelHttpTypes.MediaRange,
-	serverSupportedMediaRanges []*motmedelHttpTypes.ServerMediaRange,
-) *motmedelHttpTypes.ServerMediaRange {
+	clientSupportedMediaRanges []*altshiftHttpTypes.MediaRange,
+	serverSupportedMediaRanges []*altshiftHttpTypes.ServerMediaRange,
+) *altshiftHttpTypes.ServerMediaRange {
 	if len(clientSupportedMediaRanges) == 0 || len(serverSupportedMediaRanges) == 0 {
 		return nil
 	}
@@ -562,10 +562,10 @@ func ParseLastModifiedTimestamp(timestamp string) (time.Time, error) {
 	t, err := time.Parse(time.RFC1123, timestamp)
 
 	if err != nil {
-		return time.Time{}, motmedelErrors.NewWithTrace(
+		return time.Time{}, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: time parse rfc1123: %w",
-				motmedelHttpErrors.ErrBadIfModifiedSinceTimestamp,
+				altshiftHttpErrors.ErrBadIfModifiedSinceTimestamp,
 				err,
 			),
 			timestamp,
@@ -590,7 +590,7 @@ func IfModifiedSinceCacheHit(ifModifiedSinceValue string, lastModifiedValue stri
 
 	ifModifiedSinceTimestamp, err := ParseLastModifiedTimestamp(ifModifiedSinceValue)
 	if err != nil {
-		return false, motmedelErrors.New(
+		return false, altshiftErrors.New(
 			fmt.Errorf("parse last modified timestamp (If-Modified-Since): %w", err),
 			ifModifiedSinceValue,
 		)
@@ -598,7 +598,7 @@ func IfModifiedSinceCacheHit(ifModifiedSinceValue string, lastModifiedValue stri
 
 	lastModifiedTimestamp, err := ParseLastModifiedTimestamp(lastModifiedValue)
 	if err != nil {
-		return false, motmedelErrors.New(
+		return false, altshiftErrors.New(
 			fmt.Errorf("parse last modified timestamp (Last-Modified): %w", err),
 			lastModifiedValue,
 		)
@@ -619,17 +619,17 @@ func BasicAuth(username, password string) string {
 
 func GetSingleHeader(name string, header http.Header) (string, error) {
 	if header == nil {
-		return "", motmedelErrors.NewWithTrace(nil_error.New("map"))
+		return "", altshiftErrors.NewWithTrace(nil_error.New("map"))
 	}
 
 	name = http.CanonicalHeaderKey(name)
 
 	headerValues, ok := header[name]
 	if !ok {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("%w (%s)", motmedelHttpErrors.ErrMissingHeader, name))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("%w (%s)", altshiftHttpErrors.ErrMissingHeader, name))
 	}
 	if len(headerValues) != 1 {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("%w (%s)", motmedelHttpErrors.ErrMultipleHeaderValues, name))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("%w (%s)", altshiftHttpErrors.ErrMultipleHeaderValues, name))
 	}
 
 	return headerValues[0], nil

@@ -9,7 +9,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_authorizer"
 	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_caller"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
@@ -23,7 +23,7 @@ func (c *AuthorizedTxCaller[T]) Call(ctx context.Context, tx *sql.Tx) (T, error)
 	var zero T
 
 	if utils.IsNil(c.TxCaller) {
-		return zero, motmedelErrors.NewWithTrace(nil_error.New("tx caller"))
+		return zero, altshiftErrors.NewWithTrace(nil_error.New("tx caller"))
 	}
 
 	if !utils.IsNil(c.TxAuthorizer) {
@@ -32,7 +32,7 @@ func (c *AuthorizedTxCaller[T]) Call(ctx context.Context, tx *sql.Tx) (T, error)
 			return zero, fmt.Errorf("tx authorizer authorized: %w", err)
 		}
 		if !authorized {
-			return zero, motmedelErrors.ErrUnauthorized
+			return zero, altshiftErrors.ErrUnauthorized
 		}
 	}
 

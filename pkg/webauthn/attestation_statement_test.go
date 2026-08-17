@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/altshiftab/utils_go/pkg/cbor"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	webauthnErrors "github.com/altshiftab/utils_go/pkg/webauthn/errors"
 )
@@ -142,7 +142,7 @@ func TestVerifyAttestationStatementNone(t *testing.T) {
 			makeTestAuthenticatorData(t, FlagUserPresent, 0, nil),
 		)
 
-		if _, err := VerifyAttestationStatement(attestationObject, []byte("{}")); !errors.Is(err, motmedelErrors.ErrValidationError) {
+		if _, err := VerifyAttestationStatement(attestationObject, []byte("{}")); !errors.Is(err, altshiftErrors.ErrValidationError) {
 			t.Errorf("expected validation error, got %v", err)
 		}
 	})
@@ -302,7 +302,7 @@ func TestVerifyAttestationStatementPacked(t *testing.T) {
 				makeAttestationObject(t, "packed", statement, authData),
 				rawClientDataJson,
 			)
-			if !errors.Is(err, motmedelErrors.ErrValidationError) {
+			if !errors.Is(err, altshiftErrors.ErrValidationError) {
 				t.Errorf("expected validation error, got %v", err)
 			}
 			if testCase.expectMismatch {

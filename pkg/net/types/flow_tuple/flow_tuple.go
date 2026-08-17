@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net"
 
-	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
+	altshiftNet "github.com/altshiftab/utils_go/pkg/net"
 )
 
 var icmpV4PortEquivalents = map[uint8]uint8{
@@ -114,9 +114,9 @@ func New(
 	var oneWay bool
 
 	switch protocol {
-	case motmedelNet.ProtocolIcmp:
+	case altshiftNet.ProtocolIcmp:
 		sourcePort, destinationPort, oneWay = getIcmpV4PortEquivalents(uint8(sourcePort), uint8(destinationPort)) //nolint:gosec // ICMP type/code is 8-bit
-	case motmedelNet.ProtocolIcmp6:
+	case altshiftNet.ProtocolIcmp6:
 		sourcePort, destinationPort, oneWay = getIcmpv6PortEquivalents(uint8(sourcePort), uint8(destinationPort)) //nolint:gosec // ICMP type/code is 8-bit
 	}
 

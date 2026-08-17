@@ -11,16 +11,16 @@ import (
 	"strconv"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/authorization"
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
 	"github.com/altshiftab/utils_go/pkg/iso3166"
-	motmedelJson "github.com/altshiftab/utils_go/pkg/json"
+	altshiftJson "github.com/altshiftab/utils_go/pkg/json"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jws"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/claims/session_claims"
-	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
 	"github.com/altshiftab/utils_go/pkg/schema"
 	schemaUtils "github.com/altshiftab/utils_go/pkg/schema/utils"
 	"github.com/altshiftab/utils_go/pkg/utils"
@@ -431,11 +431,11 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 		return nil
 	}
 
-	if requestId, ok := ctx.Value(motmedelHttpContext.RequestIdContextKey).(string); ok {
+	if requestId, ok := ctx.Value(altshiftHttpContext.RequestIdContextKey).(string); ok {
 		record.Add(slog.Group("http", slog.Group("request", slog.String("id", requestId))))
 	}
 
-	if httpContext, ok := ctx.Value(motmedelHttpContext.HttpContextContextKey).(*motmedelHttpTypes.HttpContext); ok && httpContext != nil {
+	if httpContext, ok := ctx.Value(altshiftHttpContext.HttpContextContextKey).(*altshiftHttpTypes.HttpContext); ok && httpContext != nil {
 		if httpContext.User == nil {
 			if request := httpContext.Request; request != nil {
 				if requestHeader := request.Header; requestHeader != nil {
@@ -446,7 +446,7 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 
 		base, err := schemaUtils.ParseHttpContext(httpContext)
 		if err != nil {
-			return motmedelErrors.New(fmt.Errorf("parse http context: %w", err), httpContext)
+			return altshiftErrors.New(fmt.Errorf("parse http context: %w", err), httpContext)
 		}
 
 		if base != nil {
@@ -636,12 +636,12 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 			}
 			base.Message = ""
 
-			baseMap, err := motmedelJson.ObjectToMap(base)
+			baseMap, err := altshiftJson.ObjectToMap(base)
 			if err != nil {
-				return motmedelErrors.New(fmt.Errorf("object to map: %w", err), base)
+				return altshiftErrors.New(fmt.Errorf("object to map: %w", err), base)
 			}
 
-			record.Add(motmedelLog.AttrsFromMap(baseMap)...)
+			record.Add(altshiftLog.AttrsFromMap(baseMap)...)
 		}
 	}
 

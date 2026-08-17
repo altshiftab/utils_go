@@ -14,7 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/altshiftab/utils_go/pkg/cbor"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 var (
@@ -252,7 +252,7 @@ func (s *Schema) validateValue(value any, path string, issues *[]*Issue) {
 // cbor.Decode: map[any]any, []any, string, []byte, int64, bool, nil, cbor.Tag, or cbor.Undefined.
 func (s *Schema) Validate(value any) error {
 	if s == nil {
-		return motmedelErrors.NewWithTrace(ErrNilSchema)
+		return altshiftErrors.NewWithTrace(ErrNilSchema)
 	}
 
 	var issues []*Issue
@@ -270,7 +270,7 @@ func (s *Schema) Validate(value any) error {
 // decoding twice.
 func (s *Schema) ValidateBytes(data []byte) error {
 	if s == nil {
-		return motmedelErrors.NewWithTrace(ErrNilSchema)
+		return altshiftErrors.NewWithTrace(ErrNilSchema)
 	}
 
 	// Nothing decoded escapes into the returned issues, so the byte strings can alias data.

@@ -3,7 +3,7 @@ package strings
 import (
 	"encoding"
 	"fmt"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"reflect"
 	"strconv"
 	"strings"
@@ -37,7 +37,7 @@ func MakeTextualRepresentation(value any) (string, error) {
 		if tm, ok := value.(encoding.TextMarshaler); ok {
 			data, err := tm.MarshalText()
 			if err != nil {
-				return "", &motmedelErrors.Error{
+				return "", &altshiftErrors.Error{
 					Message: "An error occurred when making a textual representation using TextMarshaler.",
 					Cause:   err,
 				}

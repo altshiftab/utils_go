@@ -3,7 +3,7 @@ package postgres
 import (
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/type_export/postgres/types"
 	typeExportTypesContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
 )
@@ -16,7 +16,7 @@ func Convert(values ...any) (string, error) {
 
 	output, err := postgresContext.Render()
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("render: %w", err), postgresContext)
+		return "", altshiftErrors.New(fmt.Errorf("render: %w", err), postgresContext)
 	}
 
 	return output, nil

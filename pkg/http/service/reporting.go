@@ -7,11 +7,11 @@ import (
 	"slices"
 	"strconv"
 
-	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
-	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_loader"
 	bodyParserAdapter "github.com/altshiftab/utils_go/pkg/http/mux/types/body_parser/adapter"
 	jsonSchemaBodyParser "github.com/altshiftab/utils_go/pkg/http/mux/types/body_parser/json_schema_body_parser"
@@ -19,13 +19,13 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	muxUtils "github.com/altshiftab/utils_go/pkg/http/mux/utils"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 	"github.com/altshiftab/utils_go/pkg/http/types/integrity_policy"
 	"github.com/altshiftab/utils_go/pkg/http/types/js_error_report"
 	"github.com/altshiftab/utils_go/pkg/http/types/reporting_api"
-	motmedelJson "github.com/altshiftab/utils_go/pkg/json"
-	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	altshiftJson "github.com/altshiftab/utils_go/pkg/json"
+	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
 	"github.com/altshiftab/utils_go/pkg/schema"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
@@ -54,16 +54,16 @@ const maxReportBytes = 8192
 // httpContextFromRequest retrieves the mux's http context, which the reports are attached to so
 // that they are logged with what is known about the request that carried them. A report that
 // arrives without one is still worth logging, so a failure is reported rather than returned.
-func httpContextFromRequest(request *http.Request) *motmedelHttpTypes.HttpContext {
+func httpContextFromRequest(request *http.Request) *altshiftHttpTypes.HttpContext {
 	ctx := request.Context()
 
-	httpContext, err := utils.GetNonZeroContextValue[*motmedelHttpTypes.HttpContext](
+	httpContext, err := utils.GetNonZeroContextValue[*altshiftHttpTypes.HttpContext](
 		ctx,
-		motmedelMux.MuxHttpContextContextKey,
+		altshiftMux.MuxHttpContextContextKey,
 	)
 	if err != nil {
 		slog.ErrorContext(
-			motmedelContext.WithError(ctx, fmt.Errorf("get non-zero context value: %w", err)),
+			altshiftContext.WithError(ctx, fmt.Errorf("get non-zero context value: %w", err)),
 			"An error occurred when retrieving the mux http context.",
 		)
 	}
@@ -72,7 +72,7 @@ func httpContextFromRequest(request *http.Request) *motmedelHttpTypes.HttpContex
 }
 
 // reportingFromHttpContext returns the http context's reporting, making it where it has none.
-func reportingFromHttpContext(httpContext *motmedelHttpTypes.HttpContext) *schema.HttpReporting {
+func reportingFromHttpContext(httpContext *altshiftHttpTypes.HttpContext) *schema.HttpReporting {
 	if httpContext == nil {
 		return nil
 	}
@@ -113,14 +113,14 @@ func messageFromReports[T interface{ Message() string }](
 //
 // report-uri is deprecated, and kept: it is the only way Firefox and Safari report a violation at
 // all, neither having implemented the reporting endpoints that replaced it.
-func patchReportingHeaders(mux *motmedelMux.Mux, integrityPolicyEnforced bool) error {
+func patchReportingHeaders(mux *altshiftMux.Mux, integrityPolicyEnforced bool) error {
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	defaultDocumentHeaders := mux.DefaultDocumentHeaders
 	if defaultDocumentHeaders == nil {
-		return motmedelErrors.NewWithTrace(nil_error.NewWithInstance("map", "default document headers"))
+		return altshiftErrors.NewWithTrace(nil_error.NewWithInstance("map", "default document headers"))
 	}
 
 	defaultDocumentHeaders[reportingEndpointsHeaderName] = fmt.Sprintf(
@@ -189,7 +189,7 @@ func reportsEndpoint[T interface{ Message() string }](
 ) (*endpointPkg.Endpoint, error) {
 	bodyParser, err := jsonSchemaBodyParser.New[[]*reporting_api.Report[T]]()
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("json schema body parser new: %w", err), path)
+		return nil, altshiftErrors.New(fmt.Errorf("json schema body parser new: %w", err), path)
 	}
 
 	return &endpointPkg.Endpoint{
@@ -207,7 +207,7 @@ func reportsEndpoint[T interface{ Message() string }](
 			reports, err := muxUtils.GetParsedRequestBody[[]*reporting_api.Report[T]](ctx)
 			if err != nil {
 				return nil, &response_error.ResponseError{
-					ServerError: motmedelErrors.New(fmt.Errorf("get parsed request body: %w", err)),
+					ServerError: altshiftErrors.New(fmt.Errorf("get parsed request body: %w", err)),
 				}
 			}
 
@@ -217,7 +217,7 @@ func reportsEndpoint[T interface{ Message() string }](
 			}
 
 			slog.WarnContext(
-				motmedelHttpContext.WithHttpContextValue(ctx, httpContext),
+				altshiftHttpContext.WithHttpContextValue(ctx, httpContext),
 				messageFromReports(reports, singular, plural),
 				slog.Group(
 					"event",
@@ -247,7 +247,7 @@ func cspReportToEndpoint() (*endpointPkg.Endpoint, error) {
 func cspReportUriEndpoint() (*endpointPkg.Endpoint, error) {
 	bodyParser, err := jsonSchemaBodyParser.New[*content_security_policy.ReportEnvelope]()
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("json schema body parser new: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("json schema body parser new: %w", err))
 	}
 
 	return &endpointPkg.Endpoint{
@@ -273,7 +273,7 @@ func cspReportUriEndpoint() (*endpointPkg.Endpoint, error) {
 			}
 
 			slog.WarnContext(
-				motmedelHttpContext.WithHttpContextValue(ctx, httpContext),
+				altshiftHttpContext.WithHttpContextValue(ctx, httpContext),
 				report.Message(),
 				slog.Group(
 					"event",
@@ -321,18 +321,18 @@ func logJsError(
 		}
 	}
 
-	errorMap, err := motmedelJson.ObjectToMap(schemaError)
+	errorMap, err := altshiftJson.ObjectToMap(schemaError)
 	if err != nil {
 		slog.ErrorContext(
-			motmedelContext.WithError(ctx, fmt.Errorf("object to map: %w", err)),
+			altshiftContext.WithError(ctx, fmt.Errorf("object to map: %w", err)),
 			"An error occurred when converting the schema error to a map.",
 		)
 	}
 
 	slog.WarnContext(
-		motmedelHttpContext.WithHttpContextValue(ctx, httpContextFromRequest(request)),
+		altshiftHttpContext.WithHttpContextValue(ctx, httpContextFromRequest(request)),
 		message,
-		slog.Group("error", motmedelLog.AttrsFromMap(errorMap)...),
+		slog.Group("error", altshiftLog.AttrsFromMap(errorMap)...),
 		slog.Group(
 			"event",
 			slog.String("reason", reason),
@@ -344,7 +344,7 @@ func logJsError(
 func jsErrorEndpoint() (*endpointPkg.Endpoint, error) {
 	bodyParser, err := jsonSchemaBodyParser.New[*js_error_report.ErrorBody]()
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("json schema body parser new: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("json schema body parser new: %w", err))
 	}
 
 	return &endpointPkg.Endpoint{
@@ -384,7 +384,7 @@ func jsErrorEndpoint() (*endpointPkg.Endpoint, error) {
 func jsUnhandledRejectionEndpoint() (*endpointPkg.Endpoint, error) {
 	bodyParser, err := jsonSchemaBodyParser.New[*js_error_report.BaseErrorBody]()
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("json schema body parser new: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("json schema body parser new: %w", err))
 	}
 
 	return &endpointPkg.Endpoint{
@@ -423,9 +423,9 @@ func jsUnhandledRejectionEndpoint() (*endpointPkg.Endpoint, error) {
 
 // patchReporting asks the browser to report what it blocks, and serves the endpoints the reports go
 // to -- the browser's own, and the ones a page's JavaScript posts its errors to.
-func patchReporting(mux *motmedelMux.Mux, integrityPolicyEnforced bool) error {
+func patchReporting(mux *altshiftMux.Mux, integrityPolicyEnforced bool) error {
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	if err := patchReportingHeaders(mux, integrityPolicyEnforced); err != nil {
@@ -447,7 +447,7 @@ func patchReporting(mux *motmedelMux.Mux, integrityPolicyEnforced bool) error {
 			return fmt.Errorf("make endpoint: %w", err)
 		}
 		if endpoint == nil {
-			return motmedelErrors.NewWithTrace(nil_error.New("endpoint"))
+			return altshiftErrors.NewWithTrace(nil_error.New("endpoint"))
 		}
 
 		endpoints = append(endpoints, endpoint)

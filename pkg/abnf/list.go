@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // ruleNameOws is the rule the list expansion separates elements with.
@@ -125,7 +125,7 @@ func listRepeatCounts(input []byte, repeatPath *Path, hashIndex int) (int, int, 
 	if text := string(input[repeatPath.Start:hashIndex]); text != "" {
 		count, err := strconv.Atoi(text)
 		if err != nil {
-			return 0, 0, motmedelErrors.NewWithTrace(
+			return 0, 0, altshiftErrors.NewWithTrace(
 				fmt.Errorf("strconv atoi (list minimum): %w", err),
 				text,
 			)
@@ -136,7 +136,7 @@ func listRepeatCounts(input []byte, repeatPath *Path, hashIndex int) (int, int, 
 	if text := string(input[hashIndex+1 : repeatPath.End]); text != "" {
 		count, err := strconv.Atoi(text)
 		if err != nil {
-			return 0, 0, motmedelErrors.NewWithTrace(
+			return 0, 0, altshiftErrors.NewWithTrace(
 				fmt.Errorf("strconv atoi (list maximum): %w", err),
 				text,
 			)

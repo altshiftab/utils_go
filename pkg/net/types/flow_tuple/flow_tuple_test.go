@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
+	altshiftNet "github.com/altshiftab/utils_go/pkg/net"
 )
 
 // Test vectors from the official Community ID spec:
@@ -28,7 +28,7 @@ func TestHash(t *testing.T) {
 			destIp:      "66.35.250.204",
 			sourcePort:  34855,
 			destPort:    80,
-			protocol:    motmedelNet.ProtocolTcp,
+			protocol:    altshiftNet.ProtocolTcp,
 			communityId: "1:LQU9qZlK+B5F3KDmev6m5PMibrg=",
 		},
 		{
@@ -37,7 +37,7 @@ func TestHash(t *testing.T) {
 			destIp:      "128.232.110.120",
 			sourcePort:  80,
 			destPort:    34855,
-			protocol:    motmedelNet.ProtocolTcp,
+			protocol:    altshiftNet.ProtocolTcp,
 			communityId: "1:LQU9qZlK+B5F3KDmev6m5PMibrg=",
 		},
 
@@ -48,7 +48,7 @@ func TestHash(t *testing.T) {
 			destIp:      "8.8.8.8",
 			sourcePort:  54585,
 			destPort:    53,
-			protocol:    motmedelNet.ProtocolUdp,
+			protocol:    altshiftNet.ProtocolUdp,
 			communityId: "1:d/FP5EW3wiY1vCndhwleRRKHowQ=",
 		},
 		{
@@ -57,7 +57,7 @@ func TestHash(t *testing.T) {
 			destIp:      "192.168.1.52",
 			sourcePort:  53,
 			destPort:    54585,
-			protocol:    motmedelNet.ProtocolUdp,
+			protocol:    altshiftNet.ProtocolUdp,
 			communityId: "1:d/FP5EW3wiY1vCndhwleRRKHowQ=",
 		},
 
@@ -68,7 +68,7 @@ func TestHash(t *testing.T) {
 			destIp:      "192.168.0.1",
 			sourcePort:  8,
 			destPort:    0,
-			protocol:    motmedelNet.ProtocolIcmp,
+			protocol:    altshiftNet.ProtocolIcmp,
 			communityId: "1:X0snYXpgwiv9TZtqg64sgzUn6Dk=",
 		},
 		{
@@ -77,7 +77,7 @@ func TestHash(t *testing.T) {
 			destIp:      "192.168.0.89",
 			sourcePort:  0,
 			destPort:    8,
-			protocol:    motmedelNet.ProtocolIcmp,
+			protocol:    altshiftNet.ProtocolIcmp,
 			communityId: "1:X0snYXpgwiv9TZtqg64sgzUn6Dk=",
 		},
 
@@ -88,7 +88,7 @@ func TestHash(t *testing.T) {
 			destIp:      "10.0.0.2",
 			sourcePort:  11,
 			destPort:    0,
-			protocol:    motmedelNet.ProtocolIcmp,
+			protocol:    altshiftNet.ProtocolIcmp,
 			communityId: "1:YHxtAirCG//0OzkcVAukqKQN9xM=",
 		},
 
@@ -99,7 +99,7 @@ func TestHash(t *testing.T) {
 			destIp:      "2607:f8b0:400c:c03::1a",
 			sourcePort:  63943,
 			destPort:    25,
-			protocol:    motmedelNet.ProtocolTcp,
+			protocol:    altshiftNet.ProtocolTcp,
 			communityId: "1:/qFaeAR+gFe1KYjMzVDsMv+wgU4=",
 		},
 		{
@@ -108,7 +108,7 @@ func TestHash(t *testing.T) {
 			destIp:      "2001:470:e5bf:dead:4957:2174:e82c:4887",
 			sourcePort:  25,
 			destPort:    63943,
-			protocol:    motmedelNet.ProtocolTcp,
+			protocol:    altshiftNet.ProtocolTcp,
 			communityId: "1:/qFaeAR+gFe1KYjMzVDsMv+wgU4=",
 		},
 
@@ -119,7 +119,7 @@ func TestHash(t *testing.T) {
 			destIp:      "fe80::260:97ff:fe07:69ea",
 			sourcePort:  135,
 			destPort:    136,
-			protocol:    motmedelNet.ProtocolIcmp6,
+			protocol:    altshiftNet.ProtocolIcmp6,
 			communityId: "1:dGHyGvjMfljg6Bppwm3bg0LO8TY=",
 		},
 		{
@@ -128,7 +128,7 @@ func TestHash(t *testing.T) {
 			destIp:      "fe80::200:86ff:fe05:80da",
 			sourcePort:  136,
 			destPort:    135,
-			protocol:    motmedelNet.ProtocolIcmp6,
+			protocol:    altshiftNet.ProtocolIcmp6,
 			communityId: "1:dGHyGvjMfljg6Bppwm3bg0LO8TY=",
 		},
 
@@ -139,7 +139,7 @@ func TestHash(t *testing.T) {
 			destIp:      "3ffe:501:0:1001::2",
 			sourcePort:  128,
 			destPort:    129,
-			protocol:    motmedelNet.ProtocolIcmp6,
+			protocol:    altshiftNet.ProtocolIcmp6,
 			communityId: "1:+TW+HtLHvV1xnGhV1lv7XoJrqQg=",
 		},
 		{
@@ -148,7 +148,7 @@ func TestHash(t *testing.T) {
 			destIp:      "3ffe:507:0:1:200:86ff:fe05:80da",
 			sourcePort:  129,
 			destPort:    128,
-			protocol:    motmedelNet.ProtocolIcmp6,
+			protocol:    altshiftNet.ProtocolIcmp6,
 			communityId: "1:+TW+HtLHvV1xnGhV1lv7XoJrqQg=",
 		},
 
@@ -201,14 +201,14 @@ func TestHashDirectionIndependence(t *testing.T) {
 		net.ParseIP("10.0.0.2"),
 		12345,
 		80,
-		motmedelNet.ProtocolTcp,
+		altshiftNet.ProtocolTcp,
 	)
 	reverse := New(
 		net.ParseIP("10.0.0.2"),
 		net.ParseIP("10.0.0.1"),
 		80,
 		12345,
-		motmedelNet.ProtocolTcp,
+		altshiftNet.ProtocolTcp,
 	)
 
 	if forward.Hash() != reverse.Hash() {
@@ -238,7 +238,7 @@ func TestNewAlwaysOrdered(t *testing.T) {
 			destIp:         "10.0.0.2",
 			sourcePort:     12345,
 			destPort:       80,
-			protocol:       motmedelNet.ProtocolTcp,
+			protocol:       altshiftNet.ProtocolTcp,
 			wantSourceIp:   "10.0.0.1",
 			wantDestIp:     "10.0.0.2",
 			wantSourcePort: 12345,
@@ -251,7 +251,7 @@ func TestNewAlwaysOrdered(t *testing.T) {
 			destIp:         "10.0.0.1",
 			sourcePort:     80,
 			destPort:       12345,
-			protocol:       motmedelNet.ProtocolTcp,
+			protocol:       altshiftNet.ProtocolTcp,
 			wantSourceIp:   "10.0.0.1",
 			wantDestIp:     "10.0.0.2",
 			wantSourcePort: 12345,
@@ -264,7 +264,7 @@ func TestNewAlwaysOrdered(t *testing.T) {
 			destIp:         "10.0.0.1",
 			sourcePort:     443,
 			destPort:       80,
-			protocol:       motmedelNet.ProtocolTcp,
+			protocol:       altshiftNet.ProtocolTcp,
 			wantSourceIp:   "10.0.0.1",
 			wantDestIp:     "10.0.0.1",
 			wantSourcePort: 80,
@@ -277,7 +277,7 @@ func TestNewAlwaysOrdered(t *testing.T) {
 			destIp:         "192.168.0.1",
 			sourcePort:     8,
 			destPort:       0,
-			protocol:       motmedelNet.ProtocolIcmp,
+			protocol:       altshiftNet.ProtocolIcmp,
 			wantSourceIp:   "192.168.0.1",
 			wantDestIp:     "192.168.0.89",
 			wantSourcePort: 0,
@@ -290,7 +290,7 @@ func TestNewAlwaysOrdered(t *testing.T) {
 			destIp:         "10.0.0.1",
 			sourcePort:     11,
 			destPort:       0,
-			protocol:       motmedelNet.ProtocolIcmp,
+			protocol:       altshiftNet.ProtocolIcmp,
 			wantSourceIp:   "10.0.0.2",
 			wantDestIp:     "10.0.0.1",
 			wantSourcePort: 11,
@@ -303,7 +303,7 @@ func TestNewAlwaysOrdered(t *testing.T) {
 			destIp:         "fe80::2",
 			sourcePort:     128,
 			destPort:       0,
-			protocol:       motmedelNet.ProtocolIcmp6,
+			protocol:       altshiftNet.ProtocolIcmp6,
 			wantSourceIp:   "fe80::1",
 			wantDestIp:     "fe80::2",
 			wantSourcePort: 128,
@@ -349,7 +349,7 @@ func BenchmarkHash(b *testing.B) {
 		net.ParseIP("66.35.250.204"),
 		34855,
 		80,
-		motmedelNet.ProtocolTcp,
+		altshiftNet.ProtocolTcp,
 	)
 
 	for b.Loop() {

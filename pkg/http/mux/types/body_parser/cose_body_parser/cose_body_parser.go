@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/altshiftab/utils_go/pkg/cose"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
@@ -42,13 +42,13 @@ func (p *Parser) Parse(_ *http.Request, body []byte) ([]byte, *response_error.Re
 	privateKey := p.privateKey
 	if privateKey == nil {
 		return nil, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("private key")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("private key")),
 		}
 	}
 
 	result, err := cose.Decrypt(body, privateKey, nil)
 	if err != nil {
-		wrappedErr := motmedelErrors.NewWithTrace(fmt.Errorf("cose decrypt: %w", err))
+		wrappedErr := altshiftErrors.NewWithTrace(fmt.Errorf("cose decrypt: %w", err))
 
 		switch {
 		case errors.Is(err, cose.ErrMalformedMessage), errors.Is(err, cose.ErrUnsupportedAlgorithm):
@@ -108,7 +108,7 @@ func (p *Parser) Parse(_ *http.Request, body []byte) ([]byte, *response_error.Re
 
 func New(privateKey *ecdh.PrivateKey, options ...Option) (*Parser, error) {
 	if privateKey == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("private key"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("private key"))
 	}
 
 	parser := &Parser{privateKey: privateKey}

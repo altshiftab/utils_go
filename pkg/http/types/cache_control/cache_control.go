@@ -11,8 +11,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 //go:embed grammar.abnf
@@ -31,16 +31,16 @@ var (
 	ErrInvalidDeltaSeconds = errors.New("invalid delta-seconds")
 )
 
-func Parse(data []byte) (*motmedelHttpTypes.CacheControl, error) {
+func Parse(data []byte) (*altshiftHttpTypes.CacheControl, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(Grammar, data, "Cache-Control")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
-	var cacheControl motmedelHttpTypes.CacheControl
+	var cacheControl altshiftHttpTypes.CacheControl
 
 	directivePaths := abnfUtils.SearchPath(
 		paths[0],
@@ -55,8 +55,8 @@ func Parse(data []byte) (*motmedelHttpTypes.CacheControl, error) {
 			false,
 		)
 		if directiveNamePath == nil {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, nil_error.New("directive name path")),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, nil_error.New("directive name path")),
 			)
 		}
 		directiveName := strings.ToLower(string(abnfUtils.ExtractPathValue(data, directiveNamePath)))
@@ -79,7 +79,7 @@ func Parse(data []byte) (*motmedelHttpTypes.CacheControl, error) {
 				quotedString := string(abnfUtils.ExtractPathValue(data, quotedStringPath))
 				unquoted, err := strconv.Unquote(quotedString)
 				if err != nil {
-					return nil, motmedelErrors.NewWithTrace(
+					return nil, altshiftErrors.NewWithTrace(
 						fmt.Errorf("strconv unquote (quoted-string): %w", err),
 						quotedString,
 					)
@@ -92,10 +92,10 @@ func Parse(data []byte) (*motmedelHttpTypes.CacheControl, error) {
 
 		if deltaSecondsDirectives[directiveName] && (directiveName != "max-stale" || directiveValue != "") {
 			if _, err := strconv.Atoi(directiveValue); err != nil {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf(
 						"%w: %w: strconv atoi (%s): %w",
-						motmedelErrors.ErrSemanticError,
+						altshiftErrors.ErrSemanticError,
 						ErrInvalidDeltaSeconds,
 						directiveName,
 						err,
@@ -107,7 +107,7 @@ func Parse(data []byte) (*motmedelHttpTypes.CacheControl, error) {
 
 		cacheControl.Directives = append(
 			cacheControl.Directives,
-			&motmedelHttpTypes.CacheControlDirective{
+			&altshiftHttpTypes.CacheControlDirective{
 				Name:  directiveName,
 				Value: directiveValue,
 			},

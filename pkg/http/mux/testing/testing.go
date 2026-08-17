@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"testing"
 
-	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
+	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/utils"
 	"github.com/altshiftab/utils_go/pkg/testing/cmp"
@@ -80,9 +80,9 @@ func TestArgs(t *testing.T, args *Args, serverUrl string) {
 	defer func() {
 		if err := response.Body.Close(); err != nil {
 			slog.WarnContext(
-				motmedelContext.WithError(
+				altshiftContext.WithError(
 					t.Context(),
-					motmedelErrors.NewWithTrace(fmt.Errorf("response body close: %w", err)),
+					altshiftErrors.NewWithTrace(fmt.Errorf("response body close: %w", err)),
 				),
 				"An error occurred when closing the response body.",
 			)
@@ -109,9 +109,9 @@ func TestArgs(t *testing.T, args *Args, serverUrl string) {
 			expectedHeaderValue := header[1]
 			headerValue, err := utils.GetSingleHeader(headerName, responseHeader)
 			if err != nil {
-				if errors.Is(err, motmedelHttpErrors.ErrMissingHeader) {
+				if errors.Is(err, altshiftHttpErrors.ErrMissingHeader) {
 					t.Errorf("expected header %q to be present", headerName)
-				} else if errors.Is(err, motmedelHttpErrors.ErrMultipleHeaderValues) {
+				} else if errors.Is(err, altshiftHttpErrors.ErrMultipleHeaderValues) {
 					t.Errorf("multiple header values for header %q", headerName)
 				} else {
 					t.Fatalf("unexpected error: %v", err)
@@ -127,9 +127,9 @@ func TestArgs(t *testing.T, args *Args, serverUrl string) {
 	if expectedHeadersPresent := args.ExpectedHeadersPresent; len(expectedHeadersPresent) != 0 {
 		for _, header := range expectedHeadersPresent {
 			if _, err := utils.GetSingleHeader(header, response.Header); err != nil {
-				if errors.Is(err, motmedelHttpErrors.ErrMissingHeader) {
+				if errors.Is(err, altshiftHttpErrors.ErrMissingHeader) {
 					t.Errorf("expected header %q to be present", header)
-				} else if errors.Is(err, motmedelHttpErrors.ErrMultipleHeaderValues) {
+				} else if errors.Is(err, altshiftHttpErrors.ErrMultipleHeaderValues) {
 					continue
 				} else {
 					t.Fatalf("unexpected error: %v", err)

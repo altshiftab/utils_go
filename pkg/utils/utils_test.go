@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
@@ -44,7 +44,7 @@ func TestConvert(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrConversionNotOk) {
+		if !errors.Is(err, altshiftErrors.ErrConversionNotOk) {
 			t.Fatalf("expected ErrConversionNotOk, got %v", err)
 		}
 	})
@@ -56,7 +56,7 @@ func TestConvert(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrConversionNotOk) {
+		if !errors.Is(err, altshiftErrors.ErrConversionNotOk) {
 			t.Fatalf("expected ErrConversionNotOk, got %v", err)
 		}
 	})
@@ -108,7 +108,7 @@ func TestConvertSlice(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrConversionNotOk) {
+		if !errors.Is(err, altshiftErrors.ErrConversionNotOk) {
 			t.Fatalf("expected ErrConversionNotOk, got %v", err)
 		}
 	})
@@ -120,7 +120,7 @@ func TestConvertSlice(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrConversionNotOk) {
+		if !errors.Is(err, altshiftErrors.ErrConversionNotOk) {
 			t.Fatalf("expected ErrConversionNotOk, got %v", err)
 		}
 	})
@@ -132,7 +132,7 @@ func TestConvertSlice(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrConversionNotOk) {
+		if !errors.Is(err, altshiftErrors.ErrConversionNotOk) {
 			t.Fatalf("expected ErrConversionNotOk, got %v", err)
 		}
 	})
@@ -160,7 +160,7 @@ func TestConvertToNonZero(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrZeroValue) {
+		if !errors.Is(err, altshiftErrors.ErrZeroValue) {
 			t.Fatalf("expected ErrZeroValue, got %v", err)
 		}
 	})
@@ -172,7 +172,7 @@ func TestConvertToNonZero(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrConversionNotOk) {
+		if !errors.Is(err, altshiftErrors.ErrConversionNotOk) {
 			t.Fatalf("expected ErrConversionNotOk, got %v", err)
 		}
 	})
@@ -245,12 +245,12 @@ func TestContextValueGetters(t *testing.T) {
 				_, err := GetContextValue[int](withValue("value"), key)
 				return "", err
 			},
-			wantErr: motmedelErrors.ErrConversionNotOk,
+			wantErr: altshiftErrors.ErrConversionNotOk,
 		},
 		{
 			name:    "GetContextValue missing key",
 			get:     func() (string, error) { return GetContextValue[string](context.Background(), key) },
-			wantErr: motmedelErrors.ErrConversionNotOk,
+			wantErr: altshiftErrors.ErrConversionNotOk,
 		},
 		{
 			name: "GetNonZeroContextValue success",
@@ -260,12 +260,12 @@ func TestContextValueGetters(t *testing.T) {
 		{
 			name:    "GetNonZeroContextValue zero value",
 			get:     func() (string, error) { return GetNonZeroContextValue[string](withValue(""), key) },
-			wantErr: motmedelErrors.ErrZeroValue,
+			wantErr: altshiftErrors.ErrZeroValue,
 		},
 		{
 			name:    "GetNonZeroContextValue missing key fails conversion",
 			get:     func() (string, error) { return GetNonZeroContextValue[string](context.Background(), key) },
-			wantErr: motmedelErrors.ErrConversionNotOk,
+			wantErr: altshiftErrors.ErrConversionNotOk,
 		},
 	}
 
@@ -312,7 +312,7 @@ func TestMapGet(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrNotInMap) {
+		if !errors.Is(err, altshiftErrors.ErrNotInMap) {
 			t.Fatalf("expected ErrNotInMap, got %v", err)
 		}
 	})
@@ -357,7 +357,7 @@ func TestMapGetNonZero(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrMapZeroValue) {
+		if !errors.Is(err, altshiftErrors.ErrMapZeroValue) {
 			t.Fatalf("expected ErrMapZeroValue, got %v", err)
 		}
 	})
@@ -369,7 +369,7 @@ func TestMapGetNonZero(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrNotInMap) {
+		if !errors.Is(err, altshiftErrors.ErrNotInMap) {
 			t.Fatalf("expected ErrNotInMap, got %v", err)
 		}
 	})
@@ -410,7 +410,7 @@ func TestMapGetConvert(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrConversionNotOk) {
+		if !errors.Is(err, altshiftErrors.ErrConversionNotOk) {
 			t.Fatalf("expected ErrConversionNotOk, got %v", err)
 		}
 	})
@@ -422,7 +422,7 @@ func TestMapGetConvert(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrNotInMap) {
+		if !errors.Is(err, altshiftErrors.ErrNotInMap) {
 			t.Fatalf("expected ErrNotInMap, got %v", err)
 		}
 	})
@@ -462,7 +462,7 @@ func TestMapGetConvertSlice(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrConversionNotOk) {
+		if !errors.Is(err, altshiftErrors.ErrConversionNotOk) {
 			t.Fatalf("expected ErrConversionNotOk, got %v", err)
 		}
 	})
@@ -474,7 +474,7 @@ func TestMapGetConvertSlice(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrNotInMap) {
+		if !errors.Is(err, altshiftErrors.ErrNotInMap) {
 			t.Fatalf("expected ErrNotInMap, got %v", err)
 		}
 	})
@@ -502,7 +502,7 @@ func TestMapGetConvertNonZero(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrMapZeroValue) {
+		if !errors.Is(err, altshiftErrors.ErrMapZeroValue) {
 			t.Fatalf("expected ErrMapZeroValue, got %v", err)
 		}
 	})
@@ -514,7 +514,7 @@ func TestMapGetConvertNonZero(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrConversionNotOk) {
+		if !errors.Is(err, altshiftErrors.ErrConversionNotOk) {
 			t.Fatalf("expected ErrConversionNotOk, got %v", err)
 		}
 	})
@@ -526,7 +526,7 @@ func TestMapGetConvertNonZero(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, motmedelErrors.ErrNotInMap) {
+		if !errors.Is(err, altshiftErrors.ErrNotInMap) {
 			t.Fatalf("expected ErrNotInMap, got %v", err)
 		}
 	})

@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // Options holds the settings of a lint run.
@@ -65,10 +65,10 @@ func Lint(input []byte, options *Options) ([]*Finding, error) {
 
 	grammar, path, err := abnf.ParseABNFWithPath(source.normalized)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: abnf parse abnf with path: %w",
-				motmedelErrors.ErrParseError,
+				altshiftErrors.ErrParseError,
 				explainListSeparator(source.normalized, err),
 			),
 		)

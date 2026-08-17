@@ -8,8 +8,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 //go:embed grammar.abnf
@@ -17,16 +17,16 @@ var grammar []byte
 
 var Grammar *abnf.Grammar
 
-func Parse(data []byte) (*motmedelHttpTypes.ETag, error) {
+func Parse(data []byte) (*altshiftHttpTypes.ETag, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(Grammar, data, "ETag")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
-	var etag motmedelHttpTypes.ETag
+	var etag altshiftHttpTypes.ETag
 
 	if weakPath := abnfUtils.SearchPathSingleName(paths[0], "weak", 2, false); weakPath != nil {
 		etag.Weak = true
@@ -34,8 +34,8 @@ func Parse(data []byte) (*motmedelHttpTypes.ETag, error) {
 
 	opaqueTagPath := abnfUtils.SearchPathSingleName(paths[0], "opaque-tag", 2, false)
 	if opaqueTagPath == nil {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, nil_error.New("opaque-tag path")),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, nil_error.New("opaque-tag path")),
 			data,
 		)
 	}

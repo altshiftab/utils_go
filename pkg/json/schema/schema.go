@@ -16,11 +16,11 @@ import (
 	jsonv2 "encoding/json/v2"
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	_ "github.com/altshiftab/utils_go/pkg/json/schema/draft202012"
 	_ "github.com/altshiftab/utils_go/pkg/json/schema/format"
 	"github.com/altshiftab/utils_go/pkg/json/schema/types"
-	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	altshiftReflect "github.com/altshiftab/utils_go/pkg/reflect"
 	typeExportJsonschema "github.com/altshiftab/utils_go/pkg/type_export/jsonschema"
 )
 
@@ -29,7 +29,7 @@ type Schema = types.Schema
 
 // ValidateError is the error returned by [Schema.Validate] when an
 // instance fails validation. It matches
-// [motmedelErrors.ErrValidationError] with errors.Is.
+// [altshiftErrors.ErrValidationError] with errors.Is.
 type ValidateError = types.ValidateError
 
 // ValidationError is a single validation failure within a [ValidateError].
@@ -42,7 +42,7 @@ var ErrInvalidSchema = types.ErrInvalidSchema
 func New(data []byte) (*Schema, error) {
 	var s Schema
 	if err := jsonv2.Unmarshal(data, &s); err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("json unmarshal: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("json unmarshal: %w", err))
 	}
 
 	return &s, nil
@@ -50,14 +50,14 @@ func New(data []byte) (*Schema, error) {
 
 // NewFromType derives a JSON schema from a Go type.
 func NewFromType[T any]() (*Schema, error) {
-	schemaData, err := typeExportJsonschema.Convert(motmedelReflect.TypeOf[T]())
+	schemaData, err := typeExportJsonschema.Convert(altshiftReflect.TypeOf[T]())
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("type export jsonschema convert: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("type export jsonschema convert: %w", err))
 	}
 
 	parsedSchema, err := New([]byte(schemaData))
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("new: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("new: %w", err))
 	}
 
 	return parsedSchema, nil

@@ -3,8 +3,8 @@ package types
 import (
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelUtils "github.com/altshiftab/utils_go/pkg/utils"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftUtils "github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Type interface {
@@ -33,14 +33,14 @@ type TypeReference struct {
 }
 
 func (t *TypeReference) String() (string, error) {
-	interfaceDeclaration, err := motmedelUtils.ConvertToNonZero[*InterfaceDeclaration](t.TypeDeclaration)
+	interfaceDeclaration, err := altshiftUtils.ConvertToNonZero[*InterfaceDeclaration](t.TypeDeclaration)
 	if err != nil {
 		return "", fmt.Errorf("convert to non zero (type declaration): %w", err)
 	}
 
 	idType, err := resolveIdType(interfaceDeclaration)
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("resolve id type: %w", err), interfaceDeclaration)
+		return "", altshiftErrors.New(fmt.Errorf("resolve id type: %w", err), interfaceDeclaration)
 	}
 	if idType == "" {
 		idType = "uuid"

@@ -9,11 +9,11 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 
-	motmedelCryptoEcdsa "github.com/altshiftab/utils_go/pkg/crypto/ecdsa"
-	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
-	motmedelCryptoRsa "github.com/altshiftab/utils_go/pkg/crypto/rsa"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
+	altshiftCryptoEcdsa "github.com/altshiftab/utils_go/pkg/crypto/ecdsa"
+	altshiftCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	altshiftCryptoRsa "github.com/altshiftab/utils_go/pkg/crypto/rsa"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 	ecKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key/ec"
 	rsaKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key/rsa"
 	"github.com/altshiftab/utils_go/pkg/utils"
@@ -52,11 +52,11 @@ func (k *Key) MarshalJSON() ([]byte, error) {
 	if k.Material != nil {
 		b, err := json.Marshal(k.Material)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("json marshal (material): %w", err), k.Material)
+			return nil, altshiftErrors.New(fmt.Errorf("json marshal (material): %w", err), k.Material)
 		}
 		var mat map[string]any
 		if err := json.Unmarshal(b, &mat); err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("json unmarshal (material to map): %w", err), string(b))
+			return nil, altshiftErrors.New(fmt.Errorf("json unmarshal (material to map): %w", err), string(b))
 		}
 		for key, val := range mat {
 			m[key] = val
@@ -66,7 +66,7 @@ func (k *Key) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-func (k *Key) NamedVerifier() (motmedelCryptoInterfaces.NamedVerifier, error) {
+func (k *Key) NamedVerifier() (altshiftCryptoInterfaces.NamedVerifier, error) {
 	material := k.Material
 	if material == nil {
 		return nil, nil
@@ -74,14 +74,14 @@ func (k *Key) NamedVerifier() (motmedelCryptoInterfaces.NamedVerifier, error) {
 
 	publicKey, err := material.PublicKey()
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("public key: %w", err), material)
+		return nil, altshiftErrors.New(fmt.Errorf("public key: %w", err), material)
 	}
 
 	switch typedPublicKey := publicKey.(type) {
 	case *ecdsa.PublicKey:
-		method, err := motmedelCryptoEcdsa.FromPublicKey(typedPublicKey)
+		method, err := altshiftCryptoEcdsa.FromPublicKey(typedPublicKey)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("ecdsa from public key: %w", err), typedPublicKey)
+			return nil, altshiftErrors.New(fmt.Errorf("ecdsa from public key: %w", err), typedPublicKey)
 		}
 		return method, nil
 	case *rsa.PublicKey:
@@ -91,13 +91,13 @@ func (k *Key) NamedVerifier() (motmedelCryptoInterfaces.NamedVerifier, error) {
 			alg = "RS256"
 		}
 
-		method, err := motmedelCryptoRsa.New(alg, nil, typedPublicKey)
+		method, err := altshiftCryptoRsa.New(alg, nil, typedPublicKey)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("rsa new: %w", err), alg)
+			return nil, altshiftErrors.New(fmt.Errorf("rsa new: %w", err), alg)
 		}
 		return method, nil
 	default:
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: unsupported public key type: %T", motmedelErrors.ErrUnexpectedType, publicKey))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: unsupported public key type: %T", altshiftErrors.ErrUnexpectedType, publicKey))
 	}
 }
 
@@ -107,14 +107,14 @@ func (k *Key) ThumbprintSHA256() (string, error) {
 		if mat, ok := k.Material.(*ecKey.Key); ok && mat != nil {
 			return mat.Thumbprint(), nil
 		}
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("%w: invalid EC material type: %T", motmedelErrors.ErrUnexpectedType, k.Material))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("%w: invalid EC material type: %T", altshiftErrors.ErrUnexpectedType, k.Material))
 	case "RSA":
 		if mat, ok := k.Material.(*rsaKey.Key); ok && mat != nil {
 			return mat.Thumbprint(), nil
 		}
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("%w: invalid RSA material type: %T", motmedelErrors.ErrUnexpectedType, k.Material))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("%w: invalid RSA material type: %T", altshiftErrors.ErrUnexpectedType, k.Material))
 	default:
-		return "", motmedelErrors.NewWithTrace(motmedelJwkErrors.ErrUnsupportedKty, k.Kty)
+		return "", altshiftErrors.NewWithTrace(altshiftJwkErrors.ErrUnsupportedKty, k.Kty)
 	}
 }
 
@@ -125,9 +125,9 @@ func New(m map[string]any) (*Key, error) {
 
 	kty, err := utils.MapGetConvert[string](m, "kty")
 	if err != nil {
-		var wrappedErr error = motmedelErrors.New(fmt.Errorf("map get convert: %w", err), m)
-		if motmedelErrors.IsAny(err, motmedelErrors.ErrConversionNotOk, motmedelErrors.ErrNotInMap) {
-			wrappedErr = fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, wrappedErr)
+		var wrappedErr error = altshiftErrors.New(fmt.Errorf("map get convert: %w", err), m)
+		if altshiftErrors.IsAny(err, altshiftErrors.ErrConversionNotOk, altshiftErrors.ErrNotInMap) {
+			wrappedErr = fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, wrappedErr)
 		}
 		return nil, wrappedErr
 	}
@@ -140,23 +140,23 @@ func New(m map[string]any) (*Key, error) {
 	case "RSA":
 		material, err = rsaKey.New(m)
 		if err != nil {
-			var wrappedErr error = motmedelErrors.New(fmt.Errorf("rsa new: %w", err), m)
-			if motmedelErrors.IsAny(err, motmedelErrors.ErrConversionNotOk, motmedelErrors.ErrNotInMap) {
-				wrappedErr = fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, wrappedErr)
+			var wrappedErr error = altshiftErrors.New(fmt.Errorf("rsa new: %w", err), m)
+			if altshiftErrors.IsAny(err, altshiftErrors.ErrConversionNotOk, altshiftErrors.ErrNotInMap) {
+				wrappedErr = fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, wrappedErr)
 			}
 			return nil, wrappedErr
 		}
 	case "EC":
 		material, err = ecKey.New(m)
 		if err != nil {
-			var wrappedErr error = motmedelErrors.New(fmt.Errorf("ec new: %w", err), m)
-			if motmedelErrors.IsAny(err, motmedelErrors.ErrConversionNotOk, motmedelErrors.ErrNotInMap) {
-				wrappedErr = fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, wrappedErr)
+			var wrappedErr error = altshiftErrors.New(fmt.Errorf("ec new: %w", err), m)
+			if altshiftErrors.IsAny(err, altshiftErrors.ErrConversionNotOk, altshiftErrors.ErrNotInMap) {
+				wrappedErr = fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, wrappedErr)
 			}
 			return nil, wrappedErr
 		}
 	default:
-		return nil, motmedelErrors.NewWithTrace(motmedelJwkErrors.ErrUnsupportedKty, kty)
+		return nil, altshiftErrors.NewWithTrace(altshiftJwkErrors.ErrUnsupportedKty, kty)
 	}
 
 	alg, _ := m["alg"].(string)
@@ -178,7 +178,7 @@ func NewFromPublicKey(publicKey crypto.PublicKey, alg, kid, use string) (*Key, e
 	case *ecdsa.PublicKey:
 		mat, err := ecKey.NewFromPublicKey(pk)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("ec new from public key: %w", err))
+			return nil, altshiftErrors.New(fmt.Errorf("ec new from public key: %w", err))
 		}
 		return &Key{
 			Alg:      alg,
@@ -189,11 +189,11 @@ func NewFromPublicKey(publicKey crypto.PublicKey, alg, kid, use string) (*Key, e
 		}, nil
 	case *rsa.PublicKey:
 		if alg == "" {
-			return nil, motmedelErrors.NewWithTrace(empty_error.New("alg"))
+			return nil, altshiftErrors.NewWithTrace(empty_error.New("alg"))
 		}
 		mat, err := rsaKey.NewFromPublicKey(pk)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("rsa new from public key: %w", err))
+			return nil, altshiftErrors.New(fmt.Errorf("rsa new from public key: %w", err))
 		}
 		return &Key{
 			Alg:      alg,
@@ -203,6 +203,6 @@ func NewFromPublicKey(publicKey crypto.PublicKey, alg, kid, use string) (*Key, e
 			Material: mat,
 		}, nil
 	default:
-		return nil, motmedelErrors.NewWithTrace(motmedelJwkErrors.ErrUnsupportedKty, fmt.Sprintf("%T", publicKey))
+		return nil, altshiftErrors.NewWithTrace(altshiftJwkErrors.ErrUnsupportedKty, fmt.Sprintf("%T", publicKey))
 	}
 }

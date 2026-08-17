@@ -22,12 +22,12 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/object"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/object_list"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/signer"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
+	altshiftHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const Domain = "storage.googleapis.com"
@@ -61,7 +61,7 @@ func NewClient(options ...cloud_storage_config.Option) *Client {
 // InsertBucket creates a new bucket in the specified project.
 func (c *Client) InsertBucket(ctx context.Context, project string, bucketConfig *bucket.Bucket, options ...fetch_config.Option) (*bucket.Bucket, error) {
 	if project == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("project"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("project"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -69,7 +69,7 @@ func (c *Client) InsertBucket(ctx context.Context, project string, bucketConfig 
 	}
 
 	if bucketConfig == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("bucket config"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("bucket config"))
 	}
 
 	u := *c.baseUrl
@@ -78,13 +78,13 @@ func (c *Client) InsertBucket(ctx context.Context, project string, bucketConfig 
 	urlString := u.String()
 
 	options = append(append(c.config.FetchOptions, options...), fetch_config.WithMethod(http.MethodPost))
-	_, createdBucket, err := motmedelHttpUtils.FetchJsonWithBody[*bucket.Bucket](ctx, urlString, bucketConfig, options...)
+	_, createdBucket, err := altshiftHttpUtils.FetchJsonWithBody[*bucket.Bucket](ctx, urlString, bucketConfig, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
 	}
 
 	if createdBucket == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("createdBucket"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("createdBucket"))
 	}
 
 	return createdBucket, nil
@@ -93,7 +93,7 @@ func (c *Client) InsertBucket(ctx context.Context, project string, bucketConfig 
 // PatchBucket updates an existing bucket using patch semantics.
 func (c *Client) PatchBucket(ctx context.Context, bucketName string, bucketConfig *bucket.Bucket, options ...fetch_config.Option) (*bucket.Bucket, error) {
 	if bucketName == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("bucket name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("bucket name"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -101,7 +101,7 @@ func (c *Client) PatchBucket(ctx context.Context, bucketName string, bucketConfi
 	}
 
 	if bucketConfig == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("bucket config"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("bucket config"))
 	}
 
 	u := *c.baseUrl
@@ -110,13 +110,13 @@ func (c *Client) PatchBucket(ctx context.Context, bucketName string, bucketConfi
 	urlString := u.String()
 
 	options = append(append(c.config.FetchOptions, options...), fetch_config.WithMethod(http.MethodPatch))
-	_, patchedBucket, err := motmedelHttpUtils.FetchJsonWithBody[*bucket.Bucket](ctx, urlString, bucketConfig, options...)
+	_, patchedBucket, err := altshiftHttpUtils.FetchJsonWithBody[*bucket.Bucket](ctx, urlString, bucketConfig, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
 	}
 
 	if patchedBucket == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("patchedBucket"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("patchedBucket"))
 	}
 
 	return patchedBucket, nil
@@ -125,10 +125,10 @@ func (c *Client) PatchBucket(ctx context.Context, bucketName string, bucketConfi
 // PatchObject updates an object's metadata using patch semantics.
 func (c *Client) PatchObject(ctx context.Context, bucketName string, objectName string, objectConfig *object.Object, options ...fetch_config.Option) (*object.Object, error) {
 	if bucketName == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("bucket name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("bucket name"))
 	}
 	if objectName == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("object name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("object name"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -136,7 +136,7 @@ func (c *Client) PatchObject(ctx context.Context, bucketName string, objectName 
 	}
 
 	if objectConfig == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("object config"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("object config"))
 	}
 
 	u := *c.baseUrl
@@ -145,13 +145,13 @@ func (c *Client) PatchObject(ctx context.Context, bucketName string, objectName 
 	urlString := u.String()
 
 	options = append(append(c.config.FetchOptions, options...), fetch_config.WithMethod(http.MethodPatch))
-	_, patchedObject, err := motmedelHttpUtils.FetchJsonWithBody[*object.Object](ctx, urlString, objectConfig, options...)
+	_, patchedObject, err := altshiftHttpUtils.FetchJsonWithBody[*object.Object](ctx, urlString, objectConfig, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
 	}
 
 	if patchedObject == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("patchedObject"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("patchedObject"))
 	}
 
 	return patchedObject, nil
@@ -160,10 +160,10 @@ func (c *Client) PatchObject(ctx context.Context, bucketName string, objectName 
 // GetObject retrieves an object's metadata.
 func (c *Client) GetObject(ctx context.Context, bucketName string, objectName string, options ...fetch_config.Option) (*object.Object, error) {
 	if bucketName == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("bucket name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("bucket name"))
 	}
 	if objectName == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("object name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("object name"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -176,13 +176,13 @@ func (c *Client) GetObject(ctx context.Context, bucketName string, objectName st
 	urlString := u.String()
 
 	options = append(c.config.FetchOptions, options...)
-	_, obj, err := motmedelHttpUtils.FetchJson[*object.Object](ctx, urlString, options...)
+	_, obj, err := altshiftHttpUtils.FetchJson[*object.Object](ctx, urlString, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
 	}
 
 	if obj == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("obj"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("obj"))
 	}
 
 	return obj, nil
@@ -191,10 +191,10 @@ func (c *Client) GetObject(ctx context.Context, bucketName string, objectName st
 // DownloadObject downloads an object's content.
 func (c *Client) DownloadObject(ctx context.Context, bucketName string, objectName string, options ...fetch_config.Option) ([]byte, error) {
 	if bucketName == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("bucket name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("bucket name"))
 	}
 	if objectName == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("object name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("object name"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -208,9 +208,9 @@ func (c *Client) DownloadObject(ctx context.Context, bucketName string, objectNa
 	urlString := u.String()
 
 	options = append(c.config.FetchOptions, options...)
-	_, responseBody, err := motmedelHttpUtils.Fetch(ctx, urlString, options...)
+	_, responseBody, err := altshiftHttpUtils.Fetch(ctx, urlString, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch: %w", err), urlString)
 	}
 
 	return responseBody, nil
@@ -220,7 +220,7 @@ func (c *Client) DownloadObject(ctx context.Context, bucketName string, objectNa
 // maxResults, pageToken, and other query parameters.
 func (c *Client) ListObjects(ctx context.Context, bucketName string, query url.Values, options ...fetch_config.Option) (*object_list.ObjectList, error) {
 	if bucketName == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("bucket name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("bucket name"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -236,13 +236,13 @@ func (c *Client) ListObjects(ctx context.Context, bucketName string, query url.V
 	urlString := u.String()
 
 	options = append(c.config.FetchOptions, options...)
-	_, list, err := motmedelHttpUtils.FetchJson[*object_list.ObjectList](ctx, urlString, options...)
+	_, list, err := altshiftHttpUtils.FetchJson[*object_list.ObjectList](ctx, urlString, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
 	}
 
 	if list == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("list"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("list"))
 	}
 
 	return list, nil
@@ -251,10 +251,10 @@ func (c *Client) ListObjects(ctx context.Context, bucketName string, query url.V
 // DeleteObject deletes an object from a bucket.
 func (c *Client) DeleteObject(ctx context.Context, bucketName string, objectName string, options ...fetch_config.Option) error {
 	if bucketName == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("bucket name"))
+		return altshiftErrors.NewWithTrace(empty_error.New("bucket name"))
 	}
 	if objectName == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("object name"))
+		return altshiftErrors.NewWithTrace(empty_error.New("object name"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -267,9 +267,9 @@ func (c *Client) DeleteObject(ctx context.Context, bucketName string, objectName
 	urlString := u.String()
 
 	options = append(append(c.config.FetchOptions, options...), fetch_config.WithMethod(http.MethodDelete))
-	_, _, err := motmedelHttpUtils.Fetch(ctx, urlString, options...)
+	_, _, err := altshiftHttpUtils.Fetch(ctx, urlString, options...)
 	if err != nil {
-		return motmedelErrors.New(fmt.Errorf("fetch: %w", err), urlString)
+		return altshiftErrors.New(fmt.Errorf("fetch: %w", err), urlString)
 	}
 
 	return nil
@@ -285,7 +285,7 @@ func (c *Client) InsertObject(ctx context.Context, bucketName string, metadata *
 	}
 	// An insert without a precondition either inserts or fails.
 	if insertedObject == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("inserted object"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("inserted object"))
 	}
 
 	return insertedObject, nil
@@ -307,10 +307,10 @@ func (c *Client) InsertObjectIfAbsent(ctx context.Context, bucketName string, me
 
 func (c *Client) insertObject(ctx context.Context, bucketName string, metadata *object.Object, data []byte, contentType string, onlyIfAbsent bool, options ...fetch_config.Option) (*object.Object, bool, error) {
 	if bucketName == "" {
-		return nil, false, motmedelErrors.NewWithTrace(empty_error.New("bucket name"))
+		return nil, false, altshiftErrors.NewWithTrace(empty_error.New("bucket name"))
 	}
 	if contentType == "" {
-		return nil, false, motmedelErrors.NewWithTrace(empty_error.New("content type"))
+		return nil, false, altshiftErrors.NewWithTrace(empty_error.New("content type"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -318,12 +318,12 @@ func (c *Client) insertObject(ctx context.Context, bucketName string, metadata *
 	}
 
 	if metadata == nil {
-		return nil, false, motmedelErrors.NewWithTrace(nil_error.New("metadata"))
+		return nil, false, altshiftErrors.NewWithTrace(nil_error.New("metadata"))
 	}
 
 	metadataBytes, err := json.Marshal(metadata)
 	if err != nil {
-		return nil, false, motmedelErrors.NewWithTrace(fmt.Errorf("json marshal (metadata): %w", err))
+		return nil, false, altshiftErrors.NewWithTrace(fmt.Errorf("json marshal (metadata): %w", err))
 	}
 
 	var buf bytes.Buffer
@@ -333,24 +333,24 @@ func (c *Client) insertObject(ctx context.Context, bucketName string, metadata *
 	metadataHeader.Set("Content-Type", "application/json; charset=UTF-8")
 	metadataPart, err := writer.CreatePart(metadataHeader)
 	if err != nil {
-		return nil, false, motmedelErrors.NewWithTrace(fmt.Errorf("create part (metadata): %w", err))
+		return nil, false, altshiftErrors.NewWithTrace(fmt.Errorf("create part (metadata): %w", err))
 	}
 	if _, err = metadataPart.Write(metadataBytes); err != nil {
-		return nil, false, motmedelErrors.NewWithTrace(fmt.Errorf("write (metadata): %w", err))
+		return nil, false, altshiftErrors.NewWithTrace(fmt.Errorf("write (metadata): %w", err))
 	}
 
 	mediaHeader := textproto.MIMEHeader{}
 	mediaHeader.Set("Content-Type", contentType)
 	mediaPart, err := writer.CreatePart(mediaHeader)
 	if err != nil {
-		return nil, false, motmedelErrors.NewWithTrace(fmt.Errorf("create part (media): %w", err))
+		return nil, false, altshiftErrors.NewWithTrace(fmt.Errorf("create part (media): %w", err))
 	}
 	if _, err = mediaPart.Write(data); err != nil {
-		return nil, false, motmedelErrors.NewWithTrace(fmt.Errorf("write (media): %w", err))
+		return nil, false, altshiftErrors.NewWithTrace(fmt.Errorf("write (media): %w", err))
 	}
 
 	if err = writer.Close(); err != nil {
-		return nil, false, motmedelErrors.NewWithTrace(fmt.Errorf("multipart writer close: %w", err))
+		return nil, false, altshiftErrors.NewWithTrace(fmt.Errorf("multipart writer close: %w", err))
 	}
 
 	u := *c.uploadBaseUrl
@@ -372,22 +372,22 @@ func (c *Client) insertObject(ctx context.Context, bucketName string, metadata *
 		}),
 	)
 
-	_, insertedObject, err := motmedelHttpUtils.FetchJson[*object.Object](ctx, urlString, options...)
+	_, insertedObject, err := altshiftHttpUtils.FetchJson[*object.Object](ctx, urlString, options...)
 	if err != nil {
 		// The name being taken is the precondition doing its work, not a
 		// failure: what is there is what would have been written.
 		if onlyIfAbsent {
-			if non2xxError, ok := errors.AsType[*motmedelHttpErrors.Non2xxStatusCodeError](err); ok &&
+			if non2xxError, ok := errors.AsType[*altshiftHttpErrors.Non2xxStatusCodeError](err); ok &&
 				non2xxError.StatusCode == http.StatusPreconditionFailed {
 				return nil, false, nil
 			}
 		}
 
-		return nil, false, motmedelErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+		return nil, false, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
 	}
 
 	if insertedObject == nil {
-		return nil, false, motmedelErrors.NewWithTrace(nil_error.New("insertedObject"))
+		return nil, false, altshiftErrors.NewWithTrace(nil_error.New("insertedObject"))
 	}
 
 	return insertedObject, true, nil
@@ -469,13 +469,13 @@ func (c *Client) SignedUrl(
 	expires time.Duration,
 ) (string, error) {
 	if s == nil {
-		return "", motmedelErrors.NewWithTrace(nil_error.New("signer"))
+		return "", altshiftErrors.NewWithTrace(nil_error.New("signer"))
 	}
 	if bucketName == "" {
-		return "", motmedelErrors.NewWithTrace(empty_error.New("bucket name"))
+		return "", altshiftErrors.NewWithTrace(empty_error.New("bucket name"))
 	}
 	if objectName == "" {
-		return "", motmedelErrors.NewWithTrace(empty_error.New("object name"))
+		return "", altshiftErrors.NewWithTrace(empty_error.New("object name"))
 	}
 	if method == "" {
 		method = http.MethodGet
@@ -487,14 +487,14 @@ func (c *Client) SignedUrl(
 
 	expiresSeconds := int64(expires / time.Second)
 	if expiresSeconds <= 0 || expires > MaxSignedUrlExpires {
-		return "", motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: expires out of range (must be > 0 and <= 7 days): %s", motmedelErrors.ErrValidationError, expires),
+		return "", altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: expires out of range (must be > 0 and <= 7 days): %s", altshiftErrors.ErrValidationError, expires),
 		)
 	}
 
 	signerEmail := s.Email()
 	if signerEmail == "" {
-		return "", motmedelErrors.NewWithTrace(empty_error.New("signer email"))
+		return "", altshiftErrors.NewWithTrace(empty_error.New("signer email"))
 	}
 
 	now := time.Now().UTC()
@@ -539,7 +539,7 @@ func (c *Client) SignedUrl(
 
 	signature, err := s.Sign(ctx, []byte(stringToSign))
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("signer sign: %w", err))
+		return "", altshiftErrors.New(fmt.Errorf("signer sign: %w", err))
 	}
 
 	return c.baseUrl.Scheme + "://" + host + encodedPath + "?" + canonicalQuery +

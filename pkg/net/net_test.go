@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	motmedelNetErrors "github.com/altshiftab/utils_go/pkg/net/errors"
+	altshiftNetErrors "github.com/altshiftab/utils_go/pkg/net/errors"
 )
 
 func TestSplitAddress(t *testing.T) {
@@ -162,7 +162,7 @@ func TestGetStartEndCidr(t *testing.T) {
 		t.Parallel()
 
 		_, err := GetStartEndCidr(mk("1.2.3.4"), mk("::1"), true)
-		if !errors.Is(err, motmedelNetErrors.ErrIpVersionMismatch) {
+		if !errors.Is(err, altshiftNetErrors.ErrIpVersionMismatch) {
 			t.Fatalf("expected ErrIpVersionMismatch, got %v", err)
 		}
 	})
@@ -171,7 +171,7 @@ func TestGetStartEndCidr(t *testing.T) {
 		t.Parallel()
 
 		_, err := GetStartEndCidr(mk("192.168.1.10"), mk("192.168.1.1"), true)
-		if !errors.Is(err, motmedelNetErrors.ErrStartAfterEnd) {
+		if !errors.Is(err, altshiftNetErrors.ErrStartAfterEnd) {
 			t.Fatalf("expected ErrStartAfterEnd, got %v", err)
 		}
 	})
@@ -192,7 +192,7 @@ func TestGetStartEndCidr(t *testing.T) {
 		t.Parallel()
 
 		_, err := GetStartEndCidr(mk("192.168.1.1"), mk("192.168.1.254"), true)
-		if !errors.Is(err, motmedelNetErrors.ErrNotOnSubnetBoundaries) {
+		if !errors.Is(err, altshiftNetErrors.ErrNotOnSubnetBoundaries) {
 			t.Fatalf("expected ErrNotOnSubnetBoundaries, got %v", err)
 		}
 	})
@@ -299,7 +299,7 @@ func TestNetworkFromTarget(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error, got nil")
 				}
-				if !errors.Is(err, motmedelNetErrors.ErrUndeterminableTargetFormat) {
+				if !errors.Is(err, altshiftNetErrors.ErrUndeterminableTargetFormat) {
 					t.Fatalf("expected ErrUndeterminableTargetFormat, got %v", err)
 				}
 				return

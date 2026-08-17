@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	motmedelSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
+	altshiftSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
 )
 
 func TestGoModulePurl(t *testing.T) {
@@ -162,8 +162,8 @@ func TestParseGoModules(t *testing.T) {
 		t.Errorf("expected version %q, got %q", "v1.0.0", components[0].Version)
 	}
 
-	if components[0].Type != motmedelSbomTypes.ComponentTypeLibrary {
-		t.Errorf("expected type %q, got %q", motmedelSbomTypes.ComponentTypeLibrary, components[0].Type)
+	if components[0].Type != altshiftSbomTypes.ComponentTypeLibrary {
+		t.Errorf("expected type %q, got %q", altshiftSbomTypes.ComponentTypeLibrary, components[0].Type)
 	}
 
 	if components[0].Purl != "pkg:golang/github.com/foo/bar@v1.0.0" {
@@ -483,8 +483,8 @@ github.com/transitive/dep v0.5.0/go.mod h1:pqr678=
 	}
 
 	for _, c := range components {
-		if c.Type != motmedelSbomTypes.ComponentTypeLibrary {
-			t.Errorf("expected type %q, got %q", motmedelSbomTypes.ComponentTypeLibrary, c.Type)
+		if c.Type != altshiftSbomTypes.ComponentTypeLibrary {
+			t.Errorf("expected type %q, got %q", altshiftSbomTypes.ComponentTypeLibrary, c.Type)
 		}
 		if c.Purl == "" {
 			t.Errorf("expected non-empty purl for %s", c.Name)
@@ -579,8 +579,8 @@ CMD ["/app"]
 	}
 
 	for _, c := range components {
-		if c.Type != motmedelSbomTypes.ComponentTypeContainer {
-			t.Errorf("expected type %q, got %q", motmedelSbomTypes.ComponentTypeContainer, c.Type)
+		if c.Type != altshiftSbomTypes.ComponentTypeContainer {
+			t.Errorf("expected type %q, got %q", altshiftSbomTypes.ComponentTypeContainer, c.Type)
 		}
 		if c.Name == "golang" {
 			if c.Version != "1.21" {
@@ -721,10 +721,10 @@ func TestParseDockerfileNamespaced(t *testing.T) {
 func TestDeduplicateComponents(t *testing.T) {
 	t.Parallel()
 
-	components := []motmedelSbomTypes.Component{
-		{Type: motmedelSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
-		{Type: motmedelSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
-		{Type: motmedelSbomTypes.ComponentTypeLibrary, Name: "bar", Version: "2.0"},
+	components := []altshiftSbomTypes.Component{
+		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
+		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
+		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "bar", Version: "2.0"},
 	}
 
 	result := deduplicateComponents(components)
@@ -746,9 +746,9 @@ func TestDeduplicateComponentsEmpty(t *testing.T) {
 func TestGenerateBom(t *testing.T) {
 	t.Parallel()
 
-	components := []motmedelSbomTypes.Component{
+	components := []altshiftSbomTypes.Component{
 		{
-			Type:    motmedelSbomTypes.ComponentTypeLibrary,
+			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    "github.com/foo/bar",
 			Version: "v1.0.0",
 			Purl:    "pkg:golang/github.com/foo/bar@v1.0.0",
@@ -758,8 +758,8 @@ func TestGenerateBom(t *testing.T) {
 
 	bom := GenerateBom(components)
 
-	if bom.BomFormat != motmedelSbomTypes.BomFormatCycloneDX {
-		t.Errorf("expected bomFormat %q, got %q", motmedelSbomTypes.BomFormatCycloneDX, bom.BomFormat)
+	if bom.BomFormat != altshiftSbomTypes.BomFormatCycloneDX {
+		t.Errorf("expected bomFormat %q, got %q", altshiftSbomTypes.BomFormatCycloneDX, bom.BomFormat)
 	}
 
 	if bom.SpecVersion != "1.6" {
@@ -786,9 +786,9 @@ func TestGenerateBom(t *testing.T) {
 func TestGenerateBomDeduplicates(t *testing.T) {
 	t.Parallel()
 
-	components := []motmedelSbomTypes.Component{
-		{Type: motmedelSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
-		{Type: motmedelSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
+	components := []altshiftSbomTypes.Component{
+		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
+		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
 	}
 
 	bom := GenerateBom(components)
@@ -801,9 +801,9 @@ func TestGenerateBomDeduplicates(t *testing.T) {
 func TestGenerateBomJson(t *testing.T) {
 	t.Parallel()
 
-	components := []motmedelSbomTypes.Component{
+	components := []altshiftSbomTypes.Component{
 		{
-			Type:    motmedelSbomTypes.ComponentTypeLibrary,
+			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    "express",
 			Version: "4.18.2",
 			Purl:    "pkg:npm/express@4.18.2",
@@ -816,13 +816,13 @@ func TestGenerateBomJson(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var bom motmedelSbomTypes.Bom
+	var bom altshiftSbomTypes.Bom
 	if err := json.Unmarshal(data, &bom); err != nil {
 		t.Fatalf("output is not valid JSON: %v", err)
 	}
 
-	if bom.BomFormat != motmedelSbomTypes.BomFormatCycloneDX {
-		t.Errorf("expected bomFormat %q, got %q", motmedelSbomTypes.BomFormatCycloneDX, bom.BomFormat)
+	if bom.BomFormat != altshiftSbomTypes.BomFormatCycloneDX {
+		t.Errorf("expected bomFormat %q, got %q", altshiftSbomTypes.BomFormatCycloneDX, bom.BomFormat)
 	}
 
 	if len(bom.Components) != 1 {
@@ -837,9 +837,9 @@ func TestGenerateBomJson(t *testing.T) {
 func TestCycloneDxJsonStructure(t *testing.T) {
 	t.Parallel()
 
-	components := []motmedelSbomTypes.Component{
+	components := []altshiftSbomTypes.Component{
 		{
-			Type:    motmedelSbomTypes.ComponentTypeLibrary,
+			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    "github.com/foo/bar",
 			Version: "v1.0.0",
 			Purl:    "pkg:golang/github.com/foo/bar@v1.0.0",

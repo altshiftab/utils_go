@@ -8,7 +8,7 @@ import (
 	"log/slog"
 
 	context2 "github.com/altshiftab/utils_go/pkg/context"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func MakeGzipData(ctx context.Context, data []byte) ([]byte, error) {
@@ -16,7 +16,7 @@ func MakeGzipData(ctx context.Context, data []byte) ([]byte, error) {
 	compression := gzip.BestCompression
 	gzipWriter, err := gzip.NewWriterLevel(&buffer, compression)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("gzip new writer level: %w", err),
 			compression,
 		)
@@ -26,7 +26,7 @@ func MakeGzipData(ctx context.Context, data []byte) ([]byte, error) {
 			slog.WarnContext(
 				context2.WithError(
 					ctx,
-					motmedelErrors.NewWithTrace(fmt.Errorf("gzip writer close: %w", err)),
+					altshiftErrors.NewWithTrace(fmt.Errorf("gzip writer close: %w", err)),
 				),
 				"An error occurred when closing a gzip writer.",
 			)
@@ -34,11 +34,11 @@ func MakeGzipData(ctx context.Context, data []byte) ([]byte, error) {
 	}()
 
 	if _, err := gzipWriter.Write(data); err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("gzip writer write: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("gzip writer write: %w", err))
 	}
 
 	if err := gzipWriter.Close(); err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("gzip writer close: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("gzip writer close: %w", err))
 	}
 
 	return buffer.Bytes(), nil

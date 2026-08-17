@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/processor"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
@@ -29,8 +29,8 @@ func New[T validatable.Validatable]() processor.Processor[T, T] {
 			}
 
 			if err := v.Validate(); err != nil {
-				wrappedErr := motmedelErrors.New(fmt.Errorf("validate: %w", err))
-				if errors2.Is(wrappedErr, motmedelErrors.ErrValidationError) {
+				wrappedErr := altshiftErrors.New(fmt.Errorf("validate: %w", err))
+				if errors2.Is(wrappedErr, altshiftErrors.ErrValidationError) {
 					return zero, &response_error.ResponseError{
 						ClientError: err,
 						ProblemDetail: problem_detail.New(

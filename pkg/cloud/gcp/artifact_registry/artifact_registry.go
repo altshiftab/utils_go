@@ -8,11 +8,11 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/artifact_registry_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/types/index"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/types/manifest"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const DomainSuffix = "docker.pkg.dev"
@@ -41,10 +41,10 @@ func NewClient(location string, options ...artifact_registry_config.Option) *Cli
 // It returns the digest from the Docker-Content-Digest response header and the parsed manifest.
 func (c *Client) GetManifest(ctx context.Context, name string, reference string, options ...fetch_config.Option) (string, *manifest.Manifest, error) {
 	if name == "" {
-		return "", nil, motmedelErrors.NewWithTrace(empty_error.New("name"))
+		return "", nil, altshiftErrors.NewWithTrace(empty_error.New("name"))
 	}
 	if reference == "" {
-		return "", nil, motmedelErrors.NewWithTrace(empty_error.New("reference"))
+		return "", nil, altshiftErrors.NewWithTrace(empty_error.New("reference"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -62,12 +62,12 @@ func (c *Client) GetManifest(ctx context.Context, name string, reference string,
 		options...,
 	)
 
-	response, m, err := motmedelHttpUtils.FetchJson[*manifest.Manifest](ctx, urlString, options...)
+	response, m, err := altshiftHttpUtils.FetchJson[*manifest.Manifest](ctx, urlString, options...)
 	if err != nil {
-		return "", nil, motmedelErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+		return "", nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
 	}
 	if m == nil {
-		return "", nil, motmedelErrors.NewWithTrace(nil_error.New("manifest"))
+		return "", nil, altshiftErrors.NewWithTrace(nil_error.New("manifest"))
 	}
 
 	var digest string
@@ -82,10 +82,10 @@ func (c *Client) GetManifest(ctx context.Context, name string, reference string,
 // An optional artifactType filter can be provided; pass an empty string to list all referrers.
 func (c *Client) ListReferrers(ctx context.Context, name string, digest string, artifactType string, options ...fetch_config.Option) (*index.Index, error) {
 	if name == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("name"))
 	}
 	if digest == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("digest"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("digest"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -100,13 +100,13 @@ func (c *Client) ListReferrers(ctx context.Context, name string, digest string, 
 	urlString := u.String()
 
 	options = append(c.config.FetchOptions, options...)
-	_, idx, err := motmedelHttpUtils.FetchJson[*index.Index](ctx, urlString, options...)
+	_, idx, err := altshiftHttpUtils.FetchJson[*index.Index](ctx, urlString, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
 	}
 
 	if idx == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("idx"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("idx"))
 	}
 
 	return idx, nil
@@ -115,10 +115,10 @@ func (c *Client) ListReferrers(ctx context.Context, name string, digest string, 
 // GetBlob downloads a blob by digest and returns the raw bytes.
 func (c *Client) GetBlob(ctx context.Context, name string, digest string, options ...fetch_config.Option) ([]byte, error) {
 	if name == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("name"))
 	}
 	if digest == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("digest"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("digest"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -130,9 +130,9 @@ func (c *Client) GetBlob(ctx context.Context, name string, digest string, option
 	urlString := u.String()
 
 	options = append(c.config.FetchOptions, options...)
-	_, responseBody, err := motmedelHttpUtils.Fetch(ctx, urlString, options...)
+	_, responseBody, err := altshiftHttpUtils.Fetch(ctx, urlString, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch: %w", err), urlString)
 	}
 
 	return responseBody, nil

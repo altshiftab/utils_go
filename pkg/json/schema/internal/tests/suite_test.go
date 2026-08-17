@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/json/schema/draft202012"
 	_ "github.com/altshiftab/utils_go/pkg/json/schema/format"
 	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
@@ -63,24 +63,24 @@ func loadRemote(_ string, uri *url.URL) (*schema.Schema, error) {
 
 	relativePath, err := filepath.Localize(strings.TrimPrefix(uri.Path, "/"))
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("filepath localize: %w", err), uri.Path)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("filepath localize: %w", err), uri.Path)
 	}
 
 	fullPath := filepath.Join("remotes", relativePath)
 	//nolint:gosec // Test-only loader; the path is localized above and serves vendored suite files.
 	data, err := os.ReadFile(fullPath)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("os read file: %w", err), fullPath)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("os read file: %w", err), fullPath)
 	}
 
 	var v any
 	if err := jsonv2.Unmarshal(data, &v); err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("jsonv2 unmarshal: %w", err), fullPath)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("jsonv2 unmarshal: %w", err), fullPath)
 	}
 
 	s, err := schema.SchemaFromJSON(draft202012.SchemaID, nil, v)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("schema from json: %w", err), fullPath)
+		return nil, altshiftErrors.New(fmt.Errorf("schema from json: %w", err), fullPath)
 	}
 
 	return s, nil

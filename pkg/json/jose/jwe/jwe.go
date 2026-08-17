@@ -20,7 +20,7 @@ import (
 	"slices"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key"
@@ -74,7 +74,7 @@ func (header *Header) UnmarshalJSON(data []byte) error {
 		Compression         string            `json:"zip"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err))
 	}
 
 	var ephemeralPublicKey *key.Key
@@ -82,7 +82,7 @@ func (header *Header) UnmarshalJSON(data []byte) error {
 		var err error
 		ephemeralPublicKey, err = key.New(raw.EphemeralPublicKey)
 		if err != nil {
-			return motmedelErrors.New(fmt.Errorf("key new (epk): %w", err), raw.EphemeralPublicKey)
+			return altshiftErrors.New(fmt.Errorf("key new (epk): %w", err), raw.EphemeralPublicKey)
 		}
 	}
 
@@ -111,8 +111,8 @@ func concatKdf(z []byte, algorithmId string, partyUInfo []byte, partyVInfo []byt
 	for _, field := range [][]byte{[]byte(algorithmId), partyUInfo, partyVInfo} {
 		fieldLength := len(field)
 		if uint64(fieldLength) > math.MaxUint32 {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: field too long: %d", motmedelErrors.ErrValidationError, fieldLength),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: field too long: %d", altshiftErrors.ErrValidationError, fieldLength),
 			)
 		}
 		hash.Write(binary.BigEndian.AppendUint32(nil, uint32(fieldLength)))
@@ -131,7 +131,7 @@ func ecdhPublicKey(publicKey *ecdsa.PublicKey) (*ecdh.PublicKey, error) {
 
 	ecdhKey, err := publicKey.ECDH()
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("ecdsa public key ecdh: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("ecdsa public key ecdh: %w", err))
 	}
 
 	return ecdhKey, nil
@@ -148,7 +148,7 @@ func makeContentEncryptionKey(
 ) ([]byte, error) {
 	sharedSecret, err := privateKey.ECDH(publicKey)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("ecdh: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("ecdh: %w", err))
 	}
 
 	contentEncryptionKey, err := concatKdf(
@@ -159,7 +159,7 @@ func makeContentEncryptionKey(
 		contentEncryptionKeyBits,
 	)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("concat kdf: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("concat kdf: %w", err))
 	}
 
 	return contentEncryptionKey, nil
@@ -168,12 +168,12 @@ func makeContentEncryptionKey(
 func makeAead(contentEncryptionKey []byte) (cipher.AEAD, error) {
 	block, err := aes.NewCipher(contentEncryptionKey)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("aes new cipher: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("aes new cipher: %w", err))
 	}
 
 	aead, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("cipher new gcm: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("cipher new gcm: %w", err))
 	}
 
 	return aead, nil
@@ -197,17 +197,17 @@ func NewEncrypter(
 	recipientPublicKey *ecdsa.PublicKey,
 ) (*Encrypter, error) {
 	if keyAlgorithm != KeyAlgorithmEcdhEs {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: %q", ErrUnsupportedKeyAlgorithm, keyAlgorithm))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %q", ErrUnsupportedKeyAlgorithm, keyAlgorithm))
 	}
 	if contentEncryption != ContentEncryptionA256Gcm {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: %q", ErrUnsupportedContentEncryption, contentEncryption))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %q", ErrUnsupportedContentEncryption, contentEncryption))
 	}
 	if recipientPublicKey == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("recipient public key"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("recipient public key"))
 	}
 
 	if _, err := ecdhPublicKey(recipientPublicKey); err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("ecdh public key: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("ecdh public key: %w", err))
 	}
 
 	return &Encrypter{
@@ -220,32 +220,32 @@ func NewEncrypter(
 // Encrypt encrypts plaintext and returns the JWE compact serialization.
 func (encrypter *Encrypter) Encrypt(plaintext []byte) (string, error) {
 	if encrypter.KeyAlgorithm != KeyAlgorithmEcdhEs {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("%w: %q", ErrUnsupportedKeyAlgorithm, encrypter.KeyAlgorithm))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("%w: %q", ErrUnsupportedKeyAlgorithm, encrypter.KeyAlgorithm))
 	}
 	if encrypter.ContentEncryption != ContentEncryptionA256Gcm {
-		return "", motmedelErrors.NewWithTrace(
+		return "", altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: %q", ErrUnsupportedContentEncryption, encrypter.ContentEncryption),
 		)
 	}
 
 	recipientPublicKey := encrypter.RecipientPublicKey
 	if recipientPublicKey == nil {
-		return "", motmedelErrors.NewWithTrace(nil_error.New("recipient public key"))
+		return "", altshiftErrors.NewWithTrace(nil_error.New("recipient public key"))
 	}
 
 	recipientEcdhPublicKey, err := ecdhPublicKey(recipientPublicKey)
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("ecdh public key (recipient): %w", err))
+		return "", altshiftErrors.New(fmt.Errorf("ecdh public key (recipient): %w", err))
 	}
 
 	ephemeralPrivateKey, err := ecdsa.GenerateKey(recipientPublicKey.Curve, rand.Reader)
 	if err != nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("ecdsa generate key: %w", err))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("ecdsa generate key: %w", err))
 	}
 
 	ephemeralEcdhPrivateKey, err := ephemeralPrivateKey.ECDH()
 	if err != nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("ecdsa private key ecdh: %w", err))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("ecdsa private key ecdh: %w", err))
 	}
 
 	contentEncryptionKey, err := makeContentEncryptionKey(
@@ -256,12 +256,12 @@ func (encrypter *Encrypter) Encrypt(plaintext []byte) (string, error) {
 		nil,
 	)
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("make content encryption key: %w", err))
+		return "", altshiftErrors.New(fmt.Errorf("make content encryption key: %w", err))
 	}
 
 	ephemeralPublicKey, err := key.NewFromPublicKey(&ephemeralPrivateKey.PublicKey, "", "", "")
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("key new from public key (ephemeral): %w", err))
+		return "", altshiftErrors.New(fmt.Errorf("key new from public key (ephemeral): %w", err))
 	}
 
 	headerData, err := json.Marshal(
@@ -274,18 +274,18 @@ func (encrypter *Encrypter) Encrypt(plaintext []byte) (string, error) {
 		},
 	)
 	if err != nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("json marshal (header): %w", err))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("json marshal (header): %w", err))
 	}
 	protected := base64.RawURLEncoding.EncodeToString(headerData)
 
 	initializationVector := make([]byte, initializationVectorSize)
 	if _, err := rand.Read(initializationVector); err != nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("rand read (initialization vector): %w", err))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("rand read (initialization vector): %w", err))
 	}
 
 	aead, err := makeAead(contentEncryptionKey)
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("make aead: %w", err))
+		return "", altshiftErrors.New(fmt.Errorf("make aead: %w", err))
 	}
 
 	sealed := aead.Seal(make([]byte, 0, len(plaintext)+tagSize), initializationVector, plaintext, []byte(protected))
@@ -320,8 +320,8 @@ type Encryption struct {
 func decodePart(serialization string, name string) ([]byte, error) {
 	data, err := base64.RawURLEncoding.DecodeString(serialization)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: base64 raw url encoding decode string (%s): %w", motmedelErrors.ErrParseError, name, err),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: base64 raw url encoding decode string (%s): %w", altshiftErrors.ErrParseError, name, err),
 		)
 	}
 
@@ -337,99 +337,99 @@ func ParseCompact(
 	allowedContentEncryptions []ContentEncryption,
 ) (*Encryption, error) {
 	if serialization == "" {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrParseError, empty_error.New("serialization")),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrParseError, empty_error.New("serialization")),
 		)
 	}
 
 	parts := strings.Split(serialization, ".")
 	if len(parts) != 5 {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: unexpected number of parts: %d", motmedelErrors.ErrParseError, len(parts)),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: unexpected number of parts: %d", altshiftErrors.ErrParseError, len(parts)),
 		)
 	}
 
 	protected := parts[0]
 	headerData, err := decodePart(protected, "protected header")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("decode part (protected header): %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("decode part (protected header): %w", err))
 	}
 
 	var header Header
 	if err := json.Unmarshal(headerData, &header); err != nil {
-		return nil, motmedelErrors.New(
-			fmt.Errorf("%w: json unmarshal (protected header): %w", motmedelErrors.ErrParseError, err),
+		return nil, altshiftErrors.New(
+			fmt.Errorf("%w: json unmarshal (protected header): %w", altshiftErrors.ErrParseError, err),
 			string(headerData),
 		)
 	}
 
 	if !slices.Contains(allowedKeyAlgorithms, header.Algorithm) {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w: %q", motmedelErrors.ErrValidationError, ErrUnsupportedKeyAlgorithm, header.Algorithm),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w: %q", altshiftErrors.ErrValidationError, ErrUnsupportedKeyAlgorithm, header.Algorithm),
 		)
 	}
 	if !slices.Contains(allowedContentEncryptions, header.ContentEncryption) {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: %w: %q",
-				motmedelErrors.ErrValidationError, ErrUnsupportedContentEncryption, header.ContentEncryption,
+				altshiftErrors.ErrValidationError, ErrUnsupportedContentEncryption, header.ContentEncryption,
 			),
 		)
 	}
 	if header.Compression != "" {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w: %q", motmedelErrors.ErrValidationError, ErrUnsupportedCompression, header.Compression),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w: %q", altshiftErrors.ErrValidationError, ErrUnsupportedCompression, header.Compression),
 		)
 	}
 	if header.EphemeralPublicKey == nil {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("epk")),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("epk")),
 		)
 	}
 
 	// ECDH-ES uses direct key agreement; the encrypted key part must be empty.
 	if parts[1] != "" {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, ErrUnexpectedEncryptedKey),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, ErrUnexpectedEncryptedKey),
 		)
 	}
 
 	initializationVector, err := decodePart(parts[2], "initialization vector")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("decode part (initialization vector): %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("decode part (initialization vector): %w", err))
 	}
 	if len(initializationVector) != initializationVectorSize {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: unexpected initialization vector length: %d",
-				motmedelErrors.ErrParseError, len(initializationVector),
+				altshiftErrors.ErrParseError, len(initializationVector),
 			),
 		)
 	}
 
 	ciphertext, err := decodePart(parts[3], "ciphertext")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("decode part (ciphertext): %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("decode part (ciphertext): %w", err))
 	}
 
 	tag, err := decodePart(parts[4], "tag")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("decode part (tag): %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("decode part (tag): %w", err))
 	}
 	if len(tag) != tagSize {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: unexpected tag length: %d", motmedelErrors.ErrParseError, len(tag)),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: unexpected tag length: %d", altshiftErrors.ErrParseError, len(tag)),
 		)
 	}
 
 	agreementPartyUInfo, err := decodePart(header.AgreementPartyUInfo, "apu")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("decode part (apu): %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("decode part (apu): %w", err))
 	}
 
 	agreementPartyVInfo, err := decodePart(header.AgreementPartyVInfo, "apv")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("decode part (apv): %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("decode part (apv): %w", err))
 	}
 
 	return &Encryption{
@@ -450,52 +450,52 @@ func ecdhPrivateKey(privateKey any) (*ecdh.PrivateKey, error) {
 	case *ecdsa.PrivateKey:
 		ecdhKey, err := typedPrivateKey.ECDH()
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("ecdsa private key ecdh: %w", err))
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("ecdsa private key ecdh: %w", err))
 		}
 		return ecdhKey, nil
 	case nil:
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("private key"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("private key"))
 	default:
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: %T", ErrUnsupportedKeyType, privateKey))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %T", ErrUnsupportedKeyType, privateKey))
 	}
 }
 
 // Decrypt decrypts the JWE with the recipient private key, which must be
 // a *ecdsa.PrivateKey or a *ecdh.PrivateKey. Failures caused by the
-// content not matching the key match motmedelErrors.ErrVerificationError
+// content not matching the key match altshiftErrors.ErrVerificationError
 // with errors.Is.
 func (encryption *Encryption) Decrypt(privateKey any) ([]byte, error) {
 	recipientEcdhPrivateKey, err := ecdhPrivateKey(privateKey)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("ecdh private key: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("ecdh private key: %w", err))
 	}
 
 	header := encryption.Header
 	if header == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("header"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("header"))
 	}
 	if header.EphemeralPublicKey == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("epk"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("epk"))
 	}
 
 	ephemeralPublicKey, err := header.EphemeralPublicKey.Material.PublicKey()
 	if err != nil {
-		return nil, motmedelErrors.New(
-			fmt.Errorf("%w: public key (epk): %w", motmedelErrors.ErrValidationError, err),
+		return nil, altshiftErrors.New(
+			fmt.Errorf("%w: public key (epk): %w", altshiftErrors.ErrValidationError, err),
 		)
 	}
 
 	ephemeralEcdsaPublicKey, ok := ephemeralPublicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w (epk): %T", motmedelErrors.ErrValidationError, ErrUnsupportedKeyType, ephemeralPublicKey),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w (epk): %T", altshiftErrors.ErrValidationError, ErrUnsupportedKeyType, ephemeralPublicKey),
 		)
 	}
 
 	ephemeralEcdhPublicKey, err := ephemeralEcdsaPublicKey.ECDH()
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: ecdsa public key ecdh (epk): %w", motmedelErrors.ErrValidationError, err),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: ecdsa public key ecdh (epk): %w", altshiftErrors.ErrValidationError, err),
 		)
 	}
 
@@ -507,14 +507,14 @@ func (encryption *Encryption) Decrypt(privateKey any) ([]byte, error) {
 		encryption.agreementPartyVInfo,
 	)
 	if err != nil {
-		return nil, motmedelErrors.New(
-			fmt.Errorf("%w: make content encryption key: %w", motmedelErrors.ErrVerificationError, err),
+		return nil, altshiftErrors.New(
+			fmt.Errorf("%w: make content encryption key: %w", altshiftErrors.ErrVerificationError, err),
 		)
 	}
 
 	aead, err := makeAead(contentEncryptionKey)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("make aead: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("make aead: %w", err))
 	}
 
 	sealed := slices.Concat(encryption.ciphertext, encryption.tag)
@@ -525,8 +525,8 @@ func (encryption *Encryption) Decrypt(privateKey any) ([]byte, error) {
 		[]byte(encryption.protected),
 	)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: aead open: %w", motmedelErrors.ErrVerificationError, err),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: aead open: %w", altshiftErrors.ErrVerificationError, err),
 		)
 	}
 

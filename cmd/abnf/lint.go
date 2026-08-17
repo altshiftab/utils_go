@@ -10,7 +10,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/abnf/lint"
 	argumentParser "github.com/altshiftab/utils_go/pkg/cli/argument_parser"
 	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 const (
@@ -88,12 +88,12 @@ func runLint(format string, simplify bool, roots []string, paths []string) (int,
 	for _, path := range paths {
 		input, err := readInput(path)
 		if err != nil {
-			return exitError, motmedelErrors.New(fmt.Errorf("read input: %w", err))
+			return exitError, altshiftErrors.New(fmt.Errorf("read input: %w", err))
 		}
 
 		findings, err := lint.Lint(input, options)
 		if err != nil {
-			return exitError, motmedelErrors.New(fmt.Errorf("lint: %w", err), inputName(path))
+			return exitError, altshiftErrors.New(fmt.Errorf("lint: %w", err), inputName(path))
 		}
 
 		results = append(
@@ -104,7 +104,7 @@ func runLint(format string, simplify bool, roots []string, paths []string) (int,
 
 	if format == formatSarif {
 		if err := writeSarif(results); err != nil {
-			return exitError, motmedelErrors.New(fmt.Errorf("write sarif: %w", err))
+			return exitError, altshiftErrors.New(fmt.Errorf("write sarif: %w", err))
 		}
 	} else {
 		writeText(results)
@@ -127,11 +127,11 @@ func writeSarif(results []*linted) error {
 
 	data, err := json.Marshal(lint.Sarif(reports), jsontext.WithIndent("  "))
 	if err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err))
 	}
 
 	if _, err := os.Stdout.Write(append(data, '\n')); err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("os stdout write: %w", err))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("os stdout write: %w", err))
 	}
 
 	return nil

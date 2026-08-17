@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // TestConcatKdf checks the Concat KDF against the test vector in
@@ -236,22 +236,22 @@ func TestParseCompactFailures(t *testing.T) {
 		{
 			name:          "empty serialization",
 			serialization: "",
-			expectedError: motmedelErrors.ErrParseError,
+			expectedError: altshiftErrors.ErrParseError,
 		},
 		{
 			name:          "wrong number of parts",
 			serialization: "a.b.c",
-			expectedError: motmedelErrors.ErrParseError,
+			expectedError: altshiftErrors.ErrParseError,
 		},
 		{
 			name:          "invalid protected header base64",
 			serialization: "!." + strings.Join(parts[1:], "."),
-			expectedError: motmedelErrors.ErrParseError,
+			expectedError: altshiftErrors.ErrParseError,
 		},
 		{
 			name:          "invalid protected header json",
 			serialization: makeHeader("{"),
-			expectedError: motmedelErrors.ErrParseError,
+			expectedError: altshiftErrors.ErrParseError,
 		},
 		{
 			name:          "disallowed key algorithm",
@@ -271,7 +271,7 @@ func TestParseCompactFailures(t *testing.T) {
 		{
 			name:          "missing ephemeral public key",
 			serialization: makeHeader(`{"alg":"ECDH-ES","enc":"A256GCM"}`),
-			expectedError: motmedelErrors.ErrValidationError,
+			expectedError: altshiftErrors.ErrValidationError,
 		},
 		{
 			name:          "unexpected encrypted key",
@@ -281,12 +281,12 @@ func TestParseCompactFailures(t *testing.T) {
 		{
 			name:          "invalid initialization vector length",
 			serialization: strings.Join([]string{parts[0], parts[1], "AAAA", parts[3], parts[4]}, "."),
-			expectedError: motmedelErrors.ErrParseError,
+			expectedError: altshiftErrors.ErrParseError,
 		},
 		{
 			name:          "invalid tag length",
 			serialization: strings.Join([]string{parts[0], parts[1], parts[2], parts[3], "AAAA"}, "."),
-			expectedError: motmedelErrors.ErrParseError,
+			expectedError: altshiftErrors.ErrParseError,
 		},
 	}
 
@@ -342,25 +342,25 @@ func TestDecryptFailures(t *testing.T) {
 			name:          "wrong private key",
 			serialization: serialization,
 			privateKey:    mustGenerateKey(t, elliptic.P256()),
-			expectedError: motmedelErrors.ErrVerificationError,
+			expectedError: altshiftErrors.ErrVerificationError,
 		},
 		{
 			name:          "curve mismatch",
 			serialization: serialization,
 			privateKey:    mustGenerateKey(t, elliptic.P384()),
-			expectedError: motmedelErrors.ErrVerificationError,
+			expectedError: altshiftErrors.ErrVerificationError,
 		},
 		{
 			name:          "tampered ciphertext",
 			serialization: tamper(t, serialization, 3),
 			privateKey:    recipientPrivateKey,
-			expectedError: motmedelErrors.ErrVerificationError,
+			expectedError: altshiftErrors.ErrVerificationError,
 		},
 		{
 			name:          "tampered tag",
 			serialization: tamper(t, serialization, 4),
 			privateKey:    recipientPrivateKey,
-			expectedError: motmedelErrors.ErrVerificationError,
+			expectedError: altshiftErrors.ErrVerificationError,
 		},
 		{
 			name:          "nil private key",
@@ -481,7 +481,7 @@ func TestDecryptTamperedHeader(t *testing.T) {
 		t.Fatalf("parse compact: %v", err)
 	}
 
-	if _, err := encryption.Decrypt(recipientPrivateKey); !errors.Is(err, motmedelErrors.ErrVerificationError) {
-		t.Errorf("error = %v, want %v", err, motmedelErrors.ErrVerificationError)
+	if _, err := encryption.Decrypt(recipientPrivateKey); !errors.Is(err, altshiftErrors.ErrVerificationError) {
+		t.Errorf("error = %v, want %v", err, altshiftErrors.ErrVerificationError)
 	}
 }

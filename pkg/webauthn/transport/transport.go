@@ -8,7 +8,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // Base64URL is a byte string that is JSON-encoded as unpadded base64url.
@@ -17,13 +17,13 @@ type Base64URL []byte
 func (b *Base64URL) UnmarshalJSON(data []byte) error {
 	var encoded string
 	if err := json.Unmarshal(data, &encoded); err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err))
 	}
 
 	decoded, err := base64.RawURLEncoding.DecodeString(encoded)
 	if err != nil {
-		return motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: base64 url encoding decode string: %w", motmedelErrors.ErrParseError, err),
+		return altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: base64 url encoding decode string: %w", altshiftErrors.ErrParseError, err),
 			encoded,
 		)
 	}
@@ -36,7 +36,7 @@ func (b *Base64URL) MarshalJSON() ([]byte, error) {
 	encoded := base64.RawURLEncoding.EncodeToString(*b)
 	data, err := json.Marshal(encoded)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err), encoded)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err), encoded)
 	}
 
 	return data, nil

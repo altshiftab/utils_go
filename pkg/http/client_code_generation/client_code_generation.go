@@ -32,7 +32,7 @@ import (
 	"text/template"
 	"unicode"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	clientCodeGenerationErrors "github.com/altshiftab/utils_go/pkg/http/client_code_generation/errors"
@@ -126,7 +126,7 @@ func makeTypescriptContext(endpoints []*endpointPkg.Endpoint) (*typeGenerationTy
 
 	tsContext := typeGenerationTypescriptTypes.Context{Context: typeGenerationTypesContext.New()}
 	if err := tsContext.Add(typeElements...); err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("typescript context add: %w", err), typeElements)
+		return nil, altshiftErrors.New(fmt.Errorf("typescript context add: %w", err), typeElements)
 	}
 
 	return &tsContext, nil
@@ -178,7 +178,7 @@ func makeTemplateInput(
 	baseUrl *url.URL,
 ) ([]*clientCodeGenerationTypes.TemplateInput, error) {
 	if tsContext == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("typescript context"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("typescript context"))
 	}
 
 	if len(endpoints) == 0 {
@@ -194,12 +194,12 @@ func makeTemplateInput(
 
 		method := endpoint.Method
 		if method == "" {
-			return nil, motmedelErrors.NewWithTrace(empty_error.New("method"), endpoint)
+			return nil, altshiftErrors.NewWithTrace(empty_error.New("method"), endpoint)
 		}
 
 		path := endpoint.Path
 		if path == "" {
-			return nil, motmedelErrors.NewWithTrace(empty_error.New("url"), endpoint)
+			return nil, altshiftErrors.NewWithTrace(empty_error.New("url"), endpoint)
 		}
 
 		contentType := endpointContentType(endpoint)
@@ -207,7 +207,7 @@ func makeTemplateInput(
 		if typescriptFormInputType != "" || contentType == contentTypeCose {
 			switch method {
 			case "GET", "HEAD", "DELETE":
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf(
 						"%w: %q, %q",
 						clientCodeGenerationErrors.ErrBodylessMethodContentType, contentType, method,
@@ -234,7 +234,7 @@ func makeTemplateInput(
 
 			// TODO: Support COSE-encrypted responses.
 			if outputContentType == contentTypeCose {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf("%w: %q", clientCodeGenerationErrors.ErrUnsupportedOutputContentType, outputContentType),
 					endpoint,
 				)
@@ -250,13 +250,13 @@ func makeTemplateInput(
 				outputContentType != contentTypeJose
 			if binaryOutput {
 				if !isEmptyInterfaceType(hint.OutputType) {
-					return nil, motmedelErrors.NewWithTrace(
+					return nil, altshiftErrors.NewWithTrace(
 						fmt.Errorf("%w: %q", clientCodeGenerationErrors.ErrBinaryOutputWithOutputType, outputContentType),
 						endpoint,
 					)
 				}
 				if optionalOutput {
-					return nil, motmedelErrors.NewWithTrace(
+					return nil, altshiftErrors.NewWithTrace(
 						fmt.Errorf("%w: %q", clientCodeGenerationErrors.ErrOptionalBinaryOutput, outputContentType),
 						endpoint,
 					)
@@ -267,14 +267,14 @@ func makeTemplateInput(
 			if typescriptFormInputType == "" && !isEmptyInterfaceType(inputType) {
 				typeScriptType, err := tsContext.GetTypeScriptType(inputType)
 				if err != nil {
-					return nil, motmedelErrors.New(
+					return nil, altshiftErrors.New(
 						fmt.Errorf("typescript context get typescript type (input): %w", err),
 						inputType,
 					)
 				}
 				typescriptInputType, err = typeScriptType.String()
 				if err != nil {
-					return nil, motmedelErrors.New(fmt.Errorf("typescript type string (input): %w", err), typeScriptType)
+					return nil, altshiftErrors.New(fmt.Errorf("typescript type string (input): %w", err), typeScriptType)
 				}
 			}
 
@@ -284,14 +284,14 @@ func makeTemplateInput(
 			} else {
 				typeScriptType, err := tsContext.GetTypeScriptType(urlInputType)
 				if err != nil {
-					return nil, motmedelErrors.New(
+					return nil, altshiftErrors.New(
 						fmt.Errorf("typescript context get typescript type (url input): %w", err),
 						urlInputType,
 					)
 				}
 				typescriptUrlInputType, err = typeScriptType.String()
 				if err != nil {
-					return nil, motmedelErrors.New(fmt.Errorf("typescript type string (url input): %w", err), typeScriptType)
+					return nil, altshiftErrors.New(fmt.Errorf("typescript type string (url input): %w", err), typeScriptType)
 				}
 			}
 
@@ -303,14 +303,14 @@ func makeTemplateInput(
 			} else {
 				typeScriptType, err := tsContext.GetTypeScriptType(outputTpe)
 				if err != nil {
-					return nil, motmedelErrors.New(
+					return nil, altshiftErrors.New(
 						fmt.Errorf("typescript context get typescript type (output): %w", err),
 						outputTpe,
 					)
 				}
 				typescriptOutputType, err = typeScriptType.String()
 				if err != nil {
-					return nil, motmedelErrors.New(
+					return nil, altshiftErrors.New(
 						fmt.Errorf("typescript type string (output): %w", err),
 						outputTpe,
 					)
@@ -368,7 +368,7 @@ func Render(
 
 	templateInputs, err := makeTemplateInput(endpoints, tsContext, baseUrl)
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("make template input: %w", err), tsContext)
+		return "", altshiftErrors.New(fmt.Errorf("make template input: %w", err), tsContext)
 	}
 
 	var useEncryption bool
@@ -391,7 +391,7 @@ func Render(
 
 	tsContextOutput, err := tsContext.Render()
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("typescript context render: %w", err), tsContext)
+		return "", altshiftErrors.New(fmt.Errorf("typescript context render: %w", err), tsContext)
 	}
 
 	var buffer bytes.Buffer
@@ -410,7 +410,7 @@ func Render(
 		},
 	}
 	if err := scriptTemplate.Execute(&buffer, data); err != nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("template execute: %w", err), data)
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("template execute: %w", err), data)
 	}
 
 	return fmt.Sprintf("%s\n%s\n", tsContextOutput, buffer.String()), nil

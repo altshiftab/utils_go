@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
@@ -67,7 +67,7 @@ func (c *Client) fetchOptions(options []fetch_config.Option) []fetch_config.Opti
 // CreateUser creates a new user account.
 func (c *Client) CreateUser(ctx context.Context, u *user.User, options ...fetch_config.Option) (*user.User, error) {
 	if u == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("user"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("user"))
 	}
 
 	return rest.SendJson[user.User](ctx, http.MethodPost, c.urlString("users", nil), u, c.fetchOptions(options))
@@ -76,7 +76,7 @@ func (c *Client) CreateUser(ctx context.Context, u *user.User, options ...fetch_
 // GetUser retrieves a user account identified by userKey (primary email address, alias email address, or unique user ID).
 func (c *Client) GetUser(ctx context.Context, userKey string, options ...fetch_config.Option) (*user.User, error) {
 	if userKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
 	return rest.GetJson[user.User](ctx, c.urlString("users/"+url.PathEscape(userKey), nil), c.fetchOptions(options))
@@ -85,10 +85,10 @@ func (c *Client) GetUser(ctx context.Context, userKey string, options ...fetch_c
 // UpdateUser updates a user account identified by userKey.
 func (c *Client) UpdateUser(ctx context.Context, userKey string, u *user.User, options ...fetch_config.Option) (*user.User, error) {
 	if userKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 	if u == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("user"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("user"))
 	}
 
 	return rest.SendJson[user.User](
@@ -103,7 +103,7 @@ func (c *Client) UpdateUser(ctx context.Context, userKey string, u *user.User, o
 // DeleteUser deletes a user account identified by userKey.
 func (c *Client) DeleteUser(ctx context.Context, userKey string, options ...fetch_config.Option) error {
 	if userKey == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
 	return rest.Do(ctx, http.MethodDelete, c.urlString("users/"+url.PathEscape(userKey), nil), c.fetchOptions(options))
@@ -117,7 +117,7 @@ type listUsersResponse struct {
 // ListUsers retrieves all users for the given customer ID (use "my_customer" for the authenticated account).
 func (c *Client) ListUsers(ctx context.Context, customer string, options ...fetch_config.Option) ([]*user.User, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 
 	return rest.ListPaginated(
@@ -146,7 +146,7 @@ type listGroupsResponse struct {
 // ListGroups retrieves all groups for the given customer ID (use "my_customer" for the authenticated account).
 func (c *Client) ListGroups(ctx context.Context, customer string, options ...fetch_config.Option) ([]*group.Group, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 
 	return rest.ListPaginated(
@@ -168,7 +168,7 @@ func (c *Client) ListGroups(ctx context.Context, customer string, options ...fet
 // CreateGroup creates a new group.
 func (c *Client) CreateGroup(ctx context.Context, g *group.Group, options ...fetch_config.Option) (*group.Group, error) {
 	if g == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("group"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("group"))
 	}
 
 	return rest.SendJson[group.Group](ctx, http.MethodPost, c.urlString("groups", nil), g, c.fetchOptions(options))
@@ -177,7 +177,7 @@ func (c *Client) CreateGroup(ctx context.Context, g *group.Group, options ...fet
 // GetGroup retrieves a group identified by groupKey (group email address, group alias, or unique group ID).
 func (c *Client) GetGroup(ctx context.Context, groupKey string, options ...fetch_config.Option) (*group.Group, error) {
 	if groupKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("group key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("group key"))
 	}
 
 	return rest.GetJson[group.Group](ctx, c.urlString("groups/"+url.PathEscape(groupKey), nil), c.fetchOptions(options))
@@ -186,10 +186,10 @@ func (c *Client) GetGroup(ctx context.Context, groupKey string, options ...fetch
 // UpdateGroup updates a group identified by groupKey.
 func (c *Client) UpdateGroup(ctx context.Context, groupKey string, g *group.Group, options ...fetch_config.Option) (*group.Group, error) {
 	if groupKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("group key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("group key"))
 	}
 	if g == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("group"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("group"))
 	}
 
 	return rest.SendJson[group.Group](
@@ -204,7 +204,7 @@ func (c *Client) UpdateGroup(ctx context.Context, groupKey string, g *group.Grou
 // DeleteGroup deletes a group identified by groupKey.
 func (c *Client) DeleteGroup(ctx context.Context, groupKey string, options ...fetch_config.Option) error {
 	if groupKey == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("group key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("group key"))
 	}
 
 	return rest.Do(ctx, http.MethodDelete, c.urlString("groups/"+url.PathEscape(groupKey), nil), c.fetchOptions(options))
@@ -220,7 +220,7 @@ type listMembersResponse struct {
 // ListMembers retrieves all members of a group identified by groupKey.
 func (c *Client) ListMembers(ctx context.Context, groupKey string, options ...fetch_config.Option) ([]*member.Member, error) {
 	if groupKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("group key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("group key"))
 	}
 
 	return rest.ListPaginated(
@@ -242,10 +242,10 @@ func (c *Client) ListMembers(ctx context.Context, groupKey string, options ...fe
 // CreateMember adds a member to a group identified by groupKey.
 func (c *Client) CreateMember(ctx context.Context, groupKey string, m *member.Member, options ...fetch_config.Option) (*member.Member, error) {
 	if groupKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("group key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("group key"))
 	}
 	if m == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("member"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("member"))
 	}
 
 	return rest.SendJson[member.Member](
@@ -260,10 +260,10 @@ func (c *Client) CreateMember(ctx context.Context, groupKey string, m *member.Me
 // GetMember retrieves a member of a group identified by groupKey and memberKey (member email address or unique member ID).
 func (c *Client) GetMember(ctx context.Context, groupKey string, memberKey string, options ...fetch_config.Option) (*member.Member, error) {
 	if groupKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("group key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("group key"))
 	}
 	if memberKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("member key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("member key"))
 	}
 
 	return rest.GetJson[member.Member](
@@ -276,13 +276,13 @@ func (c *Client) GetMember(ctx context.Context, groupKey string, memberKey strin
 // UpdateMember updates a member of a group identified by groupKey and memberKey.
 func (c *Client) UpdateMember(ctx context.Context, groupKey string, memberKey string, m *member.Member, options ...fetch_config.Option) (*member.Member, error) {
 	if groupKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("group key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("group key"))
 	}
 	if memberKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("member key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("member key"))
 	}
 	if m == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("member"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("member"))
 	}
 
 	return rest.SendJson[member.Member](
@@ -297,10 +297,10 @@ func (c *Client) UpdateMember(ctx context.Context, groupKey string, memberKey st
 // DeleteMember removes a member from a group identified by groupKey and memberKey.
 func (c *Client) DeleteMember(ctx context.Context, groupKey string, memberKey string, options ...fetch_config.Option) error {
 	if groupKey == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("group key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("group key"))
 	}
 	if memberKey == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("member key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("member key"))
 	}
 
 	return rest.Do(
@@ -320,7 +320,7 @@ type makeAdminRequest struct {
 // MakeUserAdmin grants or revokes super administrator status for the user identified by userKey.
 func (c *Client) MakeUserAdmin(ctx context.Context, userKey string, status bool, options ...fetch_config.Option) error {
 	if userKey == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
 	return rest.DoWithBody(
@@ -335,7 +335,7 @@ func (c *Client) MakeUserAdmin(ctx context.Context, userKey string, status bool,
 // SignOutUser signs the user identified by userKey out of all web and device sessions and resets their sign-in cookies.
 func (c *Client) SignOutUser(ctx context.Context, userKey string, options ...fetch_config.Option) error {
 	if userKey == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
 	return rest.Do(ctx, http.MethodPost, c.urlString("users/"+url.PathEscape(userKey)+"/signOut", nil), c.fetchOptions(options))
@@ -344,7 +344,7 @@ func (c *Client) SignOutUser(ctx context.Context, userKey string, options ...fet
 // TurnOffUser2Sv turns off 2-step verification for the user identified by userKey.
 func (c *Client) TurnOffUser2Sv(ctx context.Context, userKey string, options ...fetch_config.Option) error {
 	if userKey == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
 	return rest.Do(
@@ -366,10 +366,10 @@ func orgUnitPathSegment(customer string, orgUnitPath string) string {
 // CreateOrgUnit creates a new organizational unit for the given customer ID (use "my_customer" for the authenticated account).
 func (c *Client) CreateOrgUnit(ctx context.Context, customer string, ou *org_unit.OrgUnit, options ...fetch_config.Option) (*org_unit.OrgUnit, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 	if ou == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("org unit"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("org unit"))
 	}
 
 	return rest.SendJson[org_unit.OrgUnit](
@@ -384,10 +384,10 @@ func (c *Client) CreateOrgUnit(ctx context.Context, customer string, ou *org_uni
 // GetOrgUnit retrieves an organizational unit identified by orgUnitPath (e.g. "/Engineering/Frontend") or unique ID (e.g. "id:03ph8a2z1xdnme9").
 func (c *Client) GetOrgUnit(ctx context.Context, customer string, orgUnitPath string, options ...fetch_config.Option) (*org_unit.OrgUnit, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 	if orgUnitPath == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("org unit path"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("org unit path"))
 	}
 
 	return rest.GetJson[org_unit.OrgUnit](
@@ -400,13 +400,13 @@ func (c *Client) GetOrgUnit(ctx context.Context, customer string, orgUnitPath st
 // UpdateOrgUnit updates an organizational unit identified by orgUnitPath or unique ID.
 func (c *Client) UpdateOrgUnit(ctx context.Context, customer string, orgUnitPath string, ou *org_unit.OrgUnit, options ...fetch_config.Option) (*org_unit.OrgUnit, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 	if orgUnitPath == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("org unit path"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("org unit path"))
 	}
 	if ou == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("org unit"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("org unit"))
 	}
 
 	return rest.SendJson[org_unit.OrgUnit](
@@ -421,10 +421,10 @@ func (c *Client) UpdateOrgUnit(ctx context.Context, customer string, orgUnitPath
 // DeleteOrgUnit deletes an organizational unit identified by orgUnitPath or unique ID.
 func (c *Client) DeleteOrgUnit(ctx context.Context, customer string, orgUnitPath string, options ...fetch_config.Option) error {
 	if customer == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 	if orgUnitPath == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("org unit path"))
+		return altshiftErrors.NewWithTrace(empty_error.New("org unit path"))
 	}
 
 	return rest.Do(ctx, http.MethodDelete, c.urlString(orgUnitPathSegment(customer, orgUnitPath), nil), c.fetchOptions(options))
@@ -437,7 +437,7 @@ type listOrgUnitsResponse struct {
 // ListOrgUnits retrieves all organizational units for the given customer ID (use "my_customer" for the authenticated account).
 func (c *Client) ListOrgUnits(ctx context.Context, customer string, options ...fetch_config.Option) ([]*org_unit.OrgUnit, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 
 	response, err := rest.GetJson[listOrgUnitsResponse](
@@ -462,7 +462,7 @@ type listRolesResponse struct {
 // ListRoles retrieves all roles for the given customer ID (use "my_customer" for the authenticated account).
 func (c *Client) ListRoles(ctx context.Context, customer string, options ...fetch_config.Option) ([]*role.Role, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 
 	return rest.ListPaginated(
@@ -484,10 +484,10 @@ func (c *Client) ListRoles(ctx context.Context, customer string, options ...fetc
 // CreateRole creates a new role for the given customer ID.
 func (c *Client) CreateRole(ctx context.Context, customer string, r *role.Role, options ...fetch_config.Option) (*role.Role, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 	if r == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("role"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("role"))
 	}
 
 	return rest.SendJson[role.Role](
@@ -502,10 +502,10 @@ func (c *Client) CreateRole(ctx context.Context, customer string, r *role.Role, 
 // GetRole retrieves a role identified by roleId.
 func (c *Client) GetRole(ctx context.Context, customer string, roleId string, options ...fetch_config.Option) (*role.Role, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 	if roleId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("role id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("role id"))
 	}
 
 	return rest.GetJson[role.Role](
@@ -518,13 +518,13 @@ func (c *Client) GetRole(ctx context.Context, customer string, roleId string, op
 // UpdateRole updates a role identified by roleId.
 func (c *Client) UpdateRole(ctx context.Context, customer string, roleId string, r *role.Role, options ...fetch_config.Option) (*role.Role, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 	if roleId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("role id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("role id"))
 	}
 	if r == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("role"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("role"))
 	}
 
 	return rest.SendJson[role.Role](
@@ -539,10 +539,10 @@ func (c *Client) UpdateRole(ctx context.Context, customer string, roleId string,
 // DeleteRole deletes a role identified by roleId.
 func (c *Client) DeleteRole(ctx context.Context, customer string, roleId string, options ...fetch_config.Option) error {
 	if customer == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 	if roleId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("role id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("role id"))
 	}
 
 	return rest.Do(
@@ -560,7 +560,7 @@ type listPrivilegesResponse struct {
 // ListPrivileges retrieves the privileges supported for building custom roles for the given customer ID.
 func (c *Client) ListPrivileges(ctx context.Context, customer string, options ...fetch_config.Option) ([]*privilege.Privilege, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 
 	response, err := rest.GetJson[listPrivilegesResponse](
@@ -585,7 +585,7 @@ type listRoleAssignmentsResponse struct {
 // ListRoleAssignments retrieves all role assignments for the given customer ID, optionally filtered by user key or role ID.
 func (c *Client) ListRoleAssignments(ctx context.Context, customer string, options ...list_role_assignments_config.Option) ([]*role_assignment.RoleAssignment, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 
 	listRoleAssignmentsConfig := list_role_assignments_config.New(options...)
@@ -615,10 +615,10 @@ func (c *Client) ListRoleAssignments(ctx context.Context, customer string, optio
 // CreateRoleAssignment creates a new role assignment for the given customer ID.
 func (c *Client) CreateRoleAssignment(ctx context.Context, customer string, ra *role_assignment.RoleAssignment, options ...fetch_config.Option) (*role_assignment.RoleAssignment, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 	if ra == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("role assignment"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("role assignment"))
 	}
 
 	return rest.SendJson[role_assignment.RoleAssignment](
@@ -633,10 +633,10 @@ func (c *Client) CreateRoleAssignment(ctx context.Context, customer string, ra *
 // GetRoleAssignment retrieves a role assignment identified by roleAssignmentId.
 func (c *Client) GetRoleAssignment(ctx context.Context, customer string, roleAssignmentId string, options ...fetch_config.Option) (*role_assignment.RoleAssignment, error) {
 	if customer == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 	if roleAssignmentId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("role assignment id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("role assignment id"))
 	}
 
 	return rest.GetJson[role_assignment.RoleAssignment](
@@ -649,10 +649,10 @@ func (c *Client) GetRoleAssignment(ctx context.Context, customer string, roleAss
 // DeleteRoleAssignment deletes a role assignment identified by roleAssignmentId.
 func (c *Client) DeleteRoleAssignment(ctx context.Context, customer string, roleAssignmentId string, options ...fetch_config.Option) error {
 	if customer == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("customer"))
+		return altshiftErrors.NewWithTrace(empty_error.New("customer"))
 	}
 	if roleAssignmentId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("role assignment id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("role assignment id"))
 	}
 
 	return rest.Do(
@@ -672,7 +672,7 @@ type listTokensResponse struct {
 // ListTokens retrieves the OAuth tokens issued to third-party applications for the user identified by userKey.
 func (c *Client) ListTokens(ctx context.Context, userKey string, options ...fetch_config.Option) ([]*token.Token, error) {
 	if userKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
 	response, err := rest.GetJson[listTokensResponse](
@@ -690,10 +690,10 @@ func (c *Client) ListTokens(ctx context.Context, userKey string, options ...fetc
 // GetToken retrieves the OAuth token issued to the third-party application identified by clientId for the user identified by userKey.
 func (c *Client) GetToken(ctx context.Context, userKey string, clientId string, options ...fetch_config.Option) (*token.Token, error) {
 	if userKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 	if clientId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("client id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("client id"))
 	}
 
 	return rest.GetJson[token.Token](
@@ -706,10 +706,10 @@ func (c *Client) GetToken(ctx context.Context, userKey string, clientId string, 
 // DeleteToken revokes the OAuth token issued to the third-party application identified by clientId for the user identified by userKey.
 func (c *Client) DeleteToken(ctx context.Context, userKey string, clientId string, options ...fetch_config.Option) error {
 	if userKey == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 	if clientId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("client id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("client id"))
 	}
 
 	return rest.Do(
@@ -729,7 +729,7 @@ type listAspsResponse struct {
 // ListAsps retrieves the application-specific passwords issued for the user identified by userKey.
 func (c *Client) ListAsps(ctx context.Context, userKey string, options ...fetch_config.Option) ([]*asp.Asp, error) {
 	if userKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
 	response, err := rest.GetJson[listAspsResponse](
@@ -747,7 +747,7 @@ func (c *Client) ListAsps(ctx context.Context, userKey string, options ...fetch_
 // GetAsp retrieves the application-specific password identified by codeId for the user identified by userKey.
 func (c *Client) GetAsp(ctx context.Context, userKey string, codeId int, options ...fetch_config.Option) (*asp.Asp, error) {
 	if userKey == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
 	return rest.GetJson[asp.Asp](
@@ -760,7 +760,7 @@ func (c *Client) GetAsp(ctx context.Context, userKey string, codeId int, options
 // DeleteAsp revokes the application-specific password identified by codeId for the user identified by userKey.
 func (c *Client) DeleteAsp(ctx context.Context, userKey string, codeId int, options ...fetch_config.Option) error {
 	if userKey == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("user key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
 	return rest.Do(

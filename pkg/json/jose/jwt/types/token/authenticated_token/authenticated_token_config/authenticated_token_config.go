@@ -1,7 +1,7 @@
 package authenticated_token_config
 
 import (
-	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	altshiftCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
 	"github.com/altshiftab/utils_go/pkg/interfaces/validator"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
 	jwtValidator "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/validator"
@@ -13,7 +13,7 @@ var DefaultValidator = &jwtValidator.Validator{
 }
 
 type Config struct {
-	SignatureVerifier    motmedelCryptoInterfaces.NamedVerifier
+	SignatureVerifier    altshiftCryptoInterfaces.NamedVerifier
 	TokenValidator       validator.Validator[*token.Token]
 	AllowUnauthenticated bool
 }
@@ -31,7 +31,7 @@ func New(options ...Option) *Config {
 	return config
 }
 
-func WithSignatureVerifier(signatureVerifier motmedelCryptoInterfaces.NamedVerifier) Option {
+func WithSignatureVerifier(signatureVerifier altshiftCryptoInterfaces.NamedVerifier) Option {
 	return func(configuration *Config) {
 		configuration.SignatureVerifier = signatureVerifier
 	}

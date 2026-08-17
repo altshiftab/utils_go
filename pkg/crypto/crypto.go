@@ -7,9 +7,9 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelUtils "github.com/altshiftab/utils_go/pkg/utils"
+	altshiftUtils "github.com/altshiftab/utils_go/pkg/utils"
 )
 
 const (
@@ -89,18 +89,18 @@ func PrivateKeyFromPem[T any](pemKey string) (T, error) {
 	var zero T
 	block, _ := pem.Decode([]byte(pemKey))
 	if block == nil {
-		return zero, motmedelErrors.NewWithTrace(nil_error.New("block"))
+		return zero, altshiftErrors.NewWithTrace(nil_error.New("block"))
 	}
 
 	blockBytes := block.Bytes
 	privateKey, err := x509.ParsePKCS8PrivateKey(blockBytes)
 	if err != nil {
-		return zero, motmedelErrors.NewWithTrace(fmt.Errorf("x509 parse pkcs8 private key: %w", err), blockBytes)
+		return zero, altshiftErrors.NewWithTrace(fmt.Errorf("x509 parse pkcs8 private key: %w", err), blockBytes)
 	}
 
-	convertedPrivateKey, err := motmedelUtils.Convert[T](privateKey)
+	convertedPrivateKey, err := altshiftUtils.Convert[T](privateKey)
 	if err != nil {
-		return zero, motmedelErrors.New(fmt.Errorf("convert (private key): %w", err), privateKey)
+		return zero, altshiftErrors.New(fmt.Errorf("convert (private key): %w", err), privateKey)
 	}
 
 	return convertedPrivateKey, nil
@@ -111,12 +111,12 @@ func PublicKeyFromDer[T any](der []byte) (T, error) {
 
 	publicKey, err := x509.ParsePKIXPublicKey(der)
 	if err != nil {
-		return zero, motmedelErrors.NewWithTrace(fmt.Errorf("x509 parse pkix public key: %w", err), der)
+		return zero, altshiftErrors.NewWithTrace(fmt.Errorf("x509 parse pkix public key: %w", err), der)
 	}
 
-	convertedPublicKey, err := motmedelUtils.Convert[T](publicKey)
+	convertedPublicKey, err := altshiftUtils.Convert[T](publicKey)
 	if err != nil {
-		return zero, motmedelErrors.New(fmt.Errorf("convert (public key): %w", err), publicKey)
+		return zero, altshiftErrors.New(fmt.Errorf("convert (public key): %w", err), publicKey)
 	}
 
 	return convertedPublicKey, nil
@@ -126,7 +126,7 @@ func PublicKeyFromPem[T any](pemKey string) (T, error) {
 	var zero T
 	block, _ := pem.Decode([]byte(pemKey))
 	if block == nil {
-		return zero, motmedelErrors.NewWithTrace(nil_error.New("block"))
+		return zero, altshiftErrors.NewWithTrace(nil_error.New("block"))
 	}
 
 	publicKey, err := PublicKeyFromDer[T](block.Bytes)

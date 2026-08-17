@@ -14,11 +14,11 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/authorized_user_token_source"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/metadata_token_source"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/service_account_token_source"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/token_source"
 )
 
@@ -60,7 +60,7 @@ func NewClientWithUrls(metadataBaseUrl *url.URL, tokenUrl string, options ...gcp
 
 func (c *Client) GetIdToken(ctx context.Context, audience string, options ...fetch_config.Option) (string, error) {
 	if audience == "" {
-		return "", motmedelErrors.NewWithTrace(empty_error.New("audience"))
+		return "", altshiftErrors.NewWithTrace(empty_error.New("audience"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -76,13 +76,13 @@ func (c *Client) GetIdToken(ctx context.Context, audience string, options ...fet
 		append(c.config.FetchOptions, fetch_config.WithHeaders(map[string]string{metadataFlavorHeader: metadataFlavorGoogle})),
 		options...,
 	)
-	_, responseBody, err := motmedelHttpUtils.Fetch(
+	_, responseBody, err := altshiftHttpUtils.Fetch(
 		ctx,
 		identityUrlString,
 		options...,
 	)
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("fetch: %w", err), identityUrlString)
+		return "", altshiftErrors.New(fmt.Errorf("fetch: %w", err), identityUrlString)
 	}
 
 	return string(responseBody), nil
@@ -104,13 +104,13 @@ func (c *Client) GetServiceAccountEmail(ctx context.Context, options ...fetch_co
 		append(c.config.FetchOptions, fetch_config.WithHeaders(map[string]string{metadataFlavorHeader: metadataFlavorGoogle})),
 		options...,
 	)
-	_, responseBody, err := motmedelHttpUtils.Fetch(
+	_, responseBody, err := altshiftHttpUtils.Fetch(
 		ctx,
 		urlString,
 		options...,
 	)
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("fetch: %w", err), urlString)
+		return "", altshiftErrors.New(fmt.Errorf("fetch: %w", err), urlString)
 	}
 
 	return string(responseBody), nil
@@ -129,13 +129,13 @@ func (c *Client) GetProjectId(ctx context.Context, options ...fetch_config.Optio
 		append(c.config.FetchOptions, fetch_config.WithHeaders(map[string]string{metadataFlavorHeader: metadataFlavorGoogle})),
 		options...,
 	)
-	_, responseBody, err := motmedelHttpUtils.Fetch(
+	_, responseBody, err := altshiftHttpUtils.Fetch(
 		ctx,
 		urlString,
 		options...,
 	)
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("fetch: %w", err), urlString)
+		return "", altshiftErrors.New(fmt.Errorf("fetch: %w", err), urlString)
 	}
 
 	return string(responseBody), nil
@@ -159,7 +159,7 @@ func wellKnownCredentialsPath() string {
 func (c *Client) credentialsFileTokenSource(ctx context.Context, data []byte, scopes []string, options ...fetch_config.Option) (token_source.TokenSource, error) {
 	var credentialsFile credentials_file.File
 	if err := json.Unmarshal(data, &credentialsFile); err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("json unmarshal (credentials file): %w", err),
 		)
 	}
@@ -168,7 +168,7 @@ func (c *Client) credentialsFileTokenSource(ctx context.Context, data []byte, sc
 	case credentialTypeAuthorizedUser:
 		tokenSource, err := authorized_user_token_source.NewFromCredentialsFile(ctx, c.tokenUrl, &credentialsFile, options...)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("authorized user token source new: %w", err), credentialsFile)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("authorized user token source new: %w", err), credentialsFile)
 		}
 
 		return token_source.NewReusable(nil, tokenSource), nil
@@ -180,13 +180,13 @@ func (c *Client) credentialsFileTokenSource(ctx context.Context, data []byte, sc
 
 		tokenSource, err := service_account_token_source.NewFromCredentialsFile(ctx, tokenUrl, &credentialsFile, scopes, options...)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("service account token source new: %w", err), credentialsFile)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("service account token source new: %w", err), credentialsFile)
 		}
 
 		return token_source.NewReusable(nil, tokenSource), nil
 	default:
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: unsupported credential type: %s", motmedelErrors.ErrUnexpectedType, credentialsFile.Type),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: unsupported credential type: %s", altshiftErrors.ErrUnexpectedType, credentialsFile.Type),
 		)
 	}
 }
@@ -204,7 +204,7 @@ func (c *Client) FindDefaultCredentials(ctx context.Context, scopes []string, op
 	if envPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"); envPath != "" {
 		data, err := os.ReadFile(envPath) //nolint:gosec // ADC: reads the file GOOGLE_APPLICATION_CREDENTIALS points to
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("os read file: %w", err), envPath)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("os read file: %w", err), envPath)
 		}
 		options = append(c.config.FetchOptions, options...)
 		return c.credentialsFileTokenSource(ctx, data, scopes, options...)
@@ -223,10 +223,10 @@ func (c *Client) FindDefaultCredentials(ctx context.Context, scopes []string, op
 		options = append(c.config.FetchOptions, options...)
 		metadataTokenSource, err := metadata_token_source.New(ctx, c.metadataBaseUrl, scopes, options...)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("metadata token source new: %w", err))
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("metadata token source new: %w", err))
 		}
 		return token_source.NewReusable(nil, metadataTokenSource), nil
 	}
 
-	return nil, motmedelErrors.NewWithTrace(nil_error.New("default credentials"))
+	return nil, altshiftErrors.NewWithTrace(nil_error.New("default credentials"))
 }

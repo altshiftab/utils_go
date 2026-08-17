@@ -7,7 +7,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cbor"
 	"github.com/altshiftab/utils_go/pkg/cose"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // Authenticator data flag bits (WebAuthn §6.1).
@@ -63,8 +63,8 @@ func (a *AuthenticatorData) UserVerified() bool {
 // that follows it.
 func ParseAuthenticatorData(data []byte) (*AuthenticatorData, error) {
 	if len(data) < minAuthenticatorDataLength {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: authenticator data too short (%d bytes)", motmedelErrors.ErrParseError, len(data)),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: authenticator data too short (%d bytes)", altshiftErrors.ErrParseError, len(data)),
 		)
 	}
 
@@ -78,8 +78,8 @@ func ParseAuthenticatorData(data []byte) (*AuthenticatorData, error) {
 
 	if authenticatorData.Flags&FlagAttestedCredentialData != 0 {
 		if len(rest) < aaguidLength+credentialIdLengthLength {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: authenticator data too short for attested credential data", motmedelErrors.ErrParseError),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: authenticator data too short for attested credential data", altshiftErrors.ErrParseError),
 			)
 		}
 
@@ -88,8 +88,8 @@ func ParseAuthenticatorData(data []byte) (*AuthenticatorData, error) {
 		rest = rest[aaguidLength+credentialIdLengthLength:]
 
 		if len(rest) < credentialIdLength {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: credential id length exceeds authenticator data", motmedelErrors.ErrParseError),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: credential id length exceeds authenticator data", altshiftErrors.ErrParseError),
 			)
 		}
 		credentialId := rest[:credentialIdLength]
@@ -97,23 +97,23 @@ func ParseAuthenticatorData(data []byte) (*AuthenticatorData, error) {
 
 		keyValue, remaining, err := cbor.DecodeFirst(rest)
 		if err != nil {
-			return nil, motmedelErrors.New(
-				fmt.Errorf("%w: cbor decode first (credential public key): %w", motmedelErrors.ErrParseError, err),
+			return nil, altshiftErrors.New(
+				fmt.Errorf("%w: cbor decode first (credential public key): %w", altshiftErrors.ErrParseError, err),
 				rest,
 			)
 		}
 
 		keyMap, ok := keyValue.(map[any]any)
 		if !ok {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: credential public key is not a map", motmedelErrors.ErrParseError),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: credential public key is not a map", altshiftErrors.ErrParseError),
 			)
 		}
 
 		publicKey, err := cose.PublicKey(keyMap)
 		if err != nil {
-			return nil, motmedelErrors.New(
-				fmt.Errorf("%w: cose public key: %w", motmedelErrors.ErrParseError, err),
+			return nil, altshiftErrors.New(
+				fmt.Errorf("%w: cose public key: %w", altshiftErrors.ErrParseError, err),
 				keyMap,
 			)
 		}
@@ -134,23 +134,23 @@ func ParseAuthenticatorData(data []byte) (*AuthenticatorData, error) {
 	if authenticatorData.Flags&FlagExtensionData != 0 {
 		extensionsValue, err := cbor.Decode(rest)
 		if err != nil {
-			return nil, motmedelErrors.New(
-				fmt.Errorf("%w: cbor decode (extensions): %w", motmedelErrors.ErrParseError, err),
+			return nil, altshiftErrors.New(
+				fmt.Errorf("%w: cbor decode (extensions): %w", altshiftErrors.ErrParseError, err),
 				rest,
 			)
 		}
 
 		extensions, ok := extensionsValue.(map[any]any)
 		if !ok {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: extensions are not a map", motmedelErrors.ErrParseError),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: extensions are not a map", altshiftErrors.ErrParseError),
 			)
 		}
 
 		authenticatorData.Extensions = extensions
 	} else if len(rest) != 0 {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: trailing authenticator data", motmedelErrors.ErrParseError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: trailing authenticator data", altshiftErrors.ErrParseError),
 		)
 	}
 

@@ -17,7 +17,7 @@ import (
 	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	muxUtils "github.com/altshiftab/utils_go/pkg/http/mux/utils"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 )
 
@@ -39,11 +39,11 @@ func hasHeader(headers []*muxResponse.HeaderEntry, name string) bool {
 	return false
 }
 
-func corsEndpoint(configuration *motmedelHttpTypes.CorsConfiguration, responseError *muxResponseError.ResponseError) *endpointPkg.Endpoint {
+func corsEndpoint(configuration *altshiftHttpTypes.CorsConfiguration, responseError *muxResponseError.ResponseError) *endpointPkg.Endpoint {
 	return &endpointPkg.Endpoint{
 		Path:   "/x",
 		Method: http.MethodGet,
-		CorsParser: request_parser.New(func(*http.Request) (*motmedelHttpTypes.CorsConfiguration, *muxResponseError.ResponseError) {
+		CorsParser: request_parser.New(func(*http.Request) (*altshiftHttpTypes.CorsConfiguration, *muxResponseError.ResponseError) {
 			return configuration, responseError
 		}),
 	}
@@ -92,7 +92,7 @@ func TestHandleUnmatchedMethod(t *testing.T) {
 
 	t.Run("OPTIONS preflight builds CORS headers", func(t *testing.T) {
 		t.Parallel()
-		endpoint := corsEndpoint(&motmedelHttpTypes.CorsConfiguration{
+		endpoint := corsEndpoint(&altshiftHttpTypes.CorsConfiguration{
 			Origin:      "https://example.com",
 			Credentials: true,
 			MaxAge:      600,
@@ -177,7 +177,7 @@ func TestEndpointCorsHeaderEntries(t *testing.T) {
 
 	t.Run("builds the headers", func(t *testing.T) {
 		t.Parallel()
-		endpoint := corsEndpoint(&motmedelHttpTypes.CorsConfiguration{
+		endpoint := corsEndpoint(&altshiftHttpTypes.CorsConfiguration{
 			Origin:        "https://example.com",
 			Credentials:   true,
 			ExposeHeaders: []string{"X-A", "X-B"},
@@ -220,7 +220,7 @@ func TestHandleRequestBody(t *testing.T) {
 	t.Run("forbidden body (GET with a body) is rejected", func(t *testing.T) {
 		t.Parallel()
 		request := newBodyRequest(t, http.MethodGet, "", "data")
-		_, _, responseError := handleRequestBody(&endpointPkg.Endpoint{}, request, httptest.NewRecorder(), request.Header, &motmedelHttpTypes.HttpContext{})
+		_, _, responseError := handleRequestBody(&endpointPkg.Endpoint{}, request, httptest.NewRecorder(), request.Header, &altshiftHttpTypes.HttpContext{})
 		if responseError == nil {
 			t.Fatal("expected an error for a body on a GET request")
 		}
@@ -230,7 +230,7 @@ func TestHandleRequestBody(t *testing.T) {
 		t.Parallel()
 		endpoint := &endpointPkg.Endpoint{BodyLoader: &body_loader.Loader{Setting: body_setting.Required}}
 		request := newBodyRequest(t, http.MethodPost, "", "")
-		_, _, responseError := handleRequestBody(endpoint, request, httptest.NewRecorder(), request.Header, &motmedelHttpTypes.HttpContext{})
+		_, _, responseError := handleRequestBody(endpoint, request, httptest.NewRecorder(), request.Header, &altshiftHttpTypes.HttpContext{})
 		if responseError == nil || responseError.ProblemDetail == nil || responseError.ProblemDetail.Status != http.StatusLengthRequired {
 			t.Fatalf("expected 411, got %#v", responseError)
 		}
@@ -240,7 +240,7 @@ func TestHandleRequestBody(t *testing.T) {
 		t.Parallel()
 		endpoint := &endpointPkg.Endpoint{BodyLoader: &body_loader.Loader{ContentType: "application/json", Setting: body_setting.Optional}}
 		request := newBodyRequest(t, http.MethodPost, "text/plain", `{"a":1}`)
-		_, _, responseError := handleRequestBody(endpoint, request, httptest.NewRecorder(), request.Header, &motmedelHttpTypes.HttpContext{})
+		_, _, responseError := handleRequestBody(endpoint, request, httptest.NewRecorder(), request.Header, &altshiftHttpTypes.HttpContext{})
 		if responseError == nil || responseError.ProblemDetail == nil || responseError.ProblemDetail.Status != http.StatusUnsupportedMediaType {
 			t.Fatalf("expected 415, got %#v", responseError)
 		}
@@ -250,7 +250,7 @@ func TestHandleRequestBody(t *testing.T) {
 		t.Parallel()
 		endpoint := &endpointPkg.Endpoint{BodyLoader: &body_loader.Loader{ContentType: "application/json", Setting: body_setting.Optional}}
 		request := newBodyRequest(t, http.MethodPost, "application/json", "{not-json")
-		_, _, responseError := handleRequestBody(endpoint, request, httptest.NewRecorder(), request.Header, &motmedelHttpTypes.HttpContext{})
+		_, _, responseError := handleRequestBody(endpoint, request, httptest.NewRecorder(), request.Header, &altshiftHttpTypes.HttpContext{})
 		if responseError == nil || responseError.ProblemDetail == nil || responseError.ProblemDetail.Status != http.StatusBadRequest {
 			t.Fatalf("expected 400, got %#v", responseError)
 		}
@@ -260,7 +260,7 @@ func TestHandleRequestBody(t *testing.T) {
 		t.Parallel()
 		endpoint := &endpointPkg.Endpoint{BodyLoader: &body_loader.Loader{Setting: body_setting.Optional, MaxBytes: 5}}
 		request := newBodyRequest(t, http.MethodPost, "", "0123456789")
-		_, _, responseError := handleRequestBody(endpoint, request, httptest.NewRecorder(), request.Header, &motmedelHttpTypes.HttpContext{})
+		_, _, responseError := handleRequestBody(endpoint, request, httptest.NewRecorder(), request.Header, &altshiftHttpTypes.HttpContext{})
 		if responseError == nil || responseError.ProblemDetail == nil || responseError.ProblemDetail.Status != http.StatusRequestEntityTooLarge {
 			t.Fatalf("expected 413, got %#v", responseError)
 		}
@@ -275,7 +275,7 @@ func TestHandleRequestBody(t *testing.T) {
 			}),
 		}}
 		request := newBodyRequest(t, http.MethodPost, "", "payload")
-		httpContext := &motmedelHttpTypes.HttpContext{}
+		httpContext := &altshiftHttpTypes.HttpContext{}
 
 		updatedRequest, requestBody, responseError := handleRequestBody(endpoint, request, httptest.NewRecorder(), request.Header, httpContext)
 		if responseError != nil {
@@ -302,7 +302,7 @@ func TestHandleRequestBody(t *testing.T) {
 			}),
 		}}
 		request := newBodyRequest(t, http.MethodPost, "", "payload")
-		_, _, responseError := handleRequestBody(endpoint, request, httptest.NewRecorder(), request.Header, &motmedelHttpTypes.HttpContext{})
+		_, _, responseError := handleRequestBody(endpoint, request, httptest.NewRecorder(), request.Header, &altshiftHttpTypes.HttpContext{})
 		if responseError != parserError {
 			t.Fatalf("expected the parser error, got %#v", responseError)
 		}

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	motmedelCrypto "github.com/altshiftab/utils_go/pkg/crypto"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftCrypto "github.com/altshiftab/utils_go/pkg/crypto"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 )
 
@@ -65,7 +65,7 @@ func (r *Record) GetPublicKey() (crypto.PublicKey, error) {
 	keyType := r.GetKeyType()
 	key, err := ParseKey(publicKeyData, keyType)
 	if err != nil {
-		return nil, motmedelErrors.New(
+		return nil, altshiftErrors.New(
 			fmt.Errorf("parse key: %w", err),
 			publicKeyData, keyType,
 		)
@@ -102,7 +102,7 @@ func GetKeyData(data string) ([]byte, error) {
 
 	keyData, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("base64 std encoding decode string: %w", err),
 			data,
 		)
@@ -117,17 +117,17 @@ func ParseKey(data string, keyType string) (crypto.PublicKey, error) {
 	}
 
 	if keyType == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("key type"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("key type"))
 	}
 
 	keyData, err := GetKeyData(data)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get key data: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get key data: %w", err), data)
 	}
 
 	switch strings.ToLower(keyType) {
 	case "rsa":
-		key, err := motmedelCrypto.PublicKeyFromDer[crypto.PublicKey](keyData)
+		key, err := altshiftCrypto.PublicKeyFromDer[crypto.PublicKey](keyData)
 		if err != nil {
 			return nil, fmt.Errorf("public key from der: %w", err)
 		}
@@ -135,7 +135,7 @@ func ParseKey(data string, keyType string) (crypto.PublicKey, error) {
 		return key, nil
 	case "ed25519":
 		if len(keyData) != ed25519.PublicKeySize {
-			return nil, motmedelErrors.NewWithTrace(ErrBadEd25519Length, keyData)
+			return nil, altshiftErrors.NewWithTrace(ErrBadEd25519Length, keyData)
 		}
 
 		return ed25519.PublicKey(keyData), nil

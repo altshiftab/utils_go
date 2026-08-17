@@ -9,7 +9,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/cookie_extractor/cookie_extractor_config"
 	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
@@ -24,20 +24,20 @@ type Parser struct {
 func (p *Parser) Parse(request *http.Request) (string, *muxResponseError.ResponseError) {
 	if request == nil {
 		return "", &muxResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request")),
 		}
 	}
 
 	name := p.Name
 	if name == "" {
 		return "", &muxResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(empty_error.New("name")),
+			ServerError: altshiftErrors.NewWithTrace(empty_error.New("name")),
 		}
 	}
 
 	cookie, err := request.Cookie(name)
 	if err != nil {
-		wrappedErr := motmedelErrors.NewWithTrace(fmt.Errorf("request cookie: %w", err), name)
+		wrappedErr := altshiftErrors.NewWithTrace(fmt.Errorf("request cookie: %w", err), name)
 		if errors.Is(err, http.ErrNoCookie) {
 			return "", &muxResponseError.ResponseError{
 				ClientError: wrappedErr,
@@ -52,7 +52,7 @@ func (p *Parser) Parse(request *http.Request) (string, *muxResponseError.Respons
 	}
 	if cookie == nil {
 		return "", &muxResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("cookie")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("cookie")),
 		}
 	}
 
@@ -61,7 +61,7 @@ func (p *Parser) Parse(request *http.Request) (string, *muxResponseError.Respons
 
 func New(name string, options ...cookie_extractor_config.Option) (*Parser, error) {
 	if name == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("name"))
 	}
 
 	return &Parser{Name: name, config: cookie_extractor_config.New(options...)}, nil

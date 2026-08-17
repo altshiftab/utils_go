@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // maxSimplificationPasses bounds the passes made to reach a fixed point.
@@ -52,8 +52,8 @@ type Options struct {
 func Minify(input []byte, options *Options) ([]byte, error) {
 	grammar, err := abnf.ParseABNF(normalizeLineEndings(input))
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: abnf parse abnf: %w", motmedelErrors.ErrParseError, err),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: abnf parse abnf: %w", altshiftErrors.ErrParseError, err),
 		)
 	}
 
@@ -61,15 +61,15 @@ func Minify(input []byte, options *Options) ([]byte, error) {
 
 	verificationGrammar, err := abnf.ParseABNF([]byte(output))
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: abnf parse abnf (verification): %w", motmedelErrors.ErrVerificationError, err),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: abnf parse abnf (verification): %w", altshiftErrors.ErrVerificationError, err),
 			output,
 		)
 	}
 
 	if verificationOutput := makeDefinition(verificationGrammar, nil); verificationOutput != output {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: the minified grammar does not reproduce itself", motmedelErrors.ErrVerificationError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: the minified grammar does not reproduce itself", altshiftErrors.ErrVerificationError),
 			output,
 			verificationOutput,
 		)

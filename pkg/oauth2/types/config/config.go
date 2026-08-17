@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 	oauth2Errors "github.com/altshiftab/utils_go/pkg/oauth2/errors"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/auth_code_option"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/endpoint"
@@ -127,7 +127,7 @@ func (c *Config) Client(ctx context.Context, t *token.Token) *http.Client {
 
 func (c *Config) retrieveToken(ctx context.Context, v url.Values) (*token.Token, error) {
 	if c.Endpoint.TokenURL == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("token url"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("token url"))
 	}
 
 	authStyle := c.Endpoint.AuthStyle
@@ -155,7 +155,7 @@ func (c *Config) doRetrieveToken(ctx context.Context, v url.Values, authStyle en
 
 	switch authStyle {
 	case endpoint.AuthStyleInHeader:
-		headers["Authorization"] = "Basic " + motmedelHttpUtils.BasicAuth(c.ClientID, c.ClientSecret)
+		headers["Authorization"] = "Basic " + altshiftHttpUtils.BasicAuth(c.ClientID, c.ClientSecret)
 	case endpoint.AuthStyleInParams:
 		v.Set("client_id", c.ClientID)
 		if c.ClientSecret != "" {
@@ -177,7 +177,7 @@ func (c *Config) doRetrieveToken(ctx context.Context, v url.Values, authStyle en
 		c.FetchOptions...,
 	)
 
-	response, responseBody, err := motmedelHttpUtils.Fetch(ctx, c.Endpoint.TokenURL, options...)
+	response, responseBody, err := altshiftHttpUtils.Fetch(ctx, c.Endpoint.TokenURL, options...)
 	if err != nil {
 		return nil, fmt.Errorf("fetch: %w", err)
 	}
@@ -217,7 +217,7 @@ func (c *Config) doRetrieveToken(ctx context.Context, v url.Values, authStyle en
 	if strings.Contains(contentType, "application/x-www-form-urlencoded") || strings.Contains(contentType, "text/plain") {
 		vals, err := url.ParseQuery(string(responseBody))
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("url parse query (response body): %w", err), responseBody)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("url parse query (response body): %w", err), responseBody)
 		}
 
 		tokenResponse.AccessToken = vals.Get("access_token")
@@ -225,7 +225,7 @@ func (c *Config) doRetrieveToken(ctx context.Context, v url.Values, authStyle en
 		tokenResponse.RefreshToken = vals.Get("refresh_token")
 	} else {
 		if err := json.Unmarshal(responseBody, &tokenResponse); err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal (response body): %w", err), responseBody)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (response body): %w", err), responseBody)
 		}
 	}
 
@@ -245,7 +245,7 @@ func (c *Config) doRetrieveToken(ctx context.Context, v url.Values, authStyle en
 	}
 
 	if tok.AccessToken == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("access token"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("access token"))
 	}
 
 	return tok, nil
@@ -259,7 +259,7 @@ type tokenRefresher struct {
 
 func (tf *tokenRefresher) Token() (*token.Token, error) {
 	if tf.refreshToken == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("refresh token"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("refresh token"))
 	}
 
 	v := url.Values{

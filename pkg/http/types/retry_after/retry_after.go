@@ -11,8 +11,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 //go:embed grammar.abnf
@@ -26,16 +26,16 @@ var (
 	ErrNoPathMatch         = errors.New("neither HTTP-date or delay-seconds matched")
 )
 
-func Parse(data []byte) (*motmedelHttpTypes.RetryAfter, error) {
+func Parse(data []byte) (*altshiftHttpTypes.RetryAfter, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(RetryAfterGrammar, data, "Retry-After")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
-	retryAfter := &motmedelHttpTypes.RetryAfter{Raw: string(data)}
+	retryAfter := &altshiftHttpTypes.RetryAfter{Raw: string(data)}
 
 	path := paths[0]
 
@@ -43,17 +43,17 @@ func Parse(data []byte) (*motmedelHttpTypes.RetryAfter, error) {
 	if httpDatePath != nil {
 		httpDateString := string(abnfUtils.ExtractPathValue(data, httpDatePath))
 		if httpDateString == "" {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, empty_error.New("http date")),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, empty_error.New("http date")),
 			)
 		}
 
 		httpDate, err := parseHttpDate(httpDateString)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: %w: parse http date: %w",
-					motmedelErrors.ErrSemanticError,
+					altshiftErrors.ErrSemanticError,
 					ErrInvalidHttpDate,
 					err,
 				),
@@ -70,17 +70,17 @@ func Parse(data []byte) (*motmedelHttpTypes.RetryAfter, error) {
 	if delaySecondsPath != nil {
 		delaySecondsString := string(abnfUtils.ExtractPathValue(data, delaySecondsPath))
 		if delaySecondsString == "" {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, empty_error.New("delay seconds")),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, empty_error.New("delay seconds")),
 			)
 		}
 
 		delaySeconds, err := strconv.Atoi(delaySecondsString)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: %w: strconv atoi: %w",
-					motmedelErrors.ErrSemanticError,
+					altshiftErrors.ErrSemanticError,
 					ErrInvalidDelaySeconds,
 					err,
 				),
@@ -93,7 +93,7 @@ func Parse(data []byte) (*motmedelHttpTypes.RetryAfter, error) {
 		return retryAfter, nil
 	}
 
-	return nil, motmedelErrors.NewWithTrace(ErrNoPathMatch)
+	return nil, altshiftErrors.NewWithTrace(ErrNoPathMatch)
 }
 
 func init() {
@@ -121,5 +121,5 @@ func parseHttpDate(value string) (time.Time, error) {
 		}
 	}
 
-	return time.Time{}, motmedelErrors.NewWithTrace(ErrInvalidHttpDate, value)
+	return time.Time{}, altshiftErrors.NewWithTrace(ErrInvalidHttpDate, value)
 }

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 type Tag struct {
@@ -62,35 +62,35 @@ func New(tagString string) (*Tag, error) {
 				case "minlength":
 					minLength, err := strconv.Atoi(value)
 					if err != nil {
-						return nil, motmedelErrors.NewWithTrace(fmt.Errorf("strconv atoi (minlength): %w", err))
+						return nil, altshiftErrors.NewWithTrace(fmt.Errorf("strconv atoi (minlength): %w", err))
 					}
 					tag.MinLength = &minLength
 					continue
 				case "maxlength":
 					maxLength, err := strconv.Atoi(value)
 					if err != nil {
-						return nil, motmedelErrors.NewWithTrace(fmt.Errorf("strconv atoi (maxlength): %w", err))
+						return nil, altshiftErrors.NewWithTrace(fmt.Errorf("strconv atoi (maxlength): %w", err))
 					}
 					tag.MaxLength = &maxLength
 					continue
 				case "minimum":
 					minimum, err := strconv.ParseFloat(value, 64)
 					if err != nil {
-						return nil, motmedelErrors.NewWithTrace(fmt.Errorf("strconv parse float (minimum): %w", err))
+						return nil, altshiftErrors.NewWithTrace(fmt.Errorf("strconv parse float (minimum): %w", err))
 					}
 					tag.Minimum = &minimum
 					continue
 				case "maximum":
 					maximum, err := strconv.ParseFloat(value, 64)
 					if err != nil {
-						return nil, motmedelErrors.NewWithTrace(fmt.Errorf("strconv parse float (maximum): %w", err))
+						return nil, altshiftErrors.NewWithTrace(fmt.Errorf("strconv parse float (maximum): %w", err))
 					}
 					tag.Maximum = &maximum
 					continue
 				case "additionalproperties":
 					additionalProperties, err := strconv.ParseBool(value)
 					if err != nil {
-						return nil, motmedelErrors.NewWithTrace(
+						return nil, altshiftErrors.NewWithTrace(
 							fmt.Errorf("strconv parse bool (additionalproperties): %w", err),
 						)
 					}
@@ -99,14 +99,14 @@ func New(tagString string) (*Tag, error) {
 				case "minitems":
 					minItems, err := strconv.Atoi(value)
 					if err != nil {
-						return nil, motmedelErrors.NewWithTrace(fmt.Errorf("strconv atoi (minitems): %w", err))
+						return nil, altshiftErrors.NewWithTrace(fmt.Errorf("strconv atoi (minitems): %w", err))
 					}
 					tag.MinItems = &minItems
 					continue
 				case "maxitems":
 					maxItems, err := strconv.Atoi(value)
 					if err != nil {
-						return nil, motmedelErrors.NewWithTrace(fmt.Errorf("strconv atoi (maxitems): %w", err))
+						return nil, altshiftErrors.NewWithTrace(fmt.Errorf("strconv atoi (maxitems): %w", err))
 					}
 					tag.MaxItems = &maxItems
 					continue

@@ -8,9 +8,9 @@ import (
 const expiryDelta = 10 * time.Second
 
 type Token struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type,omitempty"`
-	RefreshToken string `json:"refresh_token,omitempty"`
+	AccessToken  string    `json:"access_token"`
+	TokenType    string    `json:"token_type,omitempty"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
 	Expiry       time.Time `json:"expiry,omitempty"`
 
 	ExpiresIn int64 `json:"expires_in,omitempty"`

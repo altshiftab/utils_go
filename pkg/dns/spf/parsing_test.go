@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/testing/cmp"
 )
 
@@ -21,13 +21,13 @@ func TestParseSpfRecord(t *testing.T) {
 			name:           "empty data",
 			input:          nil,
 			expected:       nil,
-			expectedErrors: []error{motmedelErrors.ErrSyntaxError},
+			expectedErrors: []error{altshiftErrors.ErrSyntaxError},
 		},
 		{
 			name:           "syntax error",
 			input:          []byte("garbage"),
 			expected:       nil,
-			expectedErrors: []error{motmedelErrors.ErrSyntaxError},
+			expectedErrors: []error{altshiftErrors.ErrSyntaxError},
 		},
 		{
 			name:  "rfc example #1",
@@ -129,7 +129,7 @@ func TestParseSpfRecord(t *testing.T) {
 
 			spfRecord, err := ParseSpfRecord(testCase.input)
 			expectedErrors := testCase.expectedErrors
-			if !motmedelErrors.IsAll(err, expectedErrors...) {
+			if !altshiftErrors.IsAll(err, expectedErrors...) {
 				t.Fatalf("expected errors: %v, got: %v", expectedErrors, err)
 			}
 

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 type Option func(*Config)
@@ -116,7 +116,7 @@ type Config struct {
 	SecurityTxt bool
 	// SecurityTxtContent is what the service's security.txt says, for what is not to be derived.
 	// The fields left unset are filled in from the host.
-	SecurityTxtContent *motmedelHttpTypes.SecurityTxt
+	SecurityTxtContent *altshiftHttpTypes.SecurityTxt
 	// SecurityTxtUrl is where the service's security.txt is served instead of by the service
 	// itself: both /security.txt and /.well-known/security.txt redirect there. It takes precedence
 	// over SecurityTxtContent and over what the host would otherwise decide.
@@ -312,7 +312,7 @@ func WithSecurityTxt(securityTxt bool) Option {
 // WithSecurityTxtContent says what the service's security.txt says, for the parts that are not to
 // be derived from the host. It does not decide which form is served: a service on a subdomain
 // redirects to the registered domain's whatever is set here.
-func WithSecurityTxtContent(securityTxtContent *motmedelHttpTypes.SecurityTxt) Option {
+func WithSecurityTxtContent(securityTxtContent *altshiftHttpTypes.SecurityTxt) Option {
 	return func(config *Config) {
 		config.SecurityTxtContent = securityTxtContent
 	}

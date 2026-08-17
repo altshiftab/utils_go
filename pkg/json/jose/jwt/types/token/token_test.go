@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/crypto/hmac"
-	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
@@ -25,7 +25,7 @@ func TestEncodeNilSigner(t *testing.T) {
 	tok := &Token{Payload: map[string]any{"sub": "abc"}}
 	// A one-element slice holds a nil NamedSigner; reading it back yields a nil
 	// interface value to exercise Encode's nil-signer guard.
-	signers := make([]motmedelCryptoInterfaces.NamedSigner, 1)
+	signers := make([]altshiftCryptoInterfaces.NamedSigner, 1)
 	_, err := tok.Encode(signers[0])
 	if err == nil {
 		t.Fatal("expected error for nil signer")
@@ -143,7 +143,7 @@ func TestNewInvalidSerialization(t *testing.T) {
 			if tok != nil {
 				t.Errorf("token = %v, want nil", tok)
 			}
-			if !errors.Is(err, motmedelErrors.ErrParseError) {
+			if !errors.Is(err, altshiftErrors.ErrParseError) {
 				t.Errorf("error = %v, want ErrParseError", err)
 			}
 		})

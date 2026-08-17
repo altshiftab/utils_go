@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 	oauth2Errors "github.com/altshiftab/utils_go/pkg/oauth2/errors"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/auth_code_option"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/endpoint"
@@ -178,7 +178,7 @@ func TestConfigExchange(t *testing.T) {
 		t.Errorf("code_verifier = %q, want %q", got, "pkce")
 	}
 	// AuthStyleInHeader attaches basic auth, not client params.
-	wantAuth := "Basic " + motmedelHttpUtils.BasicAuth("cid", "csecret")
+	wantAuth := "Basic " + altshiftHttpUtils.BasicAuth("cid", "csecret")
 	if got := captured.Header.Get("Authorization"); got != wantAuth {
 		t.Errorf("Authorization = %q, want %q", got, wantAuth)
 	}

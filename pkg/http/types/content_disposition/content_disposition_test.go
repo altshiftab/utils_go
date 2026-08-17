@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/testing/cmp"
 )
 
@@ -15,26 +15,26 @@ func TestParseContentDisposition(t *testing.T) {
 	testCases := []struct {
 		name        string
 		input       []byte
-		expected    *motmedelHttpTypes.ContentDisposition
+		expected    *altshiftHttpTypes.ContentDisposition
 		expectedErr error
 	}{
 		{
 			name:        "empty content disposition",
 			input:       nil,
 			expected:    nil,
-			expectedErr: motmedelErrors.ErrSyntaxError,
+			expectedErr: altshiftErrors.ErrSyntaxError,
 		},
 		{
 			name:  "valid content disposition with custom disposition type",
 			input: []byte("CuStOm"),
-			expected: &motmedelHttpTypes.ContentDisposition{
+			expected: &altshiftHttpTypes.ContentDisposition{
 				DispositionType: "custom",
 			},
 		},
 		{
 			name:  "valid content disposition with uppercase disposition type and filename",
 			input: []byte("Attachment; filename=example.html"),
-			expected: &motmedelHttpTypes.ContentDisposition{
+			expected: &altshiftHttpTypes.ContentDisposition{
 				DispositionType: "attachment",
 				Filename:        "example.html",
 			},
@@ -42,7 +42,7 @@ func TestParseContentDisposition(t *testing.T) {
 		{
 			name:  "valid content disposition with filename and custom parameters",
 			input: []byte("attachment; filename=doc.txt; a=A;b=B"),
-			expected: &motmedelHttpTypes.ContentDisposition{
+			expected: &altshiftHttpTypes.ContentDisposition{
 				DispositionType: "attachment",
 				Filename:        "doc.txt",
 				ExtensionParameters: map[string]string{
@@ -54,7 +54,7 @@ func TestParseContentDisposition(t *testing.T) {
 		{
 			name:  "valid content disposition with lowercase disposition type and filename*",
 			input: []byte("attachment; filename*= UTF-8''%e2%82%ac%20rates"),
-			expected: &motmedelHttpTypes.ContentDisposition{
+			expected: &altshiftHttpTypes.ContentDisposition{
 				DispositionType:  "attachment",
 				FilenameAsterisk: "UTF-8''%e2%82%ac%20rates",
 			},
@@ -62,7 +62,7 @@ func TestParseContentDisposition(t *testing.T) {
 		{
 			name:  "valid content disposition with lowercase disposition type and quoted filename, filename*",
 			input: []byte(`attachment; filename="EURO rates"; filename*=utf-8''%e2%82%ac%20rates`),
-			expected: &motmedelHttpTypes.ContentDisposition{
+			expected: &altshiftHttpTypes.ContentDisposition{
 				DispositionType:  "attachment",
 				Filename:         "EURO rates",
 				FilenameAsterisk: "utf-8''%e2%82%ac%20rates",

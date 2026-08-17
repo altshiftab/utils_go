@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func DecodeJson[T any](reader io.Reader) (T, error) {
@@ -13,11 +13,11 @@ func DecodeJson[T any](reader io.Reader) (T, error) {
 
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return obj, motmedelErrors.New(fmt.Errorf("io read all: %w", err))
+		return obj, altshiftErrors.New(fmt.Errorf("io read all: %w", err))
 	}
 
 	if err := json.Unmarshal(data, &obj); err != nil {
-		return obj, motmedelErrors.New(fmt.Errorf("json unmarshal: %w", err), data)
+		return obj, altshiftErrors.New(fmt.Errorf("json unmarshal: %w", err), data)
 	}
 
 	return obj, err
@@ -26,12 +26,12 @@ func DecodeJson[T any](reader io.Reader) (T, error) {
 func ObjectToMap(object any) (map[string]any, error) {
 	data, err := json.Marshal(object)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err), object)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err), object)
 	}
 
 	var objectMap map[string]any
 	if err = json.Unmarshal(data, &objectMap); err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), data)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), data)
 	}
 
 	return objectMap, nil
@@ -40,12 +40,12 @@ func ObjectToMap(object any) (map[string]any, error) {
 func ObjectToBytes(object any) ([]byte, error) {
 	objectMap, err := ObjectToMap(object)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("object to map: %w", err), object)
+		return nil, altshiftErrors.New(fmt.Errorf("object to map: %w", err), object)
 	}
 
 	data, err := json.Marshal(objectMap)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("json marshal: %w", err), objectMap)
+		return nil, altshiftErrors.New(fmt.Errorf("json marshal: %w", err), objectMap)
 	}
 
 	return data, nil

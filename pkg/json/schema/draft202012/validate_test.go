@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	_ "github.com/altshiftab/utils_go/pkg/json/schema/draft202012"
 	_ "github.com/altshiftab/utils_go/pkg/json/schema/format"
 	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
@@ -366,8 +366,8 @@ func TestValidateErrorType(t *testing.T) {
 		t.Errorf("len(Errors) = %d, want 1", len(validateError.Errors))
 	}
 
-	if !errors.Is(err, motmedelErrors.ErrValidationError) {
-		t.Error("errors.Is(err, motmedelErrors.ErrValidationError) = false, want true")
+	if !errors.Is(err, altshiftErrors.ErrValidationError) {
+		t.Error("errors.Is(err, altshiftErrors.ErrValidationError) = false, want true")
 	}
 }
 

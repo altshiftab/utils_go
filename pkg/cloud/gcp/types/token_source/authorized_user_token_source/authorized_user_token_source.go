@@ -8,7 +8,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/credentials_file"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_response"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
@@ -52,10 +52,10 @@ func (ts *TokenSource) Token() (*token.Token, error) {
 
 	_, tokenResponse, err := utils.FetchJson[*token_response.Response](ts.ctx, ts.tokenUrl, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json: %w", err), ts.tokenUrl)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), ts.tokenUrl)
 	}
 	if tokenResponse == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("token response"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("token response"))
 	}
 
 	return tokenResponse.Token(), nil
@@ -72,11 +72,11 @@ func NewFromCredentialsFile(
 	options ...fetch_config.Option,
 ) (*TokenSource, error) {
 	if tokenUrl == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("token url"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("token url"))
 	}
 
 	if credentialsFile == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("credentials file"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("credentials file"))
 	}
 
 	return &TokenSource{

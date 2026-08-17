@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	contentSecurityPolicy "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 )
@@ -32,13 +32,13 @@ func applyInlineScriptHashes(policyString string, inlineScriptHashes []string) (
 
 	policy, err := contentSecurityPolicy.Parse([]byte(policyString))
 	if err != nil {
-		return "", motmedelErrors.New(
+		return "", altshiftErrors.New(
 			fmt.Errorf("content security policy parse: %w", err),
 			policyString,
 		)
 	}
 	if policy == nil {
-		return "", motmedelErrors.NewWithTrace(nil_error.New("content security policy"))
+		return "", altshiftErrors.NewWithTrace(nil_error.New("content security policy"))
 	}
 
 	scriptSrc := policy.GetScriptSrc()
@@ -68,7 +68,7 @@ func applyInlineScriptHashes(policyString string, inlineScriptHashes []string) (
 	for _, inlineScriptHash := range inlineScriptHashes {
 		hashAlgorithm, base64Value, found := strings.Cut(inlineScriptHash, "-")
 		if !found || hashAlgorithm == "" || base64Value == "" {
-			return "", motmedelErrors.NewWithTrace(
+			return "", altshiftErrors.NewWithTrace(
 				fmt.Errorf("%w: %s", ErrInvalidInlineScriptHash, inlineScriptHash),
 				inlineScriptHash,
 			)

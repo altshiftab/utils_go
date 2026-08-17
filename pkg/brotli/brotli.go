@@ -19,8 +19,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/brotli/internal/brotli"
 
-	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func MakeBrotliData(ctx context.Context, data []byte) ([]byte, error) {
@@ -38,9 +38,9 @@ func MakeBrotliData(ctx context.Context, data []byte) ([]byte, error) {
 		}
 		if err := brotliWriter.Close(); err != nil {
 			slog.WarnContext(
-				motmedelContext.WithError(
+				altshiftContext.WithError(
 					ctx,
-					motmedelErrors.NewWithTrace(fmt.Errorf("brotli writer close: %w", err)),
+					altshiftErrors.NewWithTrace(fmt.Errorf("brotli writer close: %w", err)),
 				),
 				"An error occurred when closing a brotli writer.",
 			)
@@ -48,7 +48,7 @@ func MakeBrotliData(ctx context.Context, data []byte) ([]byte, error) {
 	}()
 
 	if _, err := brotliWriter.Write(data); err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("brotli writer write: %w", err),
 			quality,
 		)
@@ -56,7 +56,7 @@ func MakeBrotliData(ctx context.Context, data []byte) ([]byte, error) {
 
 	closed = true
 	if err := brotliWriter.Close(); err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("brotli writer close: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("brotli writer close: %w", err))
 	}
 
 	return buffer.Bytes(), nil

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/http_context_extractor/http_context_extractor_config"
-	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 func TestNew(t *testing.T) {
@@ -63,8 +63,8 @@ func TestHandleNilHttpContextValue(t *testing.T) {
 	extractor := &Extractor{ProjectId: "p"}
 	ctx := context.WithValue(
 		context.Background(),
-		motmedelHttpContext.HttpContextContextKey,
-		(*motmedelHttpTypes.HttpContext)(nil),
+		altshiftHttpContext.HttpContextContextKey,
+		(*altshiftHttpTypes.HttpContext)(nil),
 	)
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "msg", 0)
 	if err := extractor.Handle(ctx, &record); err != nil {
@@ -82,8 +82,8 @@ func TestHandleWithHttpContext(t *testing.T) {
 	request.Header.Set("X-Cloud-Trace-Context", "105445aa7843bc8bf206b120001000/123;o=1")
 	response := &http.Response{StatusCode: http.StatusOK}
 
-	httpContext := &motmedelHttpTypes.HttpContext{Request: request, Response: response}
-	ctx := motmedelHttpContext.WithHttpContextValue(context.Background(), httpContext)
+	httpContext := &altshiftHttpTypes.HttpContext{Request: request, Response: response}
+	ctx := altshiftHttpContext.WithHttpContextValue(context.Background(), httpContext)
 
 	extractor := &Extractor{ProjectId: "test-project"}
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "msg", 0)
@@ -118,8 +118,8 @@ func TestHandleWithHttpContextNoProjectId(t *testing.T) {
 	request.Header.Set("X-Cloud-Trace-Context", "105445aa7843bc8bf206b120001000/123;o=1")
 	response := &http.Response{StatusCode: http.StatusOK}
 
-	httpContext := &motmedelHttpTypes.HttpContext{Request: request, Response: response}
-	ctx := motmedelHttpContext.WithHttpContextValue(context.Background(), httpContext)
+	httpContext := &altshiftHttpTypes.HttpContext{Request: request, Response: response}
+	ctx := altshiftHttpContext.WithHttpContextValue(context.Background(), httpContext)
 
 	// With an empty ProjectId, no formatted "trace" attribute should be produced.
 	extractor := &Extractor{}

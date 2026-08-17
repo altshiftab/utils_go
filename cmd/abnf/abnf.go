@@ -13,9 +13,9 @@ import (
 
 	argumentParser "github.com/altshiftab/utils_go/pkg/cli/argument_parser"
 	argumentParserErrors "github.com/altshiftab/utils_go/pkg/cli/argument_parser/errors"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
-	motmedelContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
+	altshiftContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
 	errorLogger "github.com/altshiftab/utils_go/pkg/log/error_logger"
 )
 
@@ -54,7 +54,7 @@ func (command *command) ParseArgs(arguments []string) error {
 	command.chosen = true
 
 	if err := command.parser.ParseArgs(arguments); err != nil {
-		return motmedelErrors.New(fmt.Errorf("parse args: %w", err), arguments)
+		return altshiftErrors.New(fmt.Errorf("parse args: %w", err), arguments)
 	}
 
 	return nil
@@ -76,7 +76,7 @@ func run() (int, error) {
 	}
 
 	if err := parser.Validate(); err != nil {
-		return exitError, motmedelErrors.New(fmt.Errorf("parser validate: %w", err))
+		return exitError, altshiftErrors.New(fmt.Errorf("parser validate: %w", err))
 	}
 
 	if err := parser.Parse(); err != nil {
@@ -107,14 +107,14 @@ func readInput(path string) ([]byte, error) {
 	if path == "" || path == "-" {
 		data, err := io.ReadAll(os.Stdin)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("io read all (stdin): %w", err))
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("io read all (stdin): %w", err))
 		}
 		return data, nil
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("os read file: %w", err), path)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("os read file: %w", err), path)
 	}
 
 	return data, nil
@@ -131,9 +131,9 @@ func inputName(path string) string {
 
 func main() {
 	logger := errorLogger.Logger{
-		Logger: motmedelContextLogger.New(
+		Logger: altshiftContextLogger.New(
 			slog.NewJSONHandler(os.Stderr, nil),
-			&motmedelLog.ErrorContextExtractor{},
+			&altshiftLog.ErrorContextExtractor{},
 		),
 	}
 	slog.SetDefault(logger.Logger)

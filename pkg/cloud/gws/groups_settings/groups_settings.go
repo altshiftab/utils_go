@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 
@@ -52,7 +52,7 @@ func (c *Client) fetchOptions(options []fetch_config.Option) []fetch_config.Opti
 // Get retrieves a group's settings identified by the group email address.
 func (c *Client) Get(ctx context.Context, groupEmail string, options ...fetch_config.Option) (*group.Group, error) {
 	if groupEmail == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("group email"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("group email"))
 	}
 
 	return rest.GetJson[group.Group](ctx, c.groupUrl(groupEmail), c.fetchOptions(options))
@@ -61,7 +61,7 @@ func (c *Client) Get(ctx context.Context, groupEmail string, options ...fetch_co
 // Update updates an existing group's settings identified by the group email address.
 func (c *Client) Update(ctx context.Context, groupEmail string, groupSettings *group.Group, options ...fetch_config.Option) (*group.Group, error) {
 	if groupEmail == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("group email"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("group email"))
 	}
 
 	return rest.SendJson[group.Group](ctx, http.MethodPut, c.groupUrl(groupEmail), groupSettings, c.fetchOptions(options))
@@ -70,7 +70,7 @@ func (c *Client) Update(ctx context.Context, groupEmail string, groupSettings *g
 // Patch updates an existing group's settings using patch semantics.
 func (c *Client) Patch(ctx context.Context, groupEmail string, groupSettings *group.Group, options ...fetch_config.Option) (*group.Group, error) {
 	if groupEmail == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("group email"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("group email"))
 	}
 
 	return rest.SendJson[group.Group](ctx, http.MethodPatch, c.groupUrl(groupEmail), groupSettings, c.fetchOptions(options))

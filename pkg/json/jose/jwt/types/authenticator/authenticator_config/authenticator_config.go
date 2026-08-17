@@ -1,12 +1,12 @@
 package authenticator_config
 
 import (
-	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	altshiftCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
 	"github.com/altshiftab/utils_go/pkg/interfaces/validator"
 )
 
 type Config struct {
-	SignatureVerifier motmedelCryptoInterfaces.NamedVerifier
+	SignatureVerifier altshiftCryptoInterfaces.NamedVerifier
 	ClaimsValidator   validator.Validator[map[string]any]
 	HeaderValidator   validator.Validator[map[string]any]
 }
@@ -22,7 +22,7 @@ func New(options ...Option) *Config {
 	return config
 }
 
-func WithSignatureVerifier(signatureVerifier motmedelCryptoInterfaces.NamedVerifier) Option {
+func WithSignatureVerifier(signatureVerifier altshiftCryptoInterfaces.NamedVerifier) Option {
 	return func(config *Config) {
 		config.SignatureVerifier = signatureVerifier
 	}

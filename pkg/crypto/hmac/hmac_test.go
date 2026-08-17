@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
+	altshiftCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 )
 
@@ -55,7 +55,7 @@ func TestNew_UnsupportedAlgorithm(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unsupported algorithm")
 	}
-	if !errors.Is(err, motmedelCryptoErrors.ErrUnsupportedAlgorithm) {
+	if !errors.Is(err, altshiftCryptoErrors.ErrUnsupportedAlgorithm) {
 		t.Fatalf("expected ErrUnsupportedAlgorithm, got %v", err)
 	}
 }
@@ -133,7 +133,7 @@ func TestVerify_SignatureMismatch(t *testing.T) {
 	}
 
 	err = m.Verify([]byte("hello"), []byte("not the signature"))
-	if !errors.Is(err, motmedelCryptoErrors.ErrSignatureMismatch) {
+	if !errors.Is(err, altshiftCryptoErrors.ErrSignatureMismatch) {
 		t.Fatalf("expected ErrSignatureMismatch, got %v", err)
 	}
 }
@@ -156,7 +156,7 @@ func TestVerify_DifferentSecretFails(t *testing.T) {
 	}
 
 	err = verifier.Verify([]byte("hello"), sig)
-	if !errors.Is(err, motmedelCryptoErrors.ErrSignatureMismatch) {
+	if !errors.Is(err, altshiftCryptoErrors.ErrSignatureMismatch) {
 		t.Fatalf("expected ErrSignatureMismatch, got %v", err)
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/abnf/minify"
 	argumentParser "github.com/altshiftab/utils_go/pkg/cli/argument_parser"
 	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // rewriteOptions are the options both rewriting subcommands take.
@@ -69,24 +69,24 @@ func runMinify(outputPath string, simplify bool, expand bool, paths []string) (i
 
 	input, err := readInput(path)
 	if err != nil {
-		return exitError, motmedelErrors.New(fmt.Errorf("read input: %w", err))
+		return exitError, altshiftErrors.New(fmt.Errorf("read input: %w", err))
 	}
 
 	output, err := minify.Minify(input, &minify.Options{Simplify: simplify, ExpandLists: expand})
 	if err != nil {
-		return exitError, motmedelErrors.New(fmt.Errorf("minify: %w", err), inputName(path))
+		return exitError, altshiftErrors.New(fmt.Errorf("minify: %w", err), inputName(path))
 	}
 
 	if outputPath == "" {
 		if _, err := os.Stdout.Write(output); err != nil {
-			return exitError, motmedelErrors.NewWithTrace(fmt.Errorf("os stdout write: %w", err))
+			return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("os stdout write: %w", err))
 		}
 		return exitClean, nil
 	}
 
 	//nolint:gosec // G703: writing to the user-chosen output path is the command's purpose.
 	if err := os.WriteFile(outputPath, output, 0600); err != nil {
-		return exitError, motmedelErrors.NewWithTrace(fmt.Errorf("os write file: %w", err), outputPath)
+		return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("os write file: %w", err), outputPath)
 	}
 
 	return exitClean, nil
@@ -136,12 +136,12 @@ func runFix(write bool, simplify bool, expand bool, paths []string) (int, error)
 	for _, path := range paths {
 		input, err := os.ReadFile(path)
 		if err != nil {
-			return exitError, motmedelErrors.NewWithTrace(fmt.Errorf("os read file: %w", err), path)
+			return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("os read file: %w", err), path)
 		}
 
 		output, err := minify.Minify(input, options)
 		if err != nil {
-			return exitError, motmedelErrors.New(fmt.Errorf("minify: %w", err), path)
+			return exitError, altshiftErrors.New(fmt.Errorf("minify: %w", err), path)
 		}
 
 		if bytes.Equal(output, input) {
@@ -162,7 +162,7 @@ func runFix(write bool, simplify bool, expand bool, paths []string) (int, error)
 
 		//nolint:gosec // G703: rewriting the definitions named on the command line is the command's purpose.
 		if err := os.WriteFile(path, output, mode); err != nil {
-			return exitError, motmedelErrors.NewWithTrace(fmt.Errorf("os write file: %w", err), path)
+			return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("os write file: %w", err), path)
 		}
 	}
 

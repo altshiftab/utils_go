@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/missing_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -35,7 +35,7 @@ type Validator struct {
 
 func (validator *Validator) Validate(parsedClaims map[string]any) error {
 	if parsedClaims == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("parsed claims"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("parsed claims"))
 	}
 
 	expected := validator.Expected
@@ -62,7 +62,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if err != nil {
 				errs = append(
 					errs,
-					motmedelErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
+					altshiftErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
 				)
 
 				continue
@@ -71,7 +71,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if err := jwt.ValidateExpiresAt(expiresAt.Time, time.Now()); err != nil {
 				errs = append(
 					errs,
-					motmedelErrors.New(fmt.Errorf("validate expires at: %w", err), expiresAt.Time),
+					altshiftErrors.New(fmt.Errorf("validate expires at: %w", err), expiresAt.Time),
 				)
 			}
 		case "nbf":
@@ -79,7 +79,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if err != nil {
 				errs = append(
 					errs,
-					motmedelErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
+					altshiftErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
 				)
 
 				continue
@@ -88,7 +88,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if err := jwt.ValidateNotBefore(notBefore.Time, time.Now()); err != nil {
 				errs = append(
 					errs,
-					motmedelErrors.New(fmt.Errorf("validate not before: %w", err), notBefore.Time),
+					altshiftErrors.New(fmt.Errorf("validate not before: %w", err), notBefore.Time),
 				)
 			}
 		case "iat":
@@ -96,7 +96,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if err != nil {
 				errs = append(
 					errs,
-					motmedelErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
+					altshiftErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
 				)
 
 				continue
@@ -105,7 +105,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if err := jwt.ValidateIssuedAt(issuedAt.Time, time.Now()); err != nil {
 				errs = append(
 					errs,
-					motmedelErrors.New(fmt.Errorf("validate issued at: %w", err), issuedAt.Time),
+					altshiftErrors.New(fmt.Errorf("validate issued at: %w", err), issuedAt.Time),
 				)
 			}
 		case "aud":
@@ -113,7 +113,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if err != nil {
 				errs = append(
 					errs,
-					motmedelErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
+					altshiftErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
 				)
 
 				continue
@@ -125,7 +125,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 				for _, audience := range audiences {
 					ok, err := audienceComparer.Compare(audience)
 					if err != nil {
-						return motmedelErrors.New(fmt.Errorf("compare (%s): %w", key, err), audience)
+						return altshiftErrors.New(fmt.Errorf("compare (%s): %w", key, err), audience)
 					}
 					if ok {
 						audienceMatched = true
@@ -142,7 +142,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if err != nil {
 				errs = append(
 					errs,
-					motmedelErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
+					altshiftErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
 				)
 
 				continue
@@ -151,7 +151,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if issuerComparer := expected.IssuerComparer; !utils.IsNil(issuerComparer) {
 				ok, err := issuerComparer.Compare(issuer)
 				if err != nil {
-					return motmedelErrors.New(fmt.Errorf("compare (%s): %w", key, err), issuer)
+					return altshiftErrors.New(fmt.Errorf("compare (%s): %w", key, err), issuer)
 				}
 				if !ok {
 					errs = append(errs, mismatch_error.New(key))
@@ -162,7 +162,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if err != nil {
 				errs = append(
 					errs,
-					motmedelErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
+					altshiftErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
 				)
 
 				continue
@@ -171,7 +171,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if subjectComparer := expected.SubjectComparer; !utils.IsNil(subjectComparer) {
 				ok, err := subjectComparer.Compare(subject)
 				if err != nil {
-					return motmedelErrors.New(fmt.Errorf("compare (%s): %w", key, err), subject)
+					return altshiftErrors.New(fmt.Errorf("compare (%s): %w", key, err), subject)
 				}
 				if !ok {
 					errs = append(errs, mismatch_error.New(key))
@@ -182,7 +182,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if err != nil {
 				errs = append(
 					errs,
-					motmedelErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
+					altshiftErrors.New(fmt.Errorf("convert (%s): %w", key, err), value),
 				)
 
 				continue
@@ -191,7 +191,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 			if idComparer := expected.IdComparer; !utils.IsNil(idComparer) {
 				ok, err := idComparer.Compare(id)
 				if err != nil {
-					return motmedelErrors.New(fmt.Errorf("compare (%s): %w", key, err), id)
+					return altshiftErrors.New(fmt.Errorf("compare (%s): %w", key, err), id)
 				}
 				if !ok {
 					errs = append(errs, mismatch_error.New(key))
@@ -205,7 +205,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 
 			ok, err := otherComparer.Compare(value)
 			if err != nil {
-				return motmedelErrors.New(fmt.Errorf("compare (%s): %w", key, err), value)
+				return altshiftErrors.New(fmt.Errorf("compare (%s): %w", key, err), value)
 			}
 			if !ok {
 				errs = append(errs, mismatch_error.New(key))
@@ -214,7 +214,7 @@ func (validator *Validator) Validate(parsedClaims map[string]any) error {
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, errors.Join(errs...))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, errors.Join(errs...))
 	}
 
 	return nil

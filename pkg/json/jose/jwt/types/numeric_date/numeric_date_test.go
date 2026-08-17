@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestNewFromSeconds(t *testing.T) {
@@ -210,7 +210,7 @@ func TestConvert(t *testing.T) {
 			input:       "string",
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelErrors.ErrUnexpectedType)
+				return errors.Is(err, altshiftErrors.ErrUnexpectedType)
 			},
 		},
 		{
@@ -218,7 +218,7 @@ func TestConvert(t *testing.T) {
 			input:       1609459200,
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelErrors.ErrUnexpectedType)
+				return errors.Is(err, altshiftErrors.ErrUnexpectedType)
 			},
 		},
 	}

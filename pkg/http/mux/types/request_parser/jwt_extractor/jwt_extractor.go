@@ -7,8 +7,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
 	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
@@ -27,14 +27,14 @@ type Parser[T request_parser.RequestParser[string]] struct {
 func (p *Parser[T]) Parse(request *http.Request) (*authenticated_token.Token, *muxResponseError.ResponseError) {
 	if request == nil {
 		return nil, &muxResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request")),
 		}
 	}
 
 	tokenExtractor := p.TokenExtractor
 	if utils.IsNil(tokenExtractor) {
 		return nil, &muxResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(
+			ServerError: altshiftErrors.NewWithTrace(
 				nil_error.NewWithInstance("request parser", "token extractor"),
 			),
 		}
@@ -94,7 +94,7 @@ func (p *Parser[T]) Parse(request *http.Request) (*authenticated_token.Token, *m
 					problem_detail_config.WithDetail("The subject is not allowed to access this resource."),
 				),
 			}
-		} else if motmedelErrors.IsAny(err, motmedelCryptoErrors.ErrSignatureMismatch, motmedelErrors.ErrValidationError) {
+		} else if altshiftErrors.IsAny(err, altshiftCryptoErrors.ErrSignatureMismatch, altshiftErrors.ErrValidationError) {
 			return nil, &muxResponseError.ResponseError{
 				ClientError: err,
 				ProblemDetail: problem_detail.New(
@@ -113,7 +113,7 @@ func New[T request_parser.RequestParser[string]](
 	authenticators ...authenticatorPkg.Authenticator[*authenticated_token.Token, string],
 ) (*Parser[T], error) {
 	if utils.IsNil(tokenExtractor) {
-		return nil, motmedelErrors.NewWithTrace(nil_error.NewWithInstance("request parser", "token extractor"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.NewWithInstance("request parser", "token extractor"))
 	}
 
 	return &Parser[T]{TokenExtractor: tokenExtractor, Authenticators: authenticators}, nil

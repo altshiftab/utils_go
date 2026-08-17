@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"hash"
 
-	motmedelCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 )
 
@@ -21,13 +21,13 @@ type Method struct {
 func (method *Method) Sign(message []byte) ([]byte, error) {
 	secret := method.Secret
 	if len(secret) == 0 {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("secret"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("secret"))
 	}
 
 	mac := hmac.New(method.HashFunc, secret)
 	_, err := mac.Write(message)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(err)
+		return nil, altshiftErrors.NewWithTrace(err)
 	}
 
 	return mac.Sum(nil), nil
@@ -36,19 +36,19 @@ func (method *Method) Sign(message []byte) ([]byte, error) {
 func (method *Method) Verify(message []byte, signature []byte) error {
 	secret := method.Secret
 	if len(secret) == 0 {
-		return motmedelErrors.NewWithTrace(empty_error.New("secret"))
+		return altshiftErrors.NewWithTrace(empty_error.New("secret"))
 	}
 
 	expectedMac := hmac.New(method.HashFunc, secret)
 	_, err := expectedMac.Write(message)
 	if err != nil {
-		return motmedelErrors.NewWithTrace(err)
+		return altshiftErrors.NewWithTrace(err)
 	}
 
 	if hmac.Equal(expectedMac.Sum(nil), signature) {
 		return nil
 	} else {
-		return motmedelErrors.NewWithTrace(motmedelCryptoErrors.ErrSignatureMismatch)
+		return altshiftErrors.NewWithTrace(altshiftCryptoErrors.ErrSignatureMismatch)
 	}
 }
 
@@ -65,8 +65,8 @@ func New(algorithm string, secret []byte) (*Method, error) {
 	case "HS512":
 		return &Method{Secret: secret, HashFunc: sha512.New, Name: "HS512"}, nil
 	default:
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %q", motmedelCryptoErrors.ErrUnsupportedAlgorithm, algorithm),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %q", altshiftCryptoErrors.ErrUnsupportedAlgorithm, algorithm),
 		)
 	}
 }

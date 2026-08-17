@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 type testValidatable struct {
@@ -37,7 +37,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("validation error becomes 400", func(t *testing.T) {
 		t.Parallel()
-		input := &testValidatable{err: fmt.Errorf("%w: bad", motmedelErrors.ErrValidationError)}
+		input := &testValidatable{err: fmt.Errorf("%w: bad", altshiftErrors.ErrValidationError)}
 		_, responseError := proc.Process(t.Context(), input)
 		if responseError == nil || responseError.ProblemDetail == nil {
 			t.Fatalf("expected a problem detail, got %#v", responseError)

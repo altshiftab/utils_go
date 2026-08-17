@@ -17,9 +17,9 @@ import (
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelBrotli "github.com/altshiftab/utils_go/pkg/brotli"
+	altshiftBrotli "github.com/altshiftab/utils_go/pkg/brotli"
 	"github.com/altshiftab/utils_go/pkg/encoding/gzip"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_loader"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
@@ -28,8 +28,8 @@ import (
 	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/utils"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 	"github.com/altshiftab/utils_go/pkg/sync/errgroup"
 )
 
@@ -52,7 +52,7 @@ type Endpoint struct {
 	UrlParser                 request_parser.RequestParser[any]
 	HeaderParser              request_parser.RequestParser[any]
 	BodyLoader                *body_loader.Loader
-	CorsParser                request_parser.RequestParser[*motmedelHttpTypes.CorsConfiguration]
+	CorsParser                request_parser.RequestParser[*altshiftHttpTypes.CorsConfiguration]
 	DisableFetchMetadata      bool
 	Public                    bool
 	Hint                      *Hint
@@ -91,7 +91,7 @@ const robotsTxtCacheControl = "public, max-age=86400"
 
 const htmlExtension = ".html"
 
-func NewRobotsTxt(robotsTxt *motmedelHttpTypes.RobotsTxt) *Endpoint {
+func NewRobotsTxt(robotsTxt *altshiftHttpTypes.RobotsTxt) *Endpoint {
 	if robotsTxt == nil {
 		return nil
 	}
@@ -102,7 +102,7 @@ func NewRobotsTxt(robotsTxt *motmedelHttpTypes.RobotsTxt) *Endpoint {
 	}
 
 	data := []byte(robotsTxtString)
-	etag := motmedelHttpUtils.MakeStrongEtag(data)
+	etag := altshiftHttpUtils.MakeStrongEtag(data)
 	lastModified := time.Now().UTC().Format(http.TimeFormat)
 
 	return &Endpoint{
@@ -165,13 +165,13 @@ loop:
 						}
 						encodedData = gzipData
 					case "br":
-						brotliData, err := motmedelBrotli.MakeBrotliData(context.Background(), data)
+						brotliData, err := altshiftBrotli.MakeBrotliData(context.Background(), data)
 						if err != nil {
 							return fmt.Errorf("make brotli data: %w", err)
 						}
 						encodedData = brotliData
 					default:
-						return motmedelErrors.NewWithTrace(
+						return altshiftErrors.NewWithTrace(
 							fmt.Errorf("%w: %s", muxErrors.ErrUnexpectedContentEncoding, contentEncoding),
 							contentEncoding,
 						)
@@ -181,7 +181,7 @@ loop:
 						return nil
 					}
 
-					etag := motmedelHttpUtils.MakeStrongEtag(encodedData)
+					etag := altshiftHttpUtils.MakeStrongEtag(encodedData)
 
 					headers := []*muxResponse.HeaderEntry{
 						{Name: "Content-Encoding", Value: contentEncoding},
@@ -272,16 +272,16 @@ func NewFromDataPath(
 
 	parameter, ok := extensionToParameter[extension]
 	if !ok {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: %s", muxErrors.ErrUnsupportedFileExtension, extension),
 			extension,
 		)
 	}
 	if parameter == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("header parameter"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("header parameter"))
 	}
 	if parameter.ContentType == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("content type"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("content type"))
 	}
 
 	if extension == htmlExtension {
@@ -292,7 +292,7 @@ func NewFromDataPath(
 		path = "/"
 	}
 
-	etag := motmedelHttpUtils.MakeStrongEtag(data)
+	etag := altshiftHttpUtils.MakeStrongEtag(data)
 
 	var visibility string
 	if private {
@@ -327,7 +327,7 @@ func NewFromDataPath(
 
 	if addContentEncodingData && parameter.CandidateForCompression && len(data) > 1000 {
 		if err := AddContentEncodingData(staticContent); err != nil {
-			return nil, motmedelErrors.New(
+			return nil, altshiftErrors.New(
 				fmt.Errorf("add content encoding data: %w", err),
 				staticContent,
 			)
@@ -362,7 +362,7 @@ func NewFromDirectory(rootPath string, addContentEncodingData bool, private bool
 		rootPath,
 		func(path string, fileInfo os.FileInfo, err error) error {
 			if err != nil {
-				return motmedelErrors.NewWithTrace(fmt.Errorf("filepath walk func: %w", err), path)
+				return altshiftErrors.NewWithTrace(fmt.Errorf("filepath walk func: %w", err), path)
 			}
 
 			if fileInfo.IsDir() {
@@ -377,7 +377,7 @@ func NewFromDirectory(rootPath string, addContentEncodingData bool, private bool
 					func() error { //nolint:contextcheck // NewFromDataPath's API deliberately takes no context; errGroupCtx is only used for cancellation checks here.
 						data, err := os.ReadFile(path)
 						if err != nil {
-							return motmedelErrors.NewWithTrace(fmt.Errorf("read file: %w", err), path)
+							return altshiftErrors.NewWithTrace(fmt.Errorf("read file: %w", err), path)
 						}
 
 						suggestedEndpointPath := "/" + strings.TrimPrefix(path, rootPath)
@@ -391,7 +391,7 @@ func NewFromDirectory(rootPath string, addContentEncodingData bool, private bool
 							private,
 						)
 						if err != nil {
-							return motmedelErrors.New(
+							return altshiftErrors.New(
 								fmt.Errorf("endpoint specification from data path: %w", err),
 								suggestedEndpointPath,
 								data,
@@ -412,7 +412,7 @@ func NewFromDirectory(rootPath string, addContentEncodingData bool, private bool
 		},
 	)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("filepath walk: %w", err), rootPath)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("filepath walk: %w", err), rootPath)
 	}
 
 	if err := errGroup.Wait(); err != nil {
@@ -449,15 +449,15 @@ fileLoop:
 				func() error {
 					fileReader, err := file.Open()
 					if err != nil {
-						return motmedelErrors.NewWithTrace(fmt.Errorf("zip file open: %w", err), file)
+						return altshiftErrors.NewWithTrace(fmt.Errorf("zip file open: %w", err), file)
 					}
 
 					data, err := io.ReadAll(fileReader)
 					if err := fileReader.Close(); err != nil {
-						return motmedelErrors.NewWithTrace(fmt.Errorf("zip file reader close: %w", err), fileReader)
+						return altshiftErrors.NewWithTrace(fmt.Errorf("zip file reader close: %w", err), fileReader)
 					}
 					if err != nil {
-						return motmedelErrors.NewWithTrace(fmt.Errorf("io read all (zip file reader): %w", err), fileReader)
+						return altshiftErrors.NewWithTrace(fmt.Errorf("io read all (zip file reader): %w", err), fileReader)
 					}
 
 					path := file.Name
@@ -471,7 +471,7 @@ fileLoop:
 						private,
 					)
 					if err != nil {
-						return motmedelErrors.New(
+						return altshiftErrors.New(
 							fmt.Errorf("endpoint specification from data path: %w", err),
 							path,
 							data,

@@ -13,7 +13,7 @@ import (
 	"io"
 	"math"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // UnmarshalJSON decodes the JSON representation of a [Schema].
@@ -63,7 +63,7 @@ func (s *Schema) decodeTop(dec *jsontext.Decoder) (*Vocabulary, error) {
 		}
 		tok, err := dec.ReadToken()
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 		}
 		s.Parts = append(s.Parts,
 			Part{&SchemaKeyword, PartString(vocabulary.Schema)},
@@ -82,7 +82,7 @@ func (s *Schema) decodeTop(dec *jsontext.Decoder) (*Vocabulary, error) {
 	// until the "$schema" member has been seen, so buffer the raw
 	// member values first.
 	if _, err := dec.ReadToken(); err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 	}
 
 	var (
@@ -94,7 +94,7 @@ func (s *Schema) decodeTop(dec *jsontext.Decoder) (*Vocabulary, error) {
 	for dec.PeekKind() != '}' {
 		nameToken, err := dec.ReadToken()
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 		}
 		name := nameToken.String()
 
@@ -107,7 +107,7 @@ func (s *Schema) decodeTop(dec *jsontext.Decoder) (*Vocabulary, error) {
 
 		raw, err := dec.ReadValue()
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read value: %w", err))
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read value: %w", err))
 		}
 
 		if name == SchemaKeyword.Name {
@@ -122,7 +122,7 @@ func (s *Schema) decodeTop(dec *jsontext.Decoder) (*Vocabulary, error) {
 		raws = append(raws, append(jsontext.Value(nil), raw...))
 	}
 	if _, err := dec.ReadToken(); err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 	}
 
 	var vocabulary *Vocabulary
@@ -173,7 +173,7 @@ func (s *Schema) decodeSub(dec *jsontext.Decoder, vocabulary *Vocabulary) error 
 	case 't', 'f':
 		tok, err := dec.ReadToken()
 		if err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+			return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 		}
 		s.Parts = append(s.Parts, Part{
 			&BoolKeyword,
@@ -183,13 +183,13 @@ func (s *Schema) decodeSub(dec *jsontext.Decoder, vocabulary *Vocabulary) error 
 
 	case '{':
 		if _, err := dec.ReadToken(); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+			return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 		}
 		seen := make(map[string]bool)
 		for dec.PeekKind() != '}' {
 			nameToken, err := dec.ReadToken()
 			if err != nil {
-				return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+				return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 			}
 			name := nameToken.String()
 			if seen[name] {
@@ -201,7 +201,7 @@ func (s *Schema) decodeSub(dec *jsontext.Decoder, vocabulary *Vocabulary) error 
 			}
 		}
 		if _, err := dec.ReadToken(); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+			return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 		}
 		s.Finalize(vocabulary)
 		return nil
@@ -306,13 +306,13 @@ func (s *Schema) addKeywordFromDecoder(keyword string, dec *jsontext.Decoder, vo
 			return fmt.Errorf("%w: %q argument is %s, want object", ErrInvalidSchema, keyword, kindName(dec.PeekKind()))
 		}
 		if _, err := dec.ReadToken(); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+			return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 		}
 		nm := make(map[string]*Schema)
 		for dec.PeekKind() != '}' {
 			nameToken, err := dec.ReadToken()
 			if err != nil {
-				return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+				return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 			}
 			// The token is voided by the next decoder call.
 			name := nameToken.String()
@@ -326,7 +326,7 @@ func (s *Schema) addKeywordFromDecoder(keyword string, dec *jsontext.Decoder, vo
 			nm[name] = &sub
 		}
 		if _, err := dec.ReadToken(); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+			return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 		}
 		spv = PartMapSchema(nm)
 	case ArgTypeSchemaOrSchemas:
@@ -348,13 +348,13 @@ func (s *Schema) addKeywordFromDecoder(keyword string, dec *jsontext.Decoder, vo
 			return fmt.Errorf("%w: %q argument is %s, want object", ErrInvalidSchema, keyword, kindName(dec.PeekKind()))
 		}
 		if _, err := dec.ReadToken(); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+			return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 		}
 		nm := make(map[string]ArrayOrSchema)
 		for dec.PeekKind() != '}' {
 			nameToken, err := dec.ReadToken()
 			if err != nil {
-				return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+				return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 			}
 			name := nameToken.String()
 			if _, ok := nm[name]; ok {
@@ -381,7 +381,7 @@ func (s *Schema) addKeywordFromDecoder(keyword string, dec *jsontext.Decoder, vo
 			nm[name] = as
 		}
 		if _, err := dec.ReadToken(); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+			return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 		}
 		spv = PartMapArrayOrSchema(nm)
 	case ArgTypeAny:
@@ -407,7 +407,7 @@ func decodeSchemaArray(dec *jsontext.Decoder, keyword string, vocabulary *Vocabu
 		return nil, fmt.Errorf("%w: %q argument is %s, want array", ErrInvalidSchema, keyword, kindName(dec.PeekKind()))
 	}
 	if _, err := dec.ReadToken(); err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 	}
 	var schemas []*Schema
 	for dec.PeekKind() != ']' {
@@ -418,7 +418,7 @@ func decodeSchemaArray(dec *jsontext.Decoder, keyword string, vocabulary *Vocabu
 		schemas = append(schemas, &sub)
 	}
 	if _, err := dec.ReadToken(); err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read token: %w", err))
 	}
 	return schemas, nil
 }
@@ -429,7 +429,7 @@ func decodeRaw(dec *jsontext.Decoder, keyword, want string, target any) error {
 	kind := dec.PeekKind()
 	raw, err := dec.ReadValue()
 	if err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("jsontext decoder read value: %w", err))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("jsontext decoder read value: %w", err))
 	}
 	if err := jsonv2.Unmarshal(raw, target); err != nil {
 		return fmt.Errorf("%w: %q argument is %s, want %s", ErrInvalidSchema, keyword, kindName(kind), want)

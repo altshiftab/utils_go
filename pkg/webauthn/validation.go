@@ -7,8 +7,8 @@ import (
 	"slices"
 
 	"github.com/altshiftab/utils_go/pkg/cose"
-	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/utils"
@@ -57,35 +57,35 @@ func validatePublicKeyCredential[T authenticatorResponseTypes](
 	attestCredentialData bool,
 ) error {
 	if expectedCollectedClientDataType == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected collected client data type"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected collected client data type"))
 	}
 
 	if len(expectedCollectedClientDataChallenge) == 0 {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected challenge"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected challenge"))
 	}
 
 	if expectedCollectedClientDataOrigin == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected origin"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected origin"))
 	}
 
 	if expectedRpId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected rp id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected rp id"))
 	}
 
 	if credential == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("public key credential"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("public key credential"))
 	}
 
 	if len(credential.Id) == 0 {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("credential id"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("credential id"))
 	}
 
 	observedCredentialType := credential.Type
 	if observedCredentialType != ExpectedCredentialType {
-		return motmedelErrors.New(
+		return altshiftErrors.New(
 			fmt.Errorf(
 				"%w: %w: %q",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				webauthnErrors.ErrCredentialTypeMismatch,
 				observedCredentialType,
 			),
@@ -98,12 +98,12 @@ func validatePublicKeyCredential[T authenticatorResponseTypes](
 
 	collectedClientData := response.GetClientDataJson()
 	if collectedClientData == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("collected client data"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("collected client data"))
 	}
 
 	authenticatorData := response.GetAuthenticatorData()
 	if authenticatorData == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("authenticator data"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("authenticator data"))
 	}
 
 	err := ValidateCollectedClientData(
@@ -113,7 +113,7 @@ func validatePublicKeyCredential[T authenticatorResponseTypes](
 		expectedCollectedClientDataOrigin,
 	)
 	if err != nil {
-		return motmedelErrors.New(fmt.Errorf("validate collected client data: %w", err), collectedClientData)
+		return altshiftErrors.New(fmt.Errorf("validate collected client data: %w", err), collectedClientData)
 	}
 
 	err = ValidateAuthenticatorData(
@@ -124,7 +124,7 @@ func validatePublicKeyCredential[T authenticatorResponseTypes](
 		false,
 	)
 	if err != nil {
-		return motmedelErrors.New(fmt.Errorf("validate authenticator data: %w", err), authenticatorData)
+		return altshiftErrors.New(fmt.Errorf("validate authenticator data: %w", err), authenticatorData)
 	}
 
 	return nil
@@ -142,23 +142,23 @@ func ValidateAttestationPublicKeyCredential(
 	allowedPublicKeyAlgorithms []cose.Algorithm,
 ) error {
 	if len(expectedCollectedClientDataChallenge) == 0 {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected challenge"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected challenge"))
 	}
 
 	if expectedCollectedClientDataOrigin == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected origin"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected origin"))
 	}
 
 	if expectedRpId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected rp id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected rp id"))
 	}
 
 	if len(allowedPublicKeyAlgorithms) == 0 {
-		return motmedelErrors.NewWithTrace(empty_error.New("allowed public key algorithms"))
+		return altshiftErrors.NewWithTrace(empty_error.New("allowed public key algorithms"))
 	}
 
 	if credential == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("public key credential"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("public key credential"))
 	}
 
 	err := validatePublicKeyCredential(
@@ -177,26 +177,26 @@ func ValidateAttestationPublicKeyCredential(
 	response := credential.Response
 
 	if len(response.Transports) == 0 {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("transports"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("transports"))
 	}
 
 	// validatePublicKeyCredential has established the attested credential's presence; the
 	// guards are repeated for the benefit of static nil analysis.
 	authenticatorData := response.GetAuthenticatorData()
 	if authenticatorData == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("authenticator data"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("authenticator data"))
 	}
 	attestedCredential := authenticatorData.AttestedCredential
 	if attestedCredential == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("attested credential"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("attested credential"))
 	}
 
 	observedPublicKeyAlgorithm := attestedCredential.PublicKeyAlgorithm
 	if !slices.Contains(allowedPublicKeyAlgorithms, observedPublicKeyAlgorithm) {
-		return motmedelErrors.New(
+		return altshiftErrors.New(
 			fmt.Errorf(
 				"%w: %w: %d",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				webauthnErrors.ErrPublicKeyAlgorithmMismatch,
 				observedPublicKeyAlgorithm,
 			),
@@ -218,34 +218,34 @@ func ValidateAssertionPublicKeyCredential(
 	expectedCollectedClientDataOrigin string,
 	expectedRpId string,
 	previousSignatureCount uint32,
-	verifier motmedelCryptoInterfaces.Verifier,
+	verifier altshiftCryptoInterfaces.Verifier,
 ) error {
 	if len(expectedCollectedClientDataChallenge) == 0 {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected challenge"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected challenge"))
 	}
 
 	if expectedCollectedClientDataOrigin == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected origin"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected origin"))
 	}
 
 	if expectedRpId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected rp id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected rp id"))
 	}
 
 	if utils.IsNil(verifier) {
-		return motmedelErrors.NewWithTrace(nil_error.New("verifier"))
+		return altshiftErrors.NewWithTrace(nil_error.New("verifier"))
 	}
 
 	if credential == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("public key credential"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("public key credential"))
 	}
 
 	if len(rawClientDataJson) == 0 {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("raw client data json"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("raw client data json"))
 	}
 
 	if len(rawAuthenticatorData) == 0 {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("raw authenticator data"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("raw authenticator data"))
 	}
 
 	err := validatePublicKeyCredential(
@@ -265,11 +265,11 @@ func ValidateAssertionPublicKeyCredential(
 
 	signature := response.Signature
 	if len(signature) == 0 {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("signature"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("signature"))
 	}
 
 	if len(response.UserHandle) == 0 {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("user handle"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("user handle"))
 	}
 
 	clientDataJsonHash := sha256.Sum256(rawClientDataJson)
@@ -278,10 +278,10 @@ func ValidateAssertionPublicKeyCredential(
 	if err := verifier.Verify(message, signature); err != nil {
 		// Any verification failure rejects the assertion; the error is classified as a bad
 		// request regardless of whether the signature mismatched or could not be processed.
-		return motmedelErrors.New(
+		return altshiftErrors.New(
 			fmt.Errorf(
 				"%w: %w: %w",
-				motmedelErrors.ErrVerificationError,
+				altshiftErrors.ErrVerificationError,
 				webauthnErrors.ErrSignatureVerifyFailure,
 				err,
 			),
@@ -302,27 +302,27 @@ func ValidateCollectedClientData(
 	expectedOrigin string,
 ) error {
 	if expectedType == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected collected client data type"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected collected client data type"))
 	}
 
 	if len(expectedChallenge) == 0 {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected challenge"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected challenge"))
 	}
 
 	if expectedOrigin == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected origin"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected origin"))
 	}
 
 	if clientData == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("collected client data"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("collected client data"))
 	}
 
 	observedType := clientData.Type
 	if observedType != expectedType {
-		return motmedelErrors.New(
+		return altshiftErrors.New(
 			fmt.Errorf(
 				"%w: %w: %q",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				webauthnErrors.ErrCollectedClientDataTypeMismatch,
 				observedType,
 			),
@@ -333,10 +333,10 @@ func ValidateCollectedClientData(
 
 	observedChallenge := clientData.Challenge
 	if !bytes.Equal(expectedChallenge, observedChallenge) {
-		return motmedelErrors.New(
+		return altshiftErrors.New(
 			fmt.Errorf(
 				"%w: %w",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				webauthnErrors.ErrChallengeMismatch,
 			),
 			observedChallenge,
@@ -346,10 +346,10 @@ func ValidateCollectedClientData(
 
 	observedOrigin := clientData.Origin
 	if observedOrigin != expectedOrigin {
-		return motmedelErrors.New(
+		return altshiftErrors.New(
 			fmt.Errorf(
 				"%w: %w: %q",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				webauthnErrors.ErrOriginMismatch,
 				observedOrigin,
 			),
@@ -371,43 +371,43 @@ func ValidateAuthenticatorData(
 	verifyUser bool,
 ) error {
 	if expectedRpId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("expected rp id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("expected rp id"))
 	}
 
 	if authenticatorData == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("authenticator data"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("authenticator data"))
 	}
 
 	if validateAttestedCredential {
 		attestedCredential := authenticatorData.AttestedCredential
 		if attestedCredential == nil {
-			return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("attested credential"))
+			return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("attested credential"))
 		}
 
 		if len(attestedCredential.CredentialId) == 0 {
-			return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("credential id"))
+			return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("credential id"))
 		}
 
 		if len(attestedCredential.RawPublicKey) == 0 || utils.IsNil(attestedCredential.PublicKey) {
-			return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("credential public key"))
+			return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("credential public key"))
 		}
 
 		if len(attestedCredential.Aaguid) == 0 {
-			return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("aaguid"))
+			return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("aaguid"))
 		}
 	}
 
 	observedRpIdHash := authenticatorData.RpIdHash
 	if len(observedRpIdHash) == 0 {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("rp id hash"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("rp id hash"))
 	}
 
 	expectedRpIdHash := sha256.Sum256([]byte(expectedRpId))
 	if !bytes.Equal(observedRpIdHash, expectedRpIdHash[:]) {
-		return motmedelErrors.New(
+		return altshiftErrors.New(
 			fmt.Errorf(
 				"%w: %w",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				webauthnErrors.ErrRpIdHashMismatch,
 			),
 			observedRpIdHash,
@@ -418,7 +418,7 @@ func ValidateAuthenticatorData(
 	if !authenticatorData.UserPresent() {
 		return fmt.Errorf(
 			"%w: %w",
-			motmedelErrors.ErrValidationError,
+			altshiftErrors.ErrValidationError,
 			webauthnErrors.ErrUserNotPresent,
 		)
 	}
@@ -426,17 +426,17 @@ func ValidateAuthenticatorData(
 	if verifyUser && !authenticatorData.UserVerified() {
 		return fmt.Errorf(
 			"%w: %w",
-			motmedelErrors.ErrValidationError,
+			altshiftErrors.ErrValidationError,
 			webauthnErrors.ErrUserNotVerified,
 		)
 	}
 
 	observedSignCount := authenticatorData.SignCount
 	if previousSignatureCount != 0 && observedSignCount <= previousSignatureCount {
-		return motmedelErrors.New(
+		return altshiftErrors.New(
 			fmt.Errorf(
 				"%w: %w",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				webauthnErrors.ErrUnexpectedSignatureCount,
 			),
 			observedSignCount,

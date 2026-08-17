@@ -9,7 +9,7 @@ import (
 	sqltesting "github.com/altshiftab/utils_go/pkg/database/sql/testing"
 	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_authorizer"
 	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_caller"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
@@ -121,7 +121,7 @@ func TestCall(t *testing.T) {
 			authorizer: constAuthorizer(false, nil),
 			wantValue:  0,
 			assertErr: func(t *testing.T, err error) {
-				if !errors.Is(err, motmedelErrors.ErrUnauthorized) {
+				if !errors.Is(err, altshiftErrors.ErrUnauthorized) {
 					t.Fatalf("expected ErrUnauthorized, got %v", err)
 				}
 			},
@@ -184,7 +184,7 @@ func TestCallUnauthorizedDoesNotInvokeCaller(t *testing.T) {
 	authorizer := constAuthorizer(false, nil)
 
 	_, err := New("subject", caller, authorizer).Call(t.Context(), nil)
-	if !errors.Is(err, motmedelErrors.ErrUnauthorized) {
+	if !errors.Is(err, altshiftErrors.ErrUnauthorized) {
 		t.Fatalf("expected ErrUnauthorized, got %v", err)
 	}
 	if invoked {

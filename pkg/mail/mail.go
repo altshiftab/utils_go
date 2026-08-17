@@ -5,7 +5,7 @@ import (
 	mailPkg "net/mail"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -17,33 +17,33 @@ func ValidateAddress(addressString string) error {
 	if trimmedAddressString == "" {
 		return fmt.Errorf(
 			"%w: %w",
-			motmedelErrors.ErrValidationError,
+			altshiftErrors.ErrValidationError,
 			empty_error.New("address"),
 		)
 	}
 
 	address, err := mailPkg.ParseAddress(trimmedAddressString)
 	if err != nil {
-		return fmt.Errorf("%w: parse address: %w", motmedelErrors.ErrValidationError, err)
+		return fmt.Errorf("%w: parse address: %w", altshiftErrors.ErrValidationError, err)
 	}
 
 	exactAddress := address.Name == "" && address.Address == trimmedAddressString
 	if !exactAddress {
 		return fmt.Errorf(
 			"%w: %w",
-			motmedelErrors.ErrValidationError,
+			altshiftErrors.ErrValidationError,
 			mismatch_error.New("address", address.Address, trimmedAddressString),
 		)
 	}
 
 	_, domain, found := strings.Cut(trimmedAddressString, "@")
 	if !found {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, motmedelErrors.ErrBadSplit)
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, altshiftErrors.ErrBadSplit)
 	}
 
 	domainParts := domain_parts.New(domain)
 	if domainParts == nil {
-		return fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, nil_error.New("domain parts"))
+		return fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, nil_error.New("domain parts"))
 	}
 
 	return nil

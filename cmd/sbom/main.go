@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelSbom "github.com/altshiftab/utils_go/pkg/sbom"
-	motmedelSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftSbom "github.com/altshiftab/utils_go/pkg/sbom"
+	altshiftSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
 )
 
 func run() error {
@@ -22,21 +22,21 @@ func run() error {
 	flag.StringVar(&outputPath, "output", "", "output file path (default: stdout)")
 	flag.Parse()
 
-	var allComponents []motmedelSbomTypes.Component
+	var allComponents []altshiftSbomTypes.Component
 
 	if goSumPath != "" {
 		data, err := os.ReadFile(goSumPath)
 		if err != nil {
-			return &motmedelErrors.Error{
+			return &altshiftErrors.Error{
 				Message: "An error occurred when reading the go.sum file.",
 				Cause:   err,
 				Input:   goSumPath,
 			}
 		}
 
-		components, err := motmedelSbom.ParseGoSum(data)
+		components, err := altshiftSbom.ParseGoSum(data)
 		if err != nil {
-			return &motmedelErrors.Error{
+			return &altshiftErrors.Error{
 				Message: "An error occurred when parsing the go.sum file.",
 				Cause:   err,
 				Input:   goSumPath,
@@ -49,16 +49,16 @@ func run() error {
 	if nodeLockPath != "" {
 		data, err := os.ReadFile(nodeLockPath)
 		if err != nil {
-			return &motmedelErrors.Error{
+			return &altshiftErrors.Error{
 				Message: "An error occurred when reading the package-lock.json file.",
 				Cause:   err,
 				Input:   nodeLockPath,
 			}
 		}
 
-		components, err := motmedelSbom.ParseNodePackageLock(data)
+		components, err := altshiftSbom.ParseNodePackageLock(data)
 		if err != nil {
-			return &motmedelErrors.Error{
+			return &altshiftErrors.Error{
 				Message: "An error occurred when parsing the package-lock.json file.",
 				Cause:   err,
 				Input:   nodeLockPath,
@@ -71,16 +71,16 @@ func run() error {
 	if dockerfilePath != "" {
 		data, err := os.ReadFile(dockerfilePath)
 		if err != nil {
-			return &motmedelErrors.Error{
+			return &altshiftErrors.Error{
 				Message: "An error occurred when reading the Dockerfile.",
 				Cause:   err,
 				Input:   dockerfilePath,
 			}
 		}
 
-		components, err := motmedelSbom.ParseDockerfile(data)
+		components, err := altshiftSbom.ParseDockerfile(data)
 		if err != nil {
-			return &motmedelErrors.Error{
+			return &altshiftErrors.Error{
 				Message: "An error occurred when parsing the Dockerfile.",
 				Cause:   err,
 				Input:   dockerfilePath,
@@ -90,9 +90,9 @@ func run() error {
 		allComponents = append(allComponents, components...)
 	}
 
-	output, err := motmedelSbom.GenerateBomJson(allComponents)
+	output, err := altshiftSbom.GenerateBomJson(allComponents)
 	if err != nil {
-		return &motmedelErrors.Error{
+		return &altshiftErrors.Error{
 			Message: "An error occurred when generating the SBOM JSON.",
 			Cause:   err,
 		}
@@ -100,7 +100,7 @@ func run() error {
 
 	if outputPath != "" {
 		if err := os.WriteFile(outputPath, output, 0600); err != nil { //nolint:gosec // G703: writing to the user-chosen output path is the CLI's purpose.
-			return &motmedelErrors.Error{
+			return &altshiftErrors.Error{
 				Message: "An error occurred when writing the output file.",
 				Cause:   err,
 				Input:   outputPath,

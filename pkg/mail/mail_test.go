@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestValidateAddress_Valid(t *testing.T) {
@@ -29,7 +29,7 @@ func TestValidateAddress_Empty(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for empty address")
 	}
-	if !errors.Is(err, motmedelErrors.ErrValidationError) {
+	if !errors.Is(err, altshiftErrors.ErrValidationError) {
 		t.Fatalf("expected ErrValidationError, got %v", err)
 	}
 }

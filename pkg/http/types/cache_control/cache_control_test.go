@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 // Corpus of realistic Cache-Control header values; tests focus on parsing without errors.
@@ -69,40 +69,40 @@ func TestParseCacheControlCorrectness(t *testing.T) {
 	cases := []struct {
 		name   string
 		header string
-		want   []*motmedelHttpTypes.CacheControlDirective
+		want   []*altshiftHttpTypes.CacheControlDirective
 	}{
 		{
 			name:   "no-cache",
 			header: "no-cache",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "no-cache"},
 			},
 		},
 		{
 			name:   "max-age",
 			header: "max-age=3600",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "max-age", Value: "3600"},
 			},
 		},
 		{
 			name:   "max-stale without value",
 			header: "max-stale",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "max-stale"},
 			},
 		},
 		{
 			name:   "max-stale with value",
 			header: "max-stale=60",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "max-stale", Value: "60"},
 			},
 		},
 		{
 			name:   "public with max-age",
 			header: "public, max-age=31536000",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "public"},
 				{Name: "max-age", Value: "31536000"},
 			},
@@ -110,7 +110,7 @@ func TestParseCacheControlCorrectness(t *testing.T) {
 		{
 			name:   "private with no-cache and must-revalidate",
 			header: "private, no-cache, must-revalidate",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "private"},
 				{Name: "no-cache"},
 				{Name: "must-revalidate"},
@@ -119,7 +119,7 @@ func TestParseCacheControlCorrectness(t *testing.T) {
 		{
 			name:   "s-maxage with proxy-revalidate",
 			header: "max-age=3600, s-maxage=7200, proxy-revalidate",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "max-age", Value: "3600"},
 				{Name: "s-maxage", Value: "7200"},
 				{Name: "proxy-revalidate"},
@@ -128,21 +128,21 @@ func TestParseCacheControlCorrectness(t *testing.T) {
 		{
 			name:   "quoted string value",
 			header: "no-cache=\"Set-Cookie\"",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "no-cache", Value: "Set-Cookie"},
 			},
 		},
 		{
 			name:   "private with quoted field names",
 			header: "private=\"Set-Cookie, X-Custom\"",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "private", Value: "Set-Cookie, X-Custom"},
 			},
 		},
 		{
 			name:   "extension directive",
 			header: "max-age=600, stale-while-revalidate=60",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "max-age", Value: "600"},
 				{Name: "stale-while-revalidate", Value: "60"},
 			},
@@ -150,7 +150,7 @@ func TestParseCacheControlCorrectness(t *testing.T) {
 		{
 			name:   "directive names are lowercased",
 			header: "No-Cache, Max-Age=300",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "no-cache"},
 				{Name: "max-age", Value: "300"},
 			},
@@ -158,7 +158,7 @@ func TestParseCacheControlCorrectness(t *testing.T) {
 		{
 			name:   "spaces around commas",
 			header: "no-store ,  no-cache ,  must-revalidate",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "no-store"},
 				{Name: "no-cache"},
 				{Name: "must-revalidate"},
@@ -167,7 +167,7 @@ func TestParseCacheControlCorrectness(t *testing.T) {
 		{
 			name:   "all request directives",
 			header: "max-age=0, max-stale=60, min-fresh=120, no-cache, no-store, no-transform, only-if-cached",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "max-age", Value: "0"},
 				{Name: "max-stale", Value: "60"},
 				{Name: "min-fresh", Value: "120"},
@@ -180,7 +180,7 @@ func TestParseCacheControlCorrectness(t *testing.T) {
 		{
 			name:   "all response directives",
 			header: "max-age=3600, must-revalidate, must-understand, no-cache, no-store, no-transform, private, proxy-revalidate, public, s-maxage=7200",
-			want: []*motmedelHttpTypes.CacheControlDirective{
+			want: []*altshiftHttpTypes.CacheControlDirective{
 				{Name: "max-age", Value: "3600"},
 				{Name: "must-revalidate"},
 				{Name: "must-understand"},
@@ -294,7 +294,7 @@ func TestParseCacheControlInvalidDeltaSeconds(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected error for %q, got nil", c)
 			}
-			if !errors.Is(err, motmedelErrors.ErrSemanticError) {
+			if !errors.Is(err, altshiftErrors.ErrSemanticError) {
 				t.Fatalf("expected ErrSemanticError, got %v", err)
 			}
 		})
@@ -391,7 +391,7 @@ func TestCacheControlMethods(t *testing.T) {
 			t.Fatalf("Parse error: %v", err)
 		}
 		_, err = cc.MaxAge()
-		if !errors.Is(err, motmedelHttpTypes.ErrDirectiveNotPresent) {
+		if !errors.Is(err, altshiftHttpTypes.ErrDirectiveNotPresent) {
 			t.Fatalf("MaxAge() error = %v, want ErrDirectiveNotPresent", err)
 		}
 	})
@@ -471,7 +471,7 @@ func TestCacheControlMethods(t *testing.T) {
 			t.Fatalf("Parse error: %v", err)
 		}
 		_, _, err = cc.MaxStale()
-		if !errors.Is(err, motmedelHttpTypes.ErrDirectiveNotPresent) {
+		if !errors.Is(err, altshiftHttpTypes.ErrDirectiveNotPresent) {
 			t.Fatalf("MaxStale() error = %v, want ErrDirectiveNotPresent", err)
 		}
 	})

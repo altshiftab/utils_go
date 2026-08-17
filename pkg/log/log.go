@@ -17,8 +17,8 @@ import (
 	"time"
 
 	context2 "github.com/altshiftab/utils_go/pkg/context"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelStrings "github.com/altshiftab/utils_go/pkg/strings"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftStrings "github.com/altshiftab/utils_go/pkg/strings"
 )
 
 type ContextExtractor interface {
@@ -81,9 +81,9 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 	var attrs []any
 
 	switch err.(type) { //nolint:errorlint // Deliberate: attrs describe this exact error; wrapped causes are handled level-by-level via CollectWrappedErrors.
-	case *motmedelErrors.Error:
+	case *altshiftErrors.Error:
 		break
-	case *motmedelErrors.ExtendedError:
+	case *altshiftErrors.ExtendedError:
 		break
 	default:
 		switch errType {
@@ -94,7 +94,7 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 		}
 	}
 
-	if inputError, ok := err.(motmedelErrors.InputErrorI); ok && !extractor.SkipInput { //nolint:errorlint // Deliberate: attrs describe this exact error, not its wrapped causes.
+	if inputError, ok := err.(altshiftErrors.InputErrorI); ok && !extractor.SkipInput { //nolint:errorlint // Deliberate: attrs describe this exact error, not its wrapped causes.
 		if input := inputError.GetInput(); input != nil {
 			var inputSlice []any
 			var typeName string
@@ -111,7 +111,7 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 			var textualRepresentations []string
 
 			for _, inputElement := range inputSlice {
-				textualRepresentation, err := motmedelStrings.MakeTextualRepresentation(inputElement)
+				textualRepresentation, err := altshiftStrings.MakeTextualRepresentation(inputElement)
 				if err != nil {
 					slog.Error(
 						fmt.Sprintf(
@@ -142,7 +142,7 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 	}
 
 	if !extractor.SkipCause {
-		wrappedErrors := motmedelErrors.CollectWrappedErrors(err)
+		wrappedErrors := altshiftErrors.CollectWrappedErrors(err)
 		var lastWrappedErrorAttrs []any
 
 		for i := len(wrappedErrors) - 1; i >= 0; i-- {
@@ -176,19 +176,19 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 		}
 	}
 
-	if codeError, ok := err.(motmedelErrors.CodeErrorI); ok { //nolint:errorlint // Deliberate: attrs describe this exact error, not its wrapped causes.
+	if codeError, ok := err.(altshiftErrors.CodeErrorI); ok { //nolint:errorlint // Deliberate: attrs describe this exact error, not its wrapped causes.
 		if code := codeError.GetCode(); code != "" {
 			attrs = append(attrs, slog.String("code", code))
 		}
 	}
 
-	if idError, ok := err.(motmedelErrors.IdErrorI); ok { //nolint:errorlint // Deliberate: attrs describe this exact error, not its wrapped causes.
+	if idError, ok := err.(altshiftErrors.IdErrorI); ok { //nolint:errorlint // Deliberate: attrs describe this exact error, not its wrapped causes.
 		if id := idError.GetId(); id != "" {
 			attrs = append(attrs, slog.String("id", id))
 		}
 	}
 
-	if stackTraceError, ok := err.(motmedelErrors.StackTraceErrorI); ok && !extractor.SkipStackTrace { //nolint:errorlint // Deliberate: attrs describe this exact error, not its wrapped causes.
+	if stackTraceError, ok := err.(altshiftErrors.StackTraceErrorI); ok && !extractor.SkipStackTrace { //nolint:errorlint // Deliberate: attrs describe this exact error, not its wrapped causes.
 		if stackTrace := stackTraceError.GetStackTrace(); stackTrace != "" {
 			attrs = append(attrs, slog.String("stack_trace", stackTrace))
 		}
@@ -227,7 +227,7 @@ func (extractor *ErrorContextExtractor) Handle(ctx context.Context, record *slog
 	if logErr, ok := ctx.Value(context2.ErrorContextKey).(error); ok {
 		record.Add(slog.Group("error", extractor.MakeErrorAttrs(logErr)...))
 
-		if contextErr, ok := errors.AsType[motmedelErrors.ContextErrorI](logErr); ok {
+		if contextErr, ok := errors.AsType[altshiftErrors.ContextErrorI](logErr); ok {
 			if contextErrCtxPtr := contextErr.GetContext(); contextErrCtxPtr != nil {
 				contextErrCtx := *contextErrCtxPtr
 

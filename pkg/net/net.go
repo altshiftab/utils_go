@@ -10,8 +10,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelNetErrors "github.com/altshiftab/utils_go/pkg/net/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftNetErrors "github.com/altshiftab/utils_go/pkg/net/errors"
 )
 
 const (
@@ -33,7 +33,7 @@ func IsLocalhost(hostname string) bool {
 func SplitAddress(address string) (string, int, error) {
 	ip, portString, err := net.SplitHostPort(address)
 	if err != nil {
-		return "", 0, &motmedelErrors.Error{
+		return "", 0, &altshiftErrors.Error{
 			Message: "An error occurred when splitting an address into host and port.",
 			Cause:   err,
 			Input:   address,
@@ -42,7 +42,7 @@ func SplitAddress(address string) (string, int, error) {
 
 	port, err := strconv.Atoi(portString)
 	if err != nil {
-		return ip, 0, &motmedelErrors.Error{
+		return ip, 0, &altshiftErrors.Error{
 			Message: "An error occurred when parsing an address port string as an integer.",
 			Cause:   err,
 			Input:   portString,
@@ -92,8 +92,8 @@ func ParseAddressNet(addressNet string) (*net.IPNet, error) {
 		case 6:
 			mask = 128
 		default:
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: %d", motmedelNetErrors.ErrUnexpectedIpVersion, ipVersion),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: %d", altshiftNetErrors.ErrUnexpectedIpVersion, ipVersion),
 				ipVersion,
 			)
 		}
@@ -103,7 +103,7 @@ func ParseAddressNet(addressNet string) (*net.IPNet, error) {
 
 	_, network, err := net.ParseCIDR(networkString)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("net parse cidr: %w", err),
 			networkString,
 		)
@@ -118,19 +118,19 @@ func GetStartEndCidr(startIpAddress *net.IP, endIpAddress *net.IP, checkBoundary
 	}
 
 	if (startIpAddress.To4() == nil) != (endIpAddress.To4() == nil) {
-		return "", motmedelNetErrors.ErrIpVersionMismatch
+		return "", altshiftNetErrors.ErrIpVersionMismatch
 	}
 
 	startBytes := startIpAddress.To16()
 	endBytes := endIpAddress.To16()
 	if startBytes == nil || endBytes == nil {
-		return "", motmedelErrors.NewWithTrace(nil_error.New("ip 16-byte representation"))
+		return "", altshiftErrors.NewWithTrace(nil_error.New("ip 16-byte representation"))
 	}
 
 	byteComparison := bytes.Compare(startBytes, endBytes)
 
 	if byteComparison > 0 {
-		return "", motmedelNetErrors.ErrStartAfterEnd
+		return "", altshiftNetErrors.ErrStartAfterEnd
 	}
 
 	// Find the first byte where the two IP addresses differ
@@ -171,7 +171,7 @@ func GetStartEndCidr(startIpAddress *net.IP, endIpAddress *net.IP, checkBoundary
 		networkLast := lastAddress(network)
 
 		if !networkBase.Equal(*startIpAddress) || !networkLast.Equal(*endIpAddress) {
-			return "", motmedelNetErrors.ErrNotOnSubnetBoundaries
+			return "", altshiftNetErrors.ErrNotOnSubnetBoundaries
 		}
 	}
 
@@ -205,12 +205,12 @@ func NetworkFromTarget(target string) (*net.IPNet, error) {
 		} else if useIpv4 {
 			targetCidrString = target + "/32"
 		} else {
-			return nil, motmedelErrors.NewWithTrace(motmedelNetErrors.ErrUndeterminableIpVersion, ip)
+			return nil, altshiftErrors.NewWithTrace(altshiftNetErrors.ErrUndeterminableIpVersion, ip)
 		}
 
 		_, network, _ := net.ParseCIDR(targetCidrString)
 		if network == nil {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				nil_error.NewWithInstance("ip net", "single target"), targetCidrString,
 			)
 		}
@@ -218,5 +218,5 @@ func NetworkFromTarget(target string) (*net.IPNet, error) {
 		return network, nil
 	}
 
-	return nil, motmedelErrors.NewWithTrace(motmedelNetErrors.ErrUndeterminableTargetFormat)
+	return nil, altshiftErrors.NewWithTrace(altshiftNetErrors.ErrUndeterminableTargetFormat)
 }

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/testing/cmp"
 )
 
@@ -15,25 +15,25 @@ func TestParseAuthorization(t *testing.T) {
 	testCases := []struct {
 		name        string
 		input       []byte
-		expected    *motmedelHttpTypes.Authorization
+		expected    *altshiftHttpTypes.Authorization
 		expectedErr error
 	}{
 		{
 			name:        "empty authorization (nil)",
 			input:       nil,
 			expected:    nil,
-			expectedErr: motmedelErrors.ErrSyntaxError,
+			expectedErr: altshiftErrors.ErrSyntaxError,
 		},
 		{
 			name:        "empty authorization (empty slice)",
 			input:       []byte{},
 			expected:    nil,
-			expectedErr: motmedelErrors.ErrSyntaxError,
+			expectedErr: altshiftErrors.ErrSyntaxError,
 		},
 		{
 			name:  "scheme only",
 			input: []byte("Basic"),
-			expected: &motmedelHttpTypes.Authorization{
+			expected: &altshiftHttpTypes.Authorization{
 				Scheme: "Basic",
 			},
 			expectedErr: nil,
@@ -41,7 +41,7 @@ func TestParseAuthorization(t *testing.T) {
 		{
 			name:  "scheme with token68",
 			input: []byte("Bearer abc123=="),
-			expected: &motmedelHttpTypes.Authorization{
+			expected: &altshiftHttpTypes.Authorization{
 				Scheme:  "Bearer",
 				Token68: "abc123==",
 			},
@@ -51,7 +51,7 @@ func TestParseAuthorization(t *testing.T) {
 		{
 			name:  "scheme with jws token68",
 			input: []byte("Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIn0.Q70dVMtrOQzEFmGOxPAKbNOUSQMISCLhEDfGpMG0WM4"),
-			expected: &motmedelHttpTypes.Authorization{ //nolint:gosec // G101: hard-coded JWT is inert test data.
+			expected: &altshiftHttpTypes.Authorization{ //nolint:gosec // G101: hard-coded JWT is inert test data.
 				Scheme:  "Bearer",
 				Token68: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIn0.Q70dVMtrOQzEFmGOxPAKbNOUSQMISCLhEDfGpMG0WM4",
 			},
@@ -59,7 +59,7 @@ func TestParseAuthorization(t *testing.T) {
 		{
 			name:  "scheme with single token parameter (key lowercased)",
 			input: []byte("Digest Realm=foo"),
-			expected: &motmedelHttpTypes.Authorization{
+			expected: &altshiftHttpTypes.Authorization{
 				Scheme: "Digest",
 				Params: map[string]string{
 					"realm": "foo",
@@ -70,7 +70,7 @@ func TestParseAuthorization(t *testing.T) {
 		{
 			name:  "scheme with quoted parameter",
 			input: []byte(`Digest realm="hello world"`),
-			expected: &motmedelHttpTypes.Authorization{
+			expected: &altshiftHttpTypes.Authorization{
 				Scheme: "Digest",
 				Params: map[string]string{
 					"realm": "hello world",
@@ -81,7 +81,7 @@ func TestParseAuthorization(t *testing.T) {
 		{
 			name:  "scheme with multiple parameters and whitespace around equals and commas",
 			input: []byte(`Digest realm="hello world", nonce=abc123 , opaque = "xyz"`),
-			expected: &motmedelHttpTypes.Authorization{
+			expected: &altshiftHttpTypes.Authorization{
 				Scheme: "Digest",
 				Params: map[string]string{
 					"realm":  "hello world",
@@ -95,13 +95,13 @@ func TestParseAuthorization(t *testing.T) {
 			name:        "duplicate parameter -> semantic error",
 			input:       []byte("Digest a=b, a=c"),
 			expected:    nil,
-			expectedErr: motmedelErrors.ErrSemanticError,
+			expectedErr: altshiftErrors.ErrSemanticError,
 		},
 		{
 			name:        "invalid quoted parameter value -> semantic error",
 			input:       []byte(`Digest a="foo\q"`),
 			expected:    nil,
-			expectedErr: motmedelErrors.ErrSemanticError,
+			expectedErr: altshiftErrors.ErrSemanticError,
 		},
 	}
 

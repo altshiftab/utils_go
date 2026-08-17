@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 	jwkKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler/key_handler_config"
 	"github.com/altshiftab/utils_go/pkg/utils"
@@ -27,28 +27,28 @@ type Handler struct {
 	keysExpiresAt *time.Time
 
 	mu              sync.RWMutex
-	keyIdToVerifier map[string]motmedelCryptoInterfaces.NamedVerifier
+	keyIdToVerifier map[string]altshiftCryptoInterfaces.NamedVerifier
 }
 
-func (h *Handler) GetNamedVerifier(ctx context.Context, keyId string) (motmedelCryptoInterfaces.NamedVerifier, error) {
+func (h *Handler) GetNamedVerifier(ctx context.Context, keyId string) (altshiftCryptoInterfaces.NamedVerifier, error) {
 	h.keysMutex.Lock()
 	err := func() error {
 		defer h.keysMutex.Unlock()
 		if expiresAt := h.keysExpiresAt; expiresAt == nil || expiresAt.Before(time.Now()) {
 			jwkUrl := h.JwkUrl
 			if jwkUrl == nil {
-				return motmedelErrors.NewWithTrace(nil_error.NewWithInstance("url", "jwk url"))
+				return altshiftErrors.NewWithTrace(nil_error.NewWithInstance("url", "jwk url"))
 			}
 
 			urlString := jwkUrl.String()
-			response, keysResponseData, err := motmedelHttpUtils.FetchJson[map[string]any](ctx, urlString, h.config.FetchOptions...)
+			response, keysResponseData, err := altshiftHttpUtils.FetchJson[map[string]any](ctx, urlString, h.config.FetchOptions...)
 			if err != nil {
-				return motmedelErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+				return altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
 			}
 
 			keys, err := utils.MapGetConvertSlice[map[string]any](keysResponseData, "keys")
 			if err != nil {
-				return motmedelErrors.New(fmt.Errorf("map get convert: %w", err), keysResponseData)
+				return altshiftErrors.New(fmt.Errorf("map get convert: %w", err), keysResponseData)
 			}
 
 			h.keys = keys
@@ -56,7 +56,7 @@ func (h *Handler) GetNamedVerifier(ctx context.Context, keyId string) (motmedelC
 			responseHeader := response.Header
 
 			// Prefer Cache-Control: max-age over Expires
-			cacheControlValue, ccErr := motmedelHttpUtils.GetSingleHeader("Cache-Control", responseHeader)
+			cacheControlValue, ccErr := altshiftHttpUtils.GetSingleHeader("Cache-Control", responseHeader)
 			usedCacheControl := false
 			if ccErr == nil && cacheControlValue != "" {
 				directives := strings.Split(cacheControlValue, ",")
@@ -76,14 +76,14 @@ func (h *Handler) GetNamedVerifier(ctx context.Context, keyId string) (motmedelC
 
 			if !usedCacheControl {
 				// Fallback to Expires header (RFC1123)
-				expiresValue, err := motmedelHttpUtils.GetSingleHeader("Expires", responseHeader)
+				expiresValue, err := altshiftHttpUtils.GetSingleHeader("Expires", responseHeader)
 				if err != nil {
-					return motmedelErrors.New(fmt.Errorf("get expires header: %w", err), responseHeader)
+					return altshiftErrors.New(fmt.Errorf("get expires header: %w", err), responseHeader)
 				}
 
 				headerValueExpiresAt, err := time.Parse(time.RFC1123, expiresValue)
 				if err != nil {
-					return motmedelErrors.NewWithTrace(fmt.Errorf("time parse (expires): %w", err), expiresValue)
+					return altshiftErrors.NewWithTrace(fmt.Errorf("time parse (expires): %w", err), expiresValue)
 				}
 				h.keysExpiresAt = &headerValueExpiresAt
 			}
@@ -119,18 +119,18 @@ func (h *Handler) GetNamedVerifier(ctx context.Context, keyId string) (motmedelC
 
 		key, err := jwkKey.New(keyMap)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("new key: %w", err), keyMap)
+			return nil, altshiftErrors.New(fmt.Errorf("new key: %w", err), keyMap)
 		}
 		if key == nil {
-			return nil, motmedelErrors.NewWithTrace(nil_error.New("key"))
+			return nil, altshiftErrors.NewWithTrace(nil_error.New("key"))
 		}
 
 		namedVerifier, err := key.NamedVerifier()
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("key named verifier: %w", err), key)
+			return nil, altshiftErrors.New(fmt.Errorf("key named verifier: %w", err), key)
 		}
 		if utils.IsNil(namedVerifier) {
-			return nil, motmedelErrors.NewWithTrace(nil_error.New("verifier"))
+			return nil, altshiftErrors.NewWithTrace(nil_error.New("verifier"))
 		}
 
 		h.mu.Lock()
@@ -145,12 +145,12 @@ func (h *Handler) GetNamedVerifier(ctx context.Context, keyId string) (motmedelC
 
 func New(jwkUrl *url.URL, options ...key_handler_config.Option) (*Handler, error) {
 	if jwkUrl == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.NewWithInstance("url", "jwk url"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.NewWithInstance("url", "jwk url"))
 	}
 
 	return &Handler{
 		JwkUrl:          jwkUrl,
-		keyIdToVerifier: make(map[string]motmedelCryptoInterfaces.NamedVerifier),
+		keyIdToVerifier: make(map[string]altshiftCryptoInterfaces.NamedVerifier),
 		config:          key_handler_config.New(options...),
 	}, nil
 }

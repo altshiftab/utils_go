@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/utils"
@@ -19,34 +19,34 @@ const (
 
 // TODO: Implement tests for verification.
 
-func Verify(header string, payload string, signature []byte, verifier motmedelCryptoInterfaces.Verifier) error {
+func Verify(header string, payload string, signature []byte, verifier altshiftCryptoInterfaces.Verifier) error {
 	if utils.IsNil(verifier) {
-		return motmedelErrors.NewWithTrace(nil_error.New("verifier"))
+		return altshiftErrors.NewWithTrace(nil_error.New("verifier"))
 	}
 
 	err := verifier.Verify([]byte(strings.Join([]string{header, payload}, ".")), signature)
 	if err != nil {
-		return fmt.Errorf("%w: verifier verify: %w", motmedelErrors.ErrVerificationError, err)
+		return fmt.Errorf("%w: verifier verify: %w", altshiftErrors.ErrVerificationError, err)
 	}
 
 	return nil
 }
 
-func VerifyCompactSerialization(serialization string, verifier motmedelCryptoInterfaces.Verifier) error {
+func VerifyCompactSerialization(serialization string, verifier altshiftCryptoInterfaces.Verifier) error {
 	if utils.IsNil(verifier) {
-		return motmedelErrors.NewWithTrace(nil_error.New("verifier"))
+		return altshiftErrors.NewWithTrace(nil_error.New("verifier"))
 	}
 
 	if serialization == "" {
-		return motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrParseError, empty_error.New("serialization")),
+		return altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrParseError, empty_error.New("serialization")),
 		)
 	}
 
 	rawSplit := strings.Split(serialization, ".")
 	if len(rawSplit) != 3 {
-		return motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrParseError, motmedelErrors.ErrBadSplit),
+		return altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrParseError, altshiftErrors.ErrBadSplit),
 		)
 	}
 
@@ -55,13 +55,13 @@ func VerifyCompactSerialization(serialization string, verifier motmedelCryptoInt
 
 	signature, err := base64.RawURLEncoding.DecodeString(rawSplit[2])
 	if err != nil {
-		return motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrParseError, motmedelErrors.ErrBadSplit),
+		return altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrParseError, altshiftErrors.ErrBadSplit),
 		)
 	}
 
 	if err := Verify(header, payload, signature, verifier); err != nil {
-		return motmedelErrors.New(fmt.Errorf("verifier verify: %w", err), header, payload, signature)
+		return altshiftErrors.New(fmt.Errorf("verifier verify: %w", err), header, payload, signature)
 	}
 
 	return nil
@@ -72,7 +72,7 @@ func Split(serialization string) ([3]string, error) {
 
 	splitParts := strings.SplitN(serialization, Delimiter, 3)
 	if len(splitParts) != 3 {
-		return parts, motmedelErrors.NewWithTrace(motmedelErrors.ErrBadSplit)
+		return parts, altshiftErrors.NewWithTrace(altshiftErrors.ErrBadSplit)
 	}
 
 	parts[0] = splitParts[0]
@@ -86,8 +86,8 @@ func Parse(serialization string) ([]byte, []byte, []byte, error) {
 	parts, err := Split(serialization)
 	if err != nil {
 		wrappedErr := fmt.Errorf("jws split: %w", err)
-		if errors.Is(err, motmedelErrors.ErrBadSplit) {
-			return nil, nil, nil, fmt.Errorf("%w: %w", motmedelErrors.ErrParseError, wrappedErr)
+		if errors.Is(err, altshiftErrors.ErrBadSplit) {
+			return nil, nil, nil, fmt.Errorf("%w: %w", altshiftErrors.ErrParseError, wrappedErr)
 		}
 
 		return nil, nil, nil, wrappedErr
@@ -108,10 +108,10 @@ func Parse(serialization string) ([]byte, []byte, []byte, error) {
 				partName = " (signature part)"
 			}
 			return nil, nil, nil,
-				motmedelErrors.NewWithTrace(
+				altshiftErrors.NewWithTrace(
 					fmt.Errorf(
 						"%w: base64 raw url encoding decode string%s: %w",
-						motmedelErrors.ErrParseError, partName, err,
+						altshiftErrors.ErrParseError, partName, err,
 					),
 				)
 		}

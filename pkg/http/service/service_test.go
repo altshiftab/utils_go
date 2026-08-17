@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
 	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
@@ -187,7 +187,7 @@ func TestNew(t *testing.T) {
 			name:    "host",
 			options: []service_config.Option{service_config.WithHost("example.com")},
 			check: func(t *testing.T, service *Service) {
-				vhostMux, ok := service.Server.Handler.(*motmedelMux.VhostMux)
+				vhostMux, ok := service.Server.Handler.(*altshiftMux.VhostMux)
 				if !ok {
 					t.Fatalf("handler: got %T, want a vhost mux", service.Server.Handler)
 				}

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 var TimePrecision = time.Second
@@ -52,7 +52,7 @@ func (date Date) MarshalJSON() ([]byte, error) {
 func (date *Date) UnmarshalJSON(b []byte) error {
 	var f float64
 	if err := json.Unmarshal(b, &f); err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), b)
+		return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), b)
 	}
 
 	n := NewFromSeconds(f)
@@ -83,8 +83,8 @@ func Convert(value any) (*Date, error) {
 
 		return NewFromSeconds(typedValue), nil
 	default:
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %T", motmedelErrors.ErrUnexpectedType, typedValue),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %T", altshiftErrors.ErrUnexpectedType, typedValue),
 			typedValue,
 		)
 	}

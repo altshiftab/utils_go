@@ -20,7 +20,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/credentials_file"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_response"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
@@ -110,7 +110,7 @@ func TestParsePrivateKey_UnsupportedType(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if !errors.Is(err, motmedelErrors.ErrUnexpectedType) {
+	if !errors.Is(err, altshiftErrors.ErrUnexpectedType) {
 		t.Errorf("expected ErrUnexpectedType, got %v", err)
 	}
 }

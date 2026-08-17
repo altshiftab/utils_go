@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler"
 )
 
@@ -52,11 +52,11 @@ func TestAuthenticatorWithKeyHandlerAuthenticateMissingKid(t *testing.T) {
 		t.Fatal("expected an error")
 	}
 
-	if !errors.Is(err, motmedelErrors.ErrValidationError) {
+	if !errors.Is(err, altshiftErrors.ErrValidationError) {
 		t.Errorf("expected the error to match ErrValidationError: %v", err)
 	}
 
-	if !errors.Is(err, motmedelErrors.ErrNotInMap) {
+	if !errors.Is(err, altshiftErrors.ErrNotInMap) {
 		t.Errorf("expected the error to match ErrNotInMap: %v", err)
 	}
 }
@@ -85,11 +85,11 @@ func TestAuthenticatorWithKeyHandlerAuthenticateUnknownKid(t *testing.T) {
 		t.Fatal("expected an error")
 	}
 
-	if !errors.Is(err, motmedelErrors.ErrVerificationError) {
+	if !errors.Is(err, altshiftErrors.ErrVerificationError) {
 		t.Errorf("expected the error to match ErrVerificationError: %v", err)
 	}
 
-	if !errors.Is(err, motmedelJwkErrors.ErrUnknownKeyId) {
+	if !errors.Is(err, altshiftJwkErrors.ErrUnknownKeyId) {
 		t.Errorf("expected the error to match ErrUnknownKeyId: %v", err)
 	}
 }

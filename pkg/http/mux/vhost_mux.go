@@ -7,13 +7,13 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
 	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	muxTypesResponseWriter "github.com/altshiftab/utils_go/pkg/http/mux/types/response_writer"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
-	motmedelStrings "github.com/altshiftab/utils_go/pkg/strings"
+	altshiftStrings "github.com/altshiftab/utils_go/pkg/strings"
 )
 
 type VhostMuxSpecification struct {
@@ -47,7 +47,7 @@ func (vhostMux *VhostMux) PatchHttpServer(httpServer *http.Server) {
 
 		hostToSpecification := vhostMux.HostToSpecification
 		if hostToSpecification == nil {
-			return nil, motmedelErrors.NewWithTrace(nil_error.New("host to mux specification"))
+			return nil, altshiftErrors.NewWithTrace(nil_error.New("host to mux specification"))
 		}
 
 		specification, ok := hostToSpecification[clientHello.ServerName]
@@ -66,13 +66,13 @@ func vhostMuxHandleRequest(
 ) (*muxTypesResponse.Response, *muxTypesResponseError.ResponseError) {
 	if vhostMux == nil {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("vhost mux")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("vhost mux")),
 		}
 	}
 
 	if request == nil {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request")),
 		}
 	}
 
@@ -84,7 +84,7 @@ func vhostMuxHandleRequest(
 	hostToSpecification := vhostMux.HostToSpecification
 	if hostToSpecification == nil {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("host to mux specification")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("host to mux specification")),
 		}
 	}
 
@@ -96,7 +96,7 @@ func vhostMuxHandleRequest(
 	}
 	if muxSpecification == nil {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("mux specification")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("mux specification")),
 		}
 	}
 
@@ -104,7 +104,7 @@ func vhostMuxHandleRequest(
 		return &muxTypesResponse.Response{
 			StatusCode: http.StatusMovedPermanently,
 			Headers: []*muxTypesResponse.HeaderEntry{
-				{Name: "Location", Value: motmedelStrings.HexEscapeNonASCII(redirectTo + request.RequestURI)},
+				{Name: "Location", Value: altshiftStrings.HexEscapeNonASCII(redirectTo + request.RequestURI)},
 			},
 		}, nil
 	} else if muxSpecificationMux := muxSpecification.Mux; muxSpecificationMux != nil {
@@ -113,7 +113,7 @@ func vhostMuxHandleRequest(
 	}
 
 	return nil, &muxTypesResponseError.ResponseError{
-		ServerError: motmedelErrors.NewWithTrace(
+		ServerError: altshiftErrors.NewWithTrace(
 			muxErrors.ErrUnusableMuxSpecification,
 			muxSpecification,
 		),

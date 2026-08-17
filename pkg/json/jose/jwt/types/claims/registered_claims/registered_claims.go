@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"maps"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/claim_strings"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/numeric_date"
@@ -44,7 +44,7 @@ func New(m map[string]any) (*Claims, error) {
 	if v, ok := m["iss"]; ok && v != nil {
 		vs, err := utils.Convert[string](v)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("convert (iss): %w", err), v)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("convert (iss): %w", err), v)
 		}
 		registeredClaims.Issuer = vs
 	}
@@ -52,7 +52,7 @@ func New(m map[string]any) (*Claims, error) {
 	if v, ok := m["sub"]; ok && v != nil {
 		vs, err := utils.Convert[string](v)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("convert (sub): %w", err), v)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("convert (sub): %w", err), v)
 		}
 		registeredClaims.Subject = vs
 	}
@@ -60,7 +60,7 @@ func New(m map[string]any) (*Claims, error) {
 	if v, ok := m["aud"]; ok && v != nil {
 		aud, err := claim_strings.Convert(v)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("claims strings convert: %w", err), v)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("claims strings convert: %w", err), v)
 		}
 		registeredClaims.Audience = aud
 	}
@@ -71,7 +71,7 @@ func New(m map[string]any) (*Claims, error) {
 		} else {
 			numericDate, err := numeric_date.Convert(v)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("get numeric date (exp): %w", err), v)
+				return nil, altshiftErrors.New(fmt.Errorf("get numeric date (exp): %w", err), v)
 			}
 			registeredClaims.ExpiresAt = numericDate
 		}
@@ -83,7 +83,7 @@ func New(m map[string]any) (*Claims, error) {
 		} else {
 			numericDate, err := numeric_date.Convert(v)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("get numeric date (nbf): %w", err), v)
+				return nil, altshiftErrors.New(fmt.Errorf("get numeric date (nbf): %w", err), v)
 			}
 			registeredClaims.NotBefore = numericDate
 		}
@@ -95,7 +95,7 @@ func New(m map[string]any) (*Claims, error) {
 		} else {
 			numericDate, err := numeric_date.Convert(v)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("get numeric date (iat): %w", err), v)
+				return nil, altshiftErrors.New(fmt.Errorf("get numeric date (iat): %w", err), v)
 			}
 			registeredClaims.IssuedAt = numericDate
 		}
@@ -104,7 +104,7 @@ func New(m map[string]any) (*Claims, error) {
 	if v, ok := m["jti"]; ok {
 		vs, err := utils.Convert[string](v)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("convert (jti): %w", err), v)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("convert (jti): %w", err), v)
 		}
 		registeredClaims.Id = vs
 	}
@@ -121,7 +121,7 @@ func NewParsedClaims(claimsMap map[string]any) (ParsedClaims, error) {
 
 	clone := maps.Clone(claimsMap)
 	if clone == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.NewWithInstance("map", "claims map clone"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.NewWithInstance("map", "claims map clone"))
 	}
 
 	for key, value := range claimsMap {
@@ -129,16 +129,16 @@ func NewParsedClaims(claimsMap map[string]any) (ParsedClaims, error) {
 		case "exp", "nbf", "iat":
 			numericDate, err := numeric_date.Convert(value)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("parse numeric date (%s): %w", key, err), value)
+				return nil, altshiftErrors.New(fmt.Errorf("parse numeric date (%s): %w", key, err), value)
 			}
 			if numericDate == nil {
-				return nil, motmedelErrors.NewWithTrace(nil_error.New("numeric date"))
+				return nil, altshiftErrors.NewWithTrace(nil_error.New("numeric date"))
 			}
 			clone[key] = *numericDate
 		case "aud":
 			claimsString, err := claim_strings.Convert(value)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("parse claim string (%s): %w", key, err), value)
+				return nil, altshiftErrors.New(fmt.Errorf("parse claim string (%s): %w", key, err), value)
 			}
 			clone[key] = claimsString
 		}

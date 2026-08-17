@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	altshiftReflect "github.com/altshiftab/utils_go/pkg/reflect"
 	typeExportErrors "github.com/altshiftab/utils_go/pkg/type_export/errors"
 	postgresErrors "github.com/altshiftab/utils_go/pkg/type_export/postgres/errors"
 	"github.com/altshiftab/utils_go/pkg/type_export/postgres/types/tag"
@@ -72,7 +72,7 @@ func resolveIdType(interfaceDeclaration *InterfaceDeclaration) (string, error) {
 				return "", fmt.Errorf("context get postgres type: %w", err)
 			}
 			if utils.IsNil(postgresType) {
-				return "", motmedelErrors.NewWithTrace(nil_error.New("postgres type"))
+				return "", altshiftErrors.NewWithTrace(nil_error.New("postgres type"))
 			}
 
 			typeString, err = postgresType.String()
@@ -97,13 +97,13 @@ func (a *AssociativeTable) String() (string, error) {
 
 	source := a.Source
 	if source == nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("%w (source)", nil_error.New("interface declaration")))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("%w (source)", nil_error.New("interface declaration")))
 	}
 	sourceName := a.Source.QualifiedName()
 
 	sourceIdType, err := resolveIdType(source)
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("resolve id type: %w", err), source)
+		return "", altshiftErrors.New(fmt.Errorf("resolve id type: %w", err), source)
 	}
 	if sourceIdType == "" {
 		sourceIdType = "uuid"
@@ -111,13 +111,13 @@ func (a *AssociativeTable) String() (string, error) {
 
 	target := a.Target
 	if target == nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("%w (target)", nil_error.New("interface declaration")))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("%w (target)", nil_error.New("interface declaration")))
 	}
 	targetName := a.Target.QualifiedName()
 
 	targetIdType, err := resolveIdType(target)
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("resolve id type: %w", err), target)
+		return "", altshiftErrors.New(fmt.Errorf("resolve id type: %w", err), target)
 	}
 	if targetIdType == "" {
 		targetIdType = "uuid"
@@ -182,9 +182,9 @@ func rootStructType(value any) reflect.Type {
 		return nil
 	}
 
-	reflectType = motmedelReflect.RemoveIndirection(reflectType)
+	reflectType = altshiftReflect.RemoveIndirection(reflectType)
 	if kind := reflectType.Kind(); kind == reflect.Map || kind == reflect.Slice || kind == reflect.Array {
-		reflectType = motmedelReflect.RemoveIndirection(reflectType.Elem())
+		reflectType = altshiftReflect.RemoveIndirection(reflectType.Elem())
 	}
 
 	if reflectType.Kind() != reflect.Struct {
@@ -195,7 +195,7 @@ func rootStructType(value any) reflect.Type {
 }
 
 func (c *Context) GetPostgresType(reflectType reflect.Type) (Type, error) {
-	reflectType = motmedelReflect.RemoveIndirection(reflectType)
+	reflectType = altshiftReflect.RemoveIndirection(reflectType)
 
 	var postgresType Type
 
@@ -207,16 +207,16 @@ func (c *Context) GetPostgresType(reflectType reflect.Type) (Type, error) {
 		} else {
 			typeDeclaration, err := utils.MapGetNonZero(c.TypeDeclarations, reflectType)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("map get non zero: %w", err), c.TypeDeclarations, reflectType)
+				return nil, altshiftErrors.New(fmt.Errorf("map get non zero: %w", err), c.TypeDeclarations, reflectType)
 			}
 
 			interfaceDeclaration, err := utils.Convert[*type_declaration.InterfaceDeclaration](typeDeclaration)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("convert: %w", err), typeDeclaration)
+				return nil, altshiftErrors.New(fmt.Errorf("convert: %w", err), typeDeclaration)
 			}
 
 			if genericTypeInfo := interfaceDeclaration.GenericTypeInfo; genericTypeInfo != nil {
-				return nil, motmedelErrors.NewWithTrace(postgresErrors.ErrGenericTypesUnsupported)
+				return nil, altshiftErrors.NewWithTrace(postgresErrors.ErrGenericTypesUnsupported)
 			}
 
 			postgresType = (&InterfaceDeclaration{InterfaceDeclaration: interfaceDeclaration, c: c}).TypeReference()
@@ -236,7 +236,7 @@ func (c *Context) GetPostgresType(reflectType reflect.Type) (Type, error) {
 	case reflect.Bool:
 		postgresType = Boolean
 	case reflect.Slice, reflect.Array:
-		elemType := motmedelReflect.RemoveIndirection(reflectType.Elem())
+		elemType := altshiftReflect.RemoveIndirection(reflectType.Elem())
 		if elemType.Kind() == reflect.Uint8 {
 			postgresType = ByteA
 			break
@@ -244,7 +244,7 @@ func (c *Context) GetPostgresType(reflectType reflect.Type) (Type, error) {
 
 		itemPostgresType, err := c.GetPostgresType(elemType)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("context get postgres type: %w", err), elemType)
+			return nil, altshiftErrors.New(fmt.Errorf("context get postgres type: %w", err), elemType)
 		}
 
 		if typeReference, ok := itemPostgresType.(*TypeReference); ok {
@@ -255,7 +255,7 @@ func (c *Context) GetPostgresType(reflectType reflect.Type) (Type, error) {
 	case reflect.Interface:
 		postgresType = Jsonb
 	default:
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: %T", typeExportErrors.ErrUnsupportedKind, kind), kind)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %T", typeExportErrors.ErrUnsupportedKind, kind), kind)
 	}
 
 	return postgresType, nil
@@ -267,7 +267,7 @@ func (c *Context) GetPostgresType(reflectType reflect.Type) (Type, error) {
 // nothing. This mirrors the reference shapes String emits (a reference column
 // or an associative table).
 func referencedStructTypes(fieldType reflect.Type) []reflect.Type {
-	directType := motmedelReflect.RemoveIndirection(fieldType)
+	directType := altshiftReflect.RemoveIndirection(fieldType)
 	//exhaustive:ignore
 	switch directType.Kind() {
 	case reflect.Struct:
@@ -276,7 +276,7 @@ func referencedStructTypes(fieldType reflect.Type) []reflect.Type {
 		}
 		return []reflect.Type{directType}
 	case reflect.Slice, reflect.Array:
-		elemType := motmedelReflect.RemoveIndirection(directType.Elem())
+		elemType := altshiftReflect.RemoveIndirection(directType.Elem())
 		if elemType.Kind() == reflect.Struct && !isTime(elemType) {
 			return []reflect.Type{elemType}
 		}
@@ -295,7 +295,7 @@ func (c *Context) persistedTableTypes() map[reflect.Type]bool {
 	var worklist []reflect.Type
 
 	enqueue := func(reflectType reflect.Type) {
-		reflectType = motmedelReflect.RemoveIndirection(reflectType)
+		reflectType = altshiftReflect.RemoveIndirection(reflectType)
 		if reflectType.Kind() != reflect.Struct || isTime(reflectType) {
 			return
 		}
@@ -375,7 +375,7 @@ func (c *Context) Render() (string, error) {
 		}
 		d, err := interfaceDeclaration.String()
 		if err != nil {
-			return "", motmedelErrors.New(fmt.Errorf("interface declaration string: %w", err), interfaceDeclaration)
+			return "", altshiftErrors.New(fmt.Errorf("interface declaration string: %w", err), interfaceDeclaration)
 		}
 		stringBuilder.WriteString(d)
 		stringBuilder.WriteString("\n")
@@ -392,7 +392,7 @@ type InterfaceDeclaration struct {
 func (t *InterfaceDeclaration) String() (string, error) {
 	genericTypeInfo := t.GenericTypeInfo
 	if genericTypeInfo != nil {
-		return "", motmedelErrors.NewWithTrace(postgresErrors.ErrGenericTypesUnsupported)
+		return "", altshiftErrors.NewWithTrace(postgresErrors.ErrGenericTypesUnsupported)
 	}
 
 	var associativeTables []string
@@ -409,7 +409,7 @@ func (t *InterfaceDeclaration) String() (string, error) {
 
 		field := property.Field
 		if field == nil {
-			return "", motmedelErrors.NewWithTrace(nil_error.New("property field"), property)
+			return "", altshiftErrors.NewWithTrace(nil_error.New("property field"), property)
 		}
 
 		// A field tagged `postgres:"-"` is ignored entirely: it produces neither
@@ -424,10 +424,10 @@ func (t *InterfaceDeclaration) String() (string, error) {
 		fieldType := field.Type
 		postgresType, err := t.c.GetPostgresType(fieldType)
 		if err != nil {
-			return "", motmedelErrors.New(fmt.Errorf("context get postgres type: %w", err), fieldType)
+			return "", altshiftErrors.New(fmt.Errorf("context get postgres type: %w", err), fieldType)
 		}
 		if utils.IsNil(postgresType) {
-			return "", motmedelErrors.NewWithTrace(nil_error.New("postgres type"))
+			return "", altshiftErrors.NewWithTrace(nil_error.New("postgres type"))
 		}
 
 		if associativeTable, ok := postgresType.(*AssociativeTable); ok {

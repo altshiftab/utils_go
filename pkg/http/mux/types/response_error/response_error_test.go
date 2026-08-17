@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 )
 
@@ -20,7 +20,7 @@ func TestConvertProblemDetail(t *testing.T) {
 	testCases := []struct {
 		name            string
 		detail          *problem_detail.Detail
-		negotiation     *motmedelHttpTypes.ContentNegotiation
+		negotiation     *altshiftHttpTypes.ContentNegotiation
 		wantContentType string
 		wantEmpty       bool
 	}{
@@ -29,25 +29,25 @@ func TestConvertProblemDetail(t *testing.T) {
 		{
 			name:            "unmatched negotiation falls back to json",
 			detail:          detail,
-			negotiation:     &motmedelHttpTypes.ContentNegotiation{NegotiatedAccept: "application/problem+json"},
+			negotiation:     &altshiftHttpTypes.ContentNegotiation{NegotiatedAccept: "application/problem+json"},
 			wantContentType: "application/problem+json",
 		},
 		{
 			name:            "xml",
 			detail:          detail,
-			negotiation:     &motmedelHttpTypes.ContentNegotiation{NegotiatedAccept: "application/xml"},
+			negotiation:     &altshiftHttpTypes.ContentNegotiation{NegotiatedAccept: "application/xml"},
 			wantContentType: "application/problem+xml",
 		},
 		{
 			name:            "problem xml",
 			detail:          detail,
-			negotiation:     &motmedelHttpTypes.ContentNegotiation{NegotiatedAccept: "application/problem+xml"},
+			negotiation:     &altshiftHttpTypes.ContentNegotiation{NegotiatedAccept: "application/problem+xml"},
 			wantContentType: "application/problem+xml",
 		},
 		{
 			name:            "text plain",
 			detail:          detail,
-			negotiation:     &motmedelHttpTypes.ContentNegotiation{NegotiatedAccept: "text/plain"},
+			negotiation:     &altshiftHttpTypes.ContentNegotiation{NegotiatedAccept: "text/plain"},
 			wantContentType: "text/plain",
 		},
 	}

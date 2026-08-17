@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"log/slog"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
 	"github.com/altshiftab/utils_go/pkg/schema"
 	schemaUtils "github.com/altshiftab/utils_go/pkg/schema/utils"
-	motmedelTlsContext "github.com/altshiftab/utils_go/pkg/tls/context"
-	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
+	altshiftTlsContext "github.com/altshiftab/utils_go/pkg/tls/context"
+	altshiftTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
 )
 
-func ParseTlsContext(tlsContext *motmedelTlsTypes.TlsContext) *schema.Base {
+func ParseTlsContext(tlsContext *altshiftTlsTypes.TlsContext) *schema.Base {
 	if tlsContext == nil {
 		return nil
 	}
@@ -31,24 +31,24 @@ func ParseTlsContext(tlsContext *motmedelTlsTypes.TlsContext) *schema.Base {
 }
 
 func ExtractTlsContext(ctx context.Context, record *slog.Record) error {
-	if dnsContext, ok := ctx.Value(motmedelTlsContext.TlsContextKey).(*motmedelTlsTypes.TlsContext); ok && dnsContext != nil {
+	if dnsContext, ok := ctx.Value(altshiftTlsContext.TlsContextKey).(*altshiftTlsTypes.TlsContext); ok && dnsContext != nil {
 		base := ParseTlsContext(dnsContext)
 		if base != nil {
 			baseBytes, err := json.Marshal(base)
 			if err != nil {
-				return motmedelErrors.NewWithTrace(fmt.Errorf("json marshal (ecs base): %w", err), base)
+				return altshiftErrors.NewWithTrace(fmt.Errorf("json marshal (ecs base): %w", err), base)
 			}
 
 			var baseMap map[string]any
 			if err = json.Unmarshal(baseBytes, &baseMap); err != nil {
-				return motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal (ecs base map): %w", err), baseMap)
+				return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (ecs base map): %w", err), baseMap)
 			}
 
-			record.Add(motmedelLog.AttrsFromMap(baseMap)...)
+			record.Add(altshiftLog.AttrsFromMap(baseMap)...)
 		}
 	}
 
 	return nil
 }
 
-var TlsContextExtractor = motmedelLog.ContextExtractorFunction(ExtractTlsContext)
+var TlsContextExtractor = altshiftLog.ContextExtractorFunction(ExtractTlsContext)

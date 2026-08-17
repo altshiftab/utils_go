@@ -10,8 +10,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 //go:embed grammar.abnf
@@ -27,16 +27,16 @@ var (
 // matches every language tag.
 const wildcardLanguageRange = "*"
 
-func Parse(data []byte) (*motmedelHttpTypes.AcceptLanguage, error) {
+func Parse(data []byte) (*altshiftHttpTypes.AcceptLanguage, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(Grammar, data, "Accept-Language")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
-	var acceptLanguage motmedelHttpTypes.AcceptLanguage
+	var acceptLanguage altshiftHttpTypes.AcceptLanguage
 
 	interestingPaths := abnfUtils.SearchPath(
 		paths[0],
@@ -63,15 +63,15 @@ func Parse(data []byte) (*motmedelHttpTypes.AcceptLanguage, error) {
 				false,
 			)
 			if languageRangePath == nil {
-				return nil, motmedelErrors.NewWithTrace(
-					fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, nil_error.New("language range")),
+				return nil, altshiftErrors.NewWithTrace(
+					fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, nil_error.New("language range")),
 				)
 			}
 
 			primarySubtag = abnfUtils.ExtractPathValue(data, languageRangePath)
 			if string(primarySubtag) != wildcardLanguageRange {
-				return nil, motmedelErrors.NewWithTrace(
-					fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, nil_error.New("primary subtag")),
+				return nil, altshiftErrors.NewWithTrace(
+					fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, nil_error.New("primary subtag")),
 				)
 			}
 		}
@@ -99,10 +99,10 @@ func Parse(data []byte) (*motmedelHttpTypes.AcceptLanguage, error) {
 			bitSize := 32
 			parsedQualityValue, err := strconv.ParseFloat(qvalueString, bitSize)
 			if err != nil {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf(
 						"%w: %w: strvconv parse float (qvalue): %w",
-						motmedelErrors.ErrSemanticError,
+						altshiftErrors.ErrSemanticError,
 						ErrInvalidQvalue,
 						err,
 					),
@@ -115,8 +115,8 @@ func Parse(data []byte) (*motmedelHttpTypes.AcceptLanguage, error) {
 
 		acceptLanguage.LanguageQs = append(
 			acceptLanguage.LanguageQs,
-			&motmedelHttpTypes.LanguageQ{
-				Tag: &motmedelHttpTypes.LanguageTag{
+			&altshiftHttpTypes.LanguageQ{
+				Tag: &altshiftHttpTypes.LanguageTag{
 					PrimarySubtag: string(primarySubtag),
 					Subtag:        string(subtag),
 				},

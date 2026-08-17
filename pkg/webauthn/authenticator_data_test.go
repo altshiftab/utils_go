@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/cbor"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // Authenticator data from a real registration ceremony for rp id "alt-shift.se" (extracted from
@@ -270,7 +270,7 @@ func TestParseAuthenticatorDataRejects(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := ParseAuthenticatorData(testCase.data); !errors.Is(err, motmedelErrors.ErrParseError) {
+			if _, err := ParseAuthenticatorData(testCase.data); !errors.Is(err, altshiftErrors.ErrParseError) {
 				t.Errorf("expected parse error, got %v", err)
 			}
 		})

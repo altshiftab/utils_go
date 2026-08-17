@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
@@ -26,7 +26,7 @@ func (p *Parser[T]) Parse(_ *http.Request, body []byte) (T, *response_error.Resp
 	)
 
 	if err := jsonv2.Unmarshal(body, &target, options); err != nil {
-		wrappedErr := motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), body)
+		wrappedErr := altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), body)
 
 		if _, ok := errors.AsType[*jsontext.SyntacticError](err); ok {
 			detail := "Invalid body. The body is not valid JSON."

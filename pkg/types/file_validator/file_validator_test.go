@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestValidateDataContentType(t *testing.T) {
@@ -54,7 +54,7 @@ func TestValidateDataContentType(t *testing.T) {
 			if !tt.wantErr && err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if err != nil && !errors.Is(err, motmedelErrors.ErrValidationError) {
+			if err != nil && !errors.Is(err, altshiftErrors.ErrValidationError) {
 				t.Fatalf("expected validation error, got: %v", err)
 			}
 		})
@@ -108,7 +108,7 @@ func TestValidateFilePathExtension(t *testing.T) {
 			if !tt.wantErr && err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if err != nil && !errors.Is(err, motmedelErrors.ErrValidationError) {
+			if err != nil && !errors.Is(err, altshiftErrors.ErrValidationError) {
 				t.Fatalf("expected validation error, got: %v", err)
 			}
 		})

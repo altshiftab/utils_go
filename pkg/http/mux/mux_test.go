@@ -26,11 +26,11 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_writer"
 	"github.com/altshiftab/utils_go/pkg/http/mux/utils"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
 	"github.com/altshiftab/utils_go/pkg/http/types/retry_after"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 var httpServer *httptest.Server
@@ -41,12 +41,12 @@ type bodyParserTestData struct {
 
 var defaultHtmlProblemDetailMediaRanges = slices.Concat(
 	response_error.DefaultProblemDetailMediaRanges,
-	[]*motmedelHttpTypes.ServerMediaRange{{Type: "text", Subtype: "html"}},
+	[]*altshiftHttpTypes.ServerMediaRange{{Type: "text", Subtype: "html"}},
 )
 
 func htmlConvertProblemDetail(
 	detail *problem_detail.Detail,
-	negotiation *motmedelHttpTypes.ContentNegotiation,
+	negotiation *altshiftHttpTypes.ContentNegotiation,
 ) ([]byte, string, error) {
 	if detail == nil {
 		return nil, "", nil_error.New("problem detail")
@@ -54,7 +54,7 @@ func htmlConvertProblemDetail(
 
 	if detail.Status == http.StatusTeapot && negotiation != nil {
 		if negotiation.NegotiatedAccept == "" {
-			matchingServerMediaRange := motmedelHttpUtils.GetMatchingAccept(
+			matchingServerMediaRange := altshiftHttpUtils.GetMatchingAccept(
 				negotiation.Accept.GetPriorityOrderedEncodings(),
 				defaultHtmlProblemDetailMediaRanges,
 			)
@@ -217,9 +217,9 @@ func TestMain(m *testing.M) {
 		&endpoint.Endpoint{
 			Path:   "/cors",
 			Method: http.MethodGet,
-			CorsParser: request_parser.RequestParserFunction[*motmedelHttpTypes.CorsConfiguration](
-				func(r *http.Request) (*motmedelHttpTypes.CorsConfiguration, *response_error.ResponseError) {
-					return &motmedelHttpTypes.CorsConfiguration{
+			CorsParser: request_parser.RequestParserFunction[*altshiftHttpTypes.CorsConfiguration](
+				func(r *http.Request) (*altshiftHttpTypes.CorsConfiguration, *response_error.ResponseError) {
+					return &altshiftHttpTypes.CorsConfiguration{
 						Origin:        "*",
 						Credentials:   true,
 						Headers:       []string{"X-Custom-Header", "X-Custom-Header-2"},
@@ -234,9 +234,9 @@ func TestMain(m *testing.M) {
 		&endpoint.Endpoint{
 			Path:   "/cors",
 			Method: http.MethodPost,
-			CorsParser: request_parser.RequestParserFunction[*motmedelHttpTypes.CorsConfiguration](
-				func(r *http.Request) (*motmedelHttpTypes.CorsConfiguration, *response_error.ResponseError) {
-					return &motmedelHttpTypes.CorsConfiguration{
+			CorsParser: request_parser.RequestParserFunction[*altshiftHttpTypes.CorsConfiguration](
+				func(r *http.Request) (*altshiftHttpTypes.CorsConfiguration, *response_error.ResponseError) {
+					return &altshiftHttpTypes.CorsConfiguration{
 						Origin:        "*",
 						Credentials:   true,
 						Headers:       []string{"X-Custom-Header-3", "X-Custom-Header-4"},

@@ -6,7 +6,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/utils"
 	"github.com/altshiftab/utils_go/pkg/webauthn"
@@ -32,15 +32,15 @@ func CollectedClientDataFromBytes(data []byte) (*webauthn.CollectedClientData, e
 
 	var transportCollectedClientData CollectedClientData
 	if err := json.Unmarshal(data, &transportCollectedClientData); err != nil {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: json unmarshal: %w", motmedelErrors.ErrParseError, err),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: json unmarshal: %w", altshiftErrors.ErrParseError, err),
 		)
 	}
 
 	challenge := transportCollectedClientData.Challenge
 	if challenge == nil {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrParseError, nil_error.New("challenge")),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrParseError, nil_error.New("challenge")),
 		)
 	}
 
@@ -79,16 +79,16 @@ func (t AuthenticatorAssertionResponse) GetAuthenticatorData() []byte {
 
 func (t AuthenticatorAssertionResponse) MakeAuthenticatorResponse() (*webauthn.AuthenticatorAssertionResponse, error) {
 	if t.ClientDataJson == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("client data json"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("client data json"))
 	}
 	if t.AuthenticatorData == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("authenticator data"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("authenticator data"))
 	}
 	if t.Signature == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("signature"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("signature"))
 	}
 	if t.UserHandle == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("user handle"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("user handle"))
 	}
 
 	collectedClientData, err := CollectedClientDataFromBytes(*t.ClientDataJson)
@@ -96,7 +96,7 @@ func (t AuthenticatorAssertionResponse) MakeAuthenticatorResponse() (*webauthn.A
 		return nil, fmt.Errorf("collected client data from bytes: %w", err)
 	}
 	if collectedClientData == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("collected client data"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("collected client data"))
 	}
 
 	authenticatorData, err := webauthn.ParseAuthenticatorData(*t.AuthenticatorData)
@@ -142,10 +142,10 @@ func (t AuthenticatorAttestationResponse) GetAuthenticatorData() []byte {
 
 func (t AuthenticatorAttestationResponse) MakeAuthenticatorResponse() (*webauthn.AuthenticatorAttestationResponse, error) {
 	if t.ClientDataJson == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("client data json"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("client data json"))
 	}
 	if t.AttestationObject == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("attestation object"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("attestation object"))
 	}
 
 	collectedClientData, err := CollectedClientDataFromBytes(*t.ClientDataJson)
@@ -153,7 +153,7 @@ func (t AuthenticatorAttestationResponse) MakeAuthenticatorResponse() (*webauthn
 		return nil, fmt.Errorf("collected client data from bytes: %w", err)
 	}
 	if collectedClientData == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("collected client data"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("collected client data"))
 	}
 
 	attestationObject, err := webauthn.ParseAttestationObject(*t.AttestationObject)
@@ -163,10 +163,10 @@ func (t AuthenticatorAttestationResponse) MakeAuthenticatorResponse() (*webauthn
 
 	if authenticatorData := t.AuthenticatorData; authenticatorData != nil {
 		if !bytes.Equal(*authenticatorData, attestationObject.RawAuthenticatorData) {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: %w (attestation object)",
-					motmedelErrors.ErrValidationError,
+					altshiftErrors.ErrValidationError,
 					webauthnErrors.ErrAuthenticatorDataMismatch,
 				),
 			)
@@ -176,22 +176,22 @@ func (t AuthenticatorAttestationResponse) MakeAuthenticatorResponse() (*webauthn
 	if attestedCredential := attestationObject.AuthenticatorData.AttestedCredential; attestedCredential != nil {
 		if publicKey := t.PublicKey; publicKey != nil {
 			if utils.IsNil(attestedCredential.PublicKey) {
-				return nil, motmedelErrors.NewWithTrace(nil_error.New("attested credential public key"))
+				return nil, altshiftErrors.NewWithTrace(nil_error.New("attested credential public key"))
 			}
 
 			attestedDer, err := x509.MarshalPKIXPublicKey(attestedCredential.PublicKey)
 			if err != nil {
-				return nil, motmedelErrors.New(
+				return nil, altshiftErrors.New(
 					fmt.Errorf("x509 marshal pkix public key: %w", err),
 					attestedCredential.PublicKey,
 				)
 			}
 
 			if !bytes.Equal(*publicKey, attestedDer) {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf(
 						"%w: %w (attested credential)",
-						motmedelErrors.ErrValidationError,
+						altshiftErrors.ErrValidationError,
 						webauthnErrors.ErrPublicKeyMismatch,
 					),
 				)
@@ -200,10 +200,10 @@ func (t AuthenticatorAttestationResponse) MakeAuthenticatorResponse() (*webauthn
 
 		if publicKeyAlgorithm := t.PublicKeyAlgorithm; publicKeyAlgorithm != 0 {
 			if int64(publicKeyAlgorithm) != int64(attestedCredential.PublicKeyAlgorithm) {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf(
 						"%w: %w (attested credential)",
-						motmedelErrors.ErrValidationError,
+						altshiftErrors.ErrValidationError,
 						webauthnErrors.ErrPublicKeyAlgorithmMismatch,
 					),
 					publicKeyAlgorithm,
@@ -244,18 +244,18 @@ func MakeAttestationPublicKeyCredential(
 
 	id := transportCredential.Id
 	if id == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("id"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("id"))
 	}
 
 	rawId := transportCredential.RawId
 	if rawId == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("raw id"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("raw id"))
 	}
 
 	transportResponse := transportCredential.Response
 	authenticatorResponse, err := transportResponse.MakeAuthenticatorResponse()
 	if err != nil {
-		return nil, motmedelErrors.New(
+		return nil, altshiftErrors.New(
 			fmt.Errorf("transport make authenticator response: %w", err),
 			transportResponse,
 		)
@@ -281,18 +281,18 @@ func MakeAssertionPublicKeyCredential(
 
 	id := transportCredential.Id
 	if id == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("id"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("id"))
 	}
 
 	rawId := transportCredential.RawId
 	if rawId == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("raw id"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("raw id"))
 	}
 
 	transportResponse := transportCredential.Response
 	authenticatorResponse, err := transportResponse.MakeAuthenticatorResponse()
 	if err != nil {
-		return nil, motmedelErrors.New(
+		return nil, altshiftErrors.New(
 			fmt.Errorf("transport make authenticator response: %w", err),
 			transportResponse,
 		)

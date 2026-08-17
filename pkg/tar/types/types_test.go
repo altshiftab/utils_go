@@ -7,7 +7,7 @@ import (
 	"io"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // readArchiveBytes parses raw tar bytes into a name -> content map.
@@ -126,8 +126,8 @@ func TestArchiveBytesInvalidHeader(t *testing.T) {
 	if err == nil {
 		t.Fatal("Bytes() error = nil, want error")
 	}
-	if _, ok := errors.AsType[*motmedelErrors.Error](err); !ok {
-		t.Errorf("error type = %T, want *motmedelErrors.Error", err)
+	if _, ok := errors.AsType[*altshiftErrors.Error](err); !ok {
+		t.Errorf("error type = %T, want *altshiftErrors.Error", err)
 	}
 }
 
@@ -197,8 +197,8 @@ func TestArchiveFilterInvalidPattern(t *testing.T) {
 	if err == nil {
 		t.Fatal("Filter() error = nil, want error")
 	}
-	if _, ok := errors.AsType[*motmedelErrors.Error](err); !ok {
-		t.Errorf("error type = %T, want *motmedelErrors.Error", err)
+	if _, ok := errors.AsType[*altshiftErrors.Error](err); !ok {
+		t.Errorf("error type = %T, want *altshiftErrors.Error", err)
 	}
 }
 

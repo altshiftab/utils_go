@@ -4,16 +4,16 @@ import (
 	stdContext "context"
 	"testing"
 
-	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
+	altshiftTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
 )
 
 func TestWithTlsContextValue(t *testing.T) {
 	t.Parallel()
 
-	tlsContext := &motmedelTlsTypes.TlsContext{ClientInitiated: true}
+	tlsContext := &altshiftTlsTypes.TlsContext{ClientInitiated: true}
 	ctx := WithTlsContextValue(stdContext.Background(), tlsContext)
 
-	got, ok := ctx.Value(TlsContextKey).(*motmedelTlsTypes.TlsContext)
+	got, ok := ctx.Value(TlsContextKey).(*altshiftTlsTypes.TlsContext)
 	if !ok {
 		t.Fatal("expected value stored under TlsContextKey to be *TlsContext")
 	}
@@ -30,7 +30,7 @@ func TestWithTlsContext(t *testing.T) {
 
 	ctx := WithTlsContext(stdContext.Background())
 
-	got, ok := ctx.Value(TlsContextKey).(*motmedelTlsTypes.TlsContext)
+	got, ok := ctx.Value(TlsContextKey).(*altshiftTlsTypes.TlsContext)
 	if !ok {
 		t.Fatal("expected value stored under TlsContextKey to be *TlsContext")
 	}

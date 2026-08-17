@@ -12,7 +12,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // CollectedClientData is the parsed client data of a ceremony (WebAuthn §5.8.1).
@@ -112,7 +112,7 @@ func (a *AuthenticatorSelection) MarshalJSON() ([]byte, error) {
 
 	data, err := json.Marshal(aux)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err))
 	}
 
 	return data, nil

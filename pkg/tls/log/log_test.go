@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"testing"
 
-	motmedelTlsContext "github.com/altshiftab/utils_go/pkg/tls/context"
-	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
+	altshiftTlsContext "github.com/altshiftab/utils_go/pkg/tls/context"
+	altshiftTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
 )
 
 func TestParseTlsContextNil(t *testing.T) {
@@ -21,7 +21,7 @@ func TestParseTlsContextNil(t *testing.T) {
 func TestParseTlsContextNilConnectionState(t *testing.T) {
 	t.Parallel()
 
-	if got := ParseTlsContext(&motmedelTlsTypes.TlsContext{}); got != nil {
+	if got := ParseTlsContext(&altshiftTlsTypes.TlsContext{}); got != nil {
 		t.Fatalf("expected nil, got %+v", got)
 	}
 }
@@ -29,7 +29,7 @@ func TestParseTlsContextNilConnectionState(t *testing.T) {
 func TestParseTlsContextWithConnectionState(t *testing.T) {
 	t.Parallel()
 
-	tlsContext := &motmedelTlsTypes.TlsContext{
+	tlsContext := &altshiftTlsTypes.TlsContext{
 		ConnectionState: &tls.ConnectionState{
 			Version:           tls.VersionTLS13,
 			HandshakeComplete: true,
@@ -72,8 +72,8 @@ func TestExtractTlsContextNilPointerValue(t *testing.T) {
 
 	ctx := context.WithValue(
 		context.Background(),
-		motmedelTlsContext.TlsContextKey,
-		(*motmedelTlsTypes.TlsContext)(nil),
+		altshiftTlsContext.TlsContextKey,
+		(*altshiftTlsTypes.TlsContext)(nil),
 	)
 
 	record := slog.Record{}
@@ -90,8 +90,8 @@ func TestExtractTlsContextNilConnectionState(t *testing.T) {
 
 	ctx := context.WithValue(
 		context.Background(),
-		motmedelTlsContext.TlsContextKey,
-		&motmedelTlsTypes.TlsContext{},
+		altshiftTlsContext.TlsContextKey,
+		&altshiftTlsTypes.TlsContext{},
 	)
 
 	record := slog.Record{}
@@ -108,8 +108,8 @@ func TestExtractTlsContextWithConnectionState(t *testing.T) {
 
 	ctx := context.WithValue(
 		context.Background(),
-		motmedelTlsContext.TlsContextKey,
-		&motmedelTlsTypes.TlsContext{
+		altshiftTlsContext.TlsContextKey,
+		&altshiftTlsTypes.TlsContext{
 			ConnectionState: &tls.ConnectionState{
 				Version:           tls.VersionTLS13,
 				HandshakeComplete: true,

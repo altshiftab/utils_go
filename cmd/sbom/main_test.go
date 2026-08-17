@@ -10,13 +10,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
 )
 
 const (
-	library   = motmedelSbomTypes.ComponentTypeLibrary
-	container = motmedelSbomTypes.ComponentTypeContainer
+	library   = altshiftSbomTypes.ComponentTypeLibrary
+	container = altshiftSbomTypes.ComponentTypeContainer
 )
 
 // runMain invokes run() with a controlled argv, capturing anything written to
@@ -73,8 +73,8 @@ func fileNameForFlag(flagName string) string {
 	}
 }
 
-func componentsByName(components []motmedelSbomTypes.Component) map[string]motmedelSbomTypes.Component {
-	byName := make(map[string]motmedelSbomTypes.Component, len(components))
+func componentsByName(components []altshiftSbomTypes.Component) map[string]altshiftSbomTypes.Component {
+	byName := make(map[string]altshiftSbomTypes.Component, len(components))
 	for _, component := range components {
 		byName[component.Name] = component
 	}
@@ -101,7 +101,7 @@ const dockerfileFixture = "FROM golang:1.22 AS build\n" +
 	"FROM scratch\n"
 
 type wantComponent struct {
-	typ     motmedelSbomTypes.ComponentType
+	typ     altshiftSbomTypes.ComponentType
 	version string
 	purl    string
 }
@@ -201,13 +201,13 @@ func TestRunGeneratesBom(t *testing.T) { //nolint:paralleltest // shares process
 				data = []byte(stdout)
 			}
 
-			var bom motmedelSbomTypes.Bom
+			var bom altshiftSbomTypes.Bom
 			if err := json.Unmarshal(data, &bom); err != nil {
 				t.Fatalf("failed to unmarshal BOM JSON: %v\noutput:\n%s", err, string(data))
 			}
 
-			if bom.BomFormat != motmedelSbomTypes.BomFormatCycloneDX {
-				t.Errorf("bomFormat = %q, want %q", bom.BomFormat, motmedelSbomTypes.BomFormatCycloneDX)
+			if bom.BomFormat != altshiftSbomTypes.BomFormatCycloneDX {
+				t.Errorf("bomFormat = %q, want %q", bom.BomFormat, altshiftSbomTypes.BomFormatCycloneDX)
 			}
 			if bom.SpecVersion != "1.6" {
 				t.Errorf("specVersion = %q, want %q", bom.SpecVersion, "1.6")
@@ -319,23 +319,23 @@ func TestRunErrors(t *testing.T) { //nolint:paralleltest // shares process-globa
 				t.Fatalf("expected run() to return an error, got nil")
 			}
 
-			motmedelErr, ok := errors.AsType[*motmedelErrors.Error](err)
+			altshiftErr, ok := errors.AsType[*altshiftErrors.Error](err)
 			if !ok {
-				t.Fatalf("expected a *motmedelErrors.Error, got %T: %v", err, err)
+				t.Fatalf("expected a *altshiftErrors.Error, got %T: %v", err, err)
 			}
 
-			if motmedelErr.Message != testCase.wantMessage {
-				t.Errorf("error message = %q, want %q", motmedelErr.Message, testCase.wantMessage)
+			if altshiftErr.Message != testCase.wantMessage {
+				t.Errorf("error message = %q, want %q", altshiftErr.Message, testCase.wantMessage)
 			}
-			if motmedelErr.Cause == nil {
+			if altshiftErr.Cause == nil {
 				t.Errorf("expected a non-nil Cause")
 			}
 
 			if testCase.wantInput != nil {
 				wantInput := testCase.wantInput(dir)
-				gotInput, ok := motmedelErr.Input.(string)
+				gotInput, ok := altshiftErr.Input.(string)
 				if !ok {
-					t.Errorf("Input = %v (%T), want string %q", motmedelErr.Input, motmedelErr.Input, wantInput)
+					t.Errorf("Input = %v (%T), want string %q", altshiftErr.Input, altshiftErr.Input, wantInput)
 				} else if gotInput != wantInput {
 					t.Errorf("Input = %q, want %q", gotInput, wantInput)
 				}

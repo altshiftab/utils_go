@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/crypto/hmac"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelJwtToken "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
+	altshiftJwtToken "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token/authenticated_token_config"
 )
 
@@ -22,7 +22,7 @@ func newHmac(t *testing.T, algorithm string, secret string) *hmac.Method {
 
 func signToken(t *testing.T, signer *hmac.Method, payload map[string]any) string {
 	t.Helper()
-	tok := &motmedelJwtToken.Token{Payload: payload}
+	tok := &altshiftJwtToken.Token{Payload: payload}
 	serialized, err := tok.Encode(signer)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
@@ -52,7 +52,7 @@ func TestNewInvalidSerialization(t *testing.T) {
 	if tok != nil {
 		t.Errorf("token = %v, want nil", tok)
 	}
-	if !errors.Is(err, motmedelErrors.ErrParseError) {
+	if !errors.Is(err, altshiftErrors.ErrParseError) {
 		t.Errorf("error = %v, want ErrParseError", err)
 	}
 }
@@ -130,7 +130,7 @@ func TestNewAlgMismatch(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for alg mismatch")
 	}
-	if !errors.Is(err, motmedelErrors.ErrVerificationError) {
+	if !errors.Is(err, altshiftErrors.ErrVerificationError) {
 		t.Errorf("error = %v, want ErrVerificationError", err)
 	}
 }
@@ -146,7 +146,7 @@ func TestNewBadSignature(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for bad signature")
 	}
-	if !errors.Is(err, motmedelErrors.ErrVerificationError) {
+	if !errors.Is(err, altshiftErrors.ErrVerificationError) {
 		t.Errorf("error = %v, want ErrVerificationError", err)
 	}
 }

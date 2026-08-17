@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
@@ -105,10 +105,10 @@ func withQuery(urlString string, query url.Values) string {
 // The message should have its Raw field set to a base64url-encoded RFC 2822 email.
 func (c *Client) Send(ctx context.Context, userId string, msg *message.Message, options ...fetch_config.Option) (*message.Message, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if msg == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("message"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("message"))
 	}
 
 	return rest.SendJson[message.Message](ctx, http.MethodPost, c.sendUrl(userId), msg, c.fetchOptions(options))
@@ -118,10 +118,10 @@ func (c *Client) Send(ctx context.Context, userId string, msg *message.Message, 
 // Notifications are delivered to the Cloud Pub/Sub topic specified in the request's TopicName.
 func (c *Client) Watch(ctx context.Context, userId string, request *watch_request.WatchRequest, options ...fetch_config.Option) (*watch_response.WatchResponse, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if request == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("request"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("request"))
 	}
 
 	return rest.SendJson[watch_response.WatchResponse](
@@ -142,10 +142,10 @@ type listHistoryResponse struct {
 // ListHistory retrieves all history records for the given user after the specified startHistoryId.
 func (c *Client) ListHistory(ctx context.Context, userId string, startHistoryId string, options ...list_history_config.Option) ([]*history.Record, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if startHistoryId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("start history id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("start history id"))
 	}
 
 	listHistoryConfig := list_history_config.New(options...)
@@ -184,7 +184,7 @@ type listMessagesResponse struct {
 // Only message IDs and thread IDs are populated; use GetMessage to retrieve the full message.
 func (c *Client) ListMessages(ctx context.Context, userId string, q string, options ...fetch_config.Option) ([]*message.Message, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 
 	return rest.ListPaginated(
@@ -209,10 +209,10 @@ func (c *Client) ListMessages(ctx context.Context, userId string, q string, opti
 // GetMessage retrieves a message identified by messageId for the given user.
 func (c *Client) GetMessage(ctx context.Context, userId string, messageId string, options ...get_message_config.Option) (*message.Message, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if messageId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("message id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("message id"))
 	}
 
 	getMessageConfig := get_message_config.New(options...)
@@ -235,10 +235,10 @@ func (c *Client) GetMessage(ctx context.Context, userId string, messageId string
 // Trash moves the given message to the user's trash. Requires the gmail.modify scope (or wider).
 func (c *Client) Trash(ctx context.Context, userId string, messageId string, options ...fetch_config.Option) (*message.Message, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if messageId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("message id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("message id"))
 	}
 
 	return rest.SendJson[message.Message, any](
@@ -253,10 +253,10 @@ func (c *Client) Trash(ctx context.Context, userId string, messageId string, opt
 // CreateSendAs creates a custom "from" send-as alias for the given user.
 func (c *Client) CreateSendAs(ctx context.Context, userId string, s *send_as.SendAs, options ...fetch_config.Option) (*send_as.SendAs, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if s == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("send as"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("send as"))
 	}
 
 	return rest.SendJson[send_as.SendAs](ctx, http.MethodPost, c.sendAsUrl(userId, ""), s, c.fetchOptions(options))
@@ -265,10 +265,10 @@ func (c *Client) CreateSendAs(ctx context.Context, userId string, s *send_as.Sen
 // GetSendAs retrieves a send-as alias identified by sendAsEmail for the given user.
 func (c *Client) GetSendAs(ctx context.Context, userId string, sendAsEmail string, options ...fetch_config.Option) (*send_as.SendAs, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if sendAsEmail == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("send-as email"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("send-as email"))
 	}
 
 	return rest.GetJson[send_as.SendAs](ctx, c.sendAsUrl(userId, sendAsEmail), c.fetchOptions(options))
@@ -277,13 +277,13 @@ func (c *Client) GetSendAs(ctx context.Context, userId string, sendAsEmail strin
 // UpdateSendAs updates a send-as alias identified by sendAsEmail for the given user.
 func (c *Client) UpdateSendAs(ctx context.Context, userId string, sendAsEmail string, s *send_as.SendAs, options ...fetch_config.Option) (*send_as.SendAs, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if sendAsEmail == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("send-as email"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("send-as email"))
 	}
 	if s == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("send as"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("send as"))
 	}
 
 	return rest.SendJson[send_as.SendAs](
@@ -298,10 +298,10 @@ func (c *Client) UpdateSendAs(ctx context.Context, userId string, sendAsEmail st
 // DeleteSendAs deletes a send-as alias identified by sendAsEmail for the given user.
 func (c *Client) DeleteSendAs(ctx context.Context, userId string, sendAsEmail string, options ...fetch_config.Option) error {
 	if userId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if sendAsEmail == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("send-as email"))
+		return altshiftErrors.NewWithTrace(empty_error.New("send-as email"))
 	}
 
 	return rest.Do(ctx, http.MethodDelete, c.sendAsUrl(userId, sendAsEmail), c.fetchOptions(options))
@@ -314,10 +314,10 @@ type listFiltersResponse struct {
 // CreateFilter creates a filter for the given user.
 func (c *Client) CreateFilter(ctx context.Context, userId string, f *filter.Filter, options ...fetch_config.Option) (*filter.Filter, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if f == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("filter"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("filter"))
 	}
 
 	return rest.SendJson[filter.Filter](ctx, http.MethodPost, c.filtersUrl(userId, ""), f, c.fetchOptions(options))
@@ -326,10 +326,10 @@ func (c *Client) CreateFilter(ctx context.Context, userId string, f *filter.Filt
 // GetFilter retrieves a filter identified by filterId for the given user.
 func (c *Client) GetFilter(ctx context.Context, userId string, filterId string, options ...fetch_config.Option) (*filter.Filter, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if filterId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("filter id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("filter id"))
 	}
 
 	return rest.GetJson[filter.Filter](ctx, c.filtersUrl(userId, filterId), c.fetchOptions(options))
@@ -338,7 +338,7 @@ func (c *Client) GetFilter(ctx context.Context, userId string, filterId string, 
 // ListFilters retrieves all filters for the given user.
 func (c *Client) ListFilters(ctx context.Context, userId string, options ...fetch_config.Option) ([]*filter.Filter, error) {
 	if userId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 
 	response, err := rest.GetJson[listFiltersResponse](ctx, c.filtersUrl(userId, ""), c.fetchOptions(options))
@@ -352,10 +352,10 @@ func (c *Client) ListFilters(ctx context.Context, userId string, options ...fetc
 // DeleteFilter deletes a filter identified by filterId for the given user.
 func (c *Client) DeleteFilter(ctx context.Context, userId string, filterId string, options ...fetch_config.Option) error {
 	if userId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("user id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
 	if filterId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("filter id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("filter id"))
 	}
 
 	return rest.Do(ctx, http.MethodDelete, c.filtersUrl(userId, filterId), c.fetchOptions(options))

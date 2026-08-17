@@ -10,7 +10,7 @@ import (
 	"fmt"
 
 	"github.com/altshiftab/utils_go/pkg/cose"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -59,8 +59,8 @@ func statementCertificates(statement map[any]any) ([]*x509.Certificate, error) {
 
 	entries, ok := x5cValue.([]any)
 	if !ok || len(entries) == 0 {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: malformed x5c", motmedelErrors.ErrValidationError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: malformed x5c", altshiftErrors.ErrValidationError),
 		)
 	}
 
@@ -68,15 +68,15 @@ func statementCertificates(statement map[any]any) ([]*x509.Certificate, error) {
 	for _, entry := range entries {
 		certificateDer, ok := entry.([]byte)
 		if !ok {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: malformed x5c entry", motmedelErrors.ErrValidationError),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: malformed x5c entry", altshiftErrors.ErrValidationError),
 			)
 		}
 
 		certificate, err := x509.ParseCertificate(certificateDer)
 		if err != nil {
-			return nil, motmedelErrors.New(
-				fmt.Errorf("%w: parse certificate: %w", motmedelErrors.ErrValidationError, err),
+			return nil, altshiftErrors.New(
+				fmt.Errorf("%w: parse certificate: %w", altshiftErrors.ErrValidationError, err),
 				certificateDer,
 			)
 		}
@@ -99,10 +99,10 @@ func verifySignature(
 	}
 
 	if err := verifier.Verify(message, signature); err != nil {
-		return motmedelErrors.New(
+		return altshiftErrors.New(
 			fmt.Errorf(
 				"%w: %w: %w",
-				motmedelErrors.ErrVerificationError,
+				altshiftErrors.ErrVerificationError,
 				webauthnErrors.ErrSignatureVerifyFailure,
 				err,
 			),
@@ -120,7 +120,7 @@ func verifyAttestationCertificate(certificate *x509.Certificate, aaguid []byte) 
 	if certificate.Version != 3 {
 		return fmt.Errorf(
 			"%w: attestation certificate version %d is not 3",
-			motmedelErrors.ErrValidationError,
+			altshiftErrors.ErrValidationError,
 			certificate.Version,
 		)
 	}
@@ -135,14 +135,14 @@ func verifyAttestationCertificate(certificate *x509.Certificate, aaguid []byte) 
 	if !organizationalUnitFound {
 		return fmt.Errorf(
 			"%w: attestation certificate misses the Authenticator Attestation organizational unit",
-			motmedelErrors.ErrValidationError,
+			altshiftErrors.ErrValidationError,
 		)
 	}
 
 	if !certificate.BasicConstraintsValid || certificate.IsCA {
 		return fmt.Errorf(
 			"%w: attestation certificate must not be a ca",
-			motmedelErrors.ErrValidationError,
+			altshiftErrors.ErrValidationError,
 		)
 	}
 
@@ -153,10 +153,10 @@ func verifyAttestationCertificate(certificate *x509.Certificate, aaguid []byte) 
 
 		var certificateAaguid []byte
 		if _, err := asn1.Unmarshal(extension.Value, &certificateAaguid); err != nil {
-			return motmedelErrors.New(
+			return altshiftErrors.New(
 				fmt.Errorf(
 					"%w: asn1 unmarshal (aaguid extension): %w",
-					motmedelErrors.ErrValidationError,
+					altshiftErrors.ErrValidationError,
 					err,
 				),
 				extension.Value,
@@ -166,7 +166,7 @@ func verifyAttestationCertificate(certificate *x509.Certificate, aaguid []byte) 
 		if !bytes.Equal(certificateAaguid, aaguid) {
 			return fmt.Errorf(
 				"%w: %w",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				mismatch_error.New("aaguid", certificateAaguid, aaguid),
 			)
 		}
@@ -184,21 +184,21 @@ func verifyPackedStatement(
 
 	algorithmValue, ok := statement["alg"]
 	if !ok {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("attestation statement alg")),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("attestation statement alg")),
 		)
 	}
 	algorithm, ok := algorithmValue.(int64)
 	if !ok {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: malformed attestation statement alg", motmedelErrors.ErrValidationError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: malformed attestation statement alg", altshiftErrors.ErrValidationError),
 		)
 	}
 
 	signature, ok := statement["sig"].([]byte)
 	if !ok || len(signature) == 0 {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("attestation statement sig")),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("attestation statement sig")),
 		)
 	}
 
@@ -213,10 +213,10 @@ func verifyPackedStatement(
 		// Self attestation: the signature is produced with the credential private key, and the
 		// algorithm must match the credential public key's.
 		if cose.Algorithm(algorithm) != attestedCredential.PublicKeyAlgorithm {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: %w: attestation statement alg %d does not match credential alg %d",
-					motmedelErrors.ErrValidationError,
+					altshiftErrors.ErrValidationError,
 					webauthnErrors.ErrPublicKeyAlgorithmMismatch,
 					algorithm,
 					attestedCredential.PublicKeyAlgorithm,
@@ -253,8 +253,8 @@ func verifyAppleStatement(
 		return nil, fmt.Errorf("statement certificates: %w", err)
 	}
 	if len(certificates) == 0 {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("attestation statement x5c")),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("attestation statement x5c")),
 		)
 	}
 	leafCertificate := certificates[0]
@@ -274,10 +274,10 @@ func verifyAppleStatement(
 			Nonce []byte `asn1:"tag:1,explicit"`
 		}
 		if _, err := asn1.Unmarshal(extension.Value, &wrapper); err != nil {
-			return nil, motmedelErrors.New(
+			return nil, altshiftErrors.New(
 				fmt.Errorf(
 					"%w: asn1 unmarshal (apple nonce extension): %w",
-					motmedelErrors.ErrValidationError,
+					altshiftErrors.ErrValidationError,
 					err,
 				),
 				extension.Value,
@@ -287,10 +287,10 @@ func verifyAppleStatement(
 	}
 
 	if !bytes.Equal(nonce, expectedNonce[:]) {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: %w",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				mismatch_error.New("apple nonce", nonce, expectedNonce[:]),
 			),
 		)
@@ -300,10 +300,10 @@ func verifyAppleStatement(
 		Equal(x crypto.PublicKey) bool
 	})
 	if !ok || !leafPublicKey.Equal(attestedCredential.PublicKey) {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: %w: certificate key does not match credential key",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				webauthnErrors.ErrPublicKeyMismatch,
 			),
 		)
@@ -322,8 +322,8 @@ func verifyFidoU2fStatement(
 
 	signature, ok := statement["sig"].([]byte)
 	if !ok || len(signature) == 0 {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrValidationError, empty_error.New("attestation statement sig")),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("attestation statement sig")),
 		)
 	}
 
@@ -332,30 +332,30 @@ func verifyFidoU2fStatement(
 		return nil, fmt.Errorf("statement certificates: %w", err)
 	}
 	if len(certificates) != 1 {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: fido-u2f requires exactly one certificate", motmedelErrors.ErrValidationError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: fido-u2f requires exactly one certificate", altshiftErrors.ErrValidationError),
 		)
 	}
 	leafCertificate := certificates[0]
 
 	credentialPublicKey, ok := attestedCredential.PublicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: fido-u2f requires an ec2 credential key", motmedelErrors.ErrValidationError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: fido-u2f requires an ec2 credential key", altshiftErrors.ErrValidationError),
 		)
 	}
 	ecdhPublicKey, err := credentialPublicKey.ECDH()
 	if err != nil {
-		return nil, motmedelErrors.New(
-			fmt.Errorf("%w: ecdh: %w", motmedelErrors.ErrValidationError, err),
+		return nil, altshiftErrors.New(
+			fmt.Errorf("%w: ecdh: %w", altshiftErrors.ErrValidationError, err),
 			credentialPublicKey,
 		)
 	}
 	// Uncompressed point: 0x04 || X || Y (the U2F public key representation).
 	publicKeyU2f := ecdhPublicKey.Bytes()
 	if len(publicKeyU2f) != 65 {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: fido-u2f requires a p-256 credential key", motmedelErrors.ErrValidationError),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: fido-u2f requires a p-256 credential key", altshiftErrors.ErrValidationError),
 		)
 	}
 
@@ -384,25 +384,25 @@ func VerifyAttestationStatement(
 	rawClientDataJson []byte,
 ) (*AttestationVerificationResult, error) {
 	if attestationObject == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("attestation object"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("attestation object"))
 	}
 
 	if len(rawClientDataJson) == 0 {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("raw client data json"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("raw client data json"))
 	}
 
 	statement := attestationObject.AttestationStatement
 	if statement == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("attestation statement"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("attestation statement"))
 	}
 
 	format := attestationObject.Format
 	if format == "none" {
 		if len(statement) != 0 {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: the none format requires an empty attestation statement",
-					motmedelErrors.ErrValidationError,
+					altshiftErrors.ErrValidationError,
 				),
 			)
 		}
@@ -415,10 +415,10 @@ func VerifyAttestationStatement(
 	switch format {
 	case "packed", "apple", "fido-u2f":
 	default:
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: %w: %q",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				webauthnErrors.ErrUnsupportedAttestationFormat,
 				format,
 			),
@@ -427,12 +427,12 @@ func VerifyAttestationStatement(
 
 	authenticatorData := attestationObject.AuthenticatorData
 	if authenticatorData == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("authenticator data"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("authenticator data"))
 	}
 
 	attestedCredential := authenticatorData.AttestedCredential
 	if attestedCredential == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("attested credential"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("attested credential"))
 	}
 
 	clientDataHash := sha256.Sum256(rawClientDataJson)
@@ -445,10 +445,10 @@ func VerifyAttestationStatement(
 	case "fido-u2f":
 		return verifyFidoU2fStatement(attestationObject, attestedCredential, clientDataHash[:], authenticatorData.RpIdHash)
 	default:
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: %w: %q",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				webauthnErrors.ErrUnsupportedAttestationFormat,
 				format,
 			),

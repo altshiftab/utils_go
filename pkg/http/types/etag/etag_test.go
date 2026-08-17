@@ -3,7 +3,7 @@ package etag
 import (
 	"testing"
 
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 func TestParseValid(t *testing.T) {
@@ -12,42 +12,42 @@ func TestParseValid(t *testing.T) {
 	cases := []struct {
 		name   string
 		header string
-		want   motmedelHttpTypes.ETag
+		want   altshiftHttpTypes.ETag
 	}{
 		{
 			name:   "simple",
 			header: `"xyzzy"`,
-			want:   motmedelHttpTypes.ETag{Weak: false, Tag: "xyzzy"},
+			want:   altshiftHttpTypes.ETag{Weak: false, Tag: "xyzzy"},
 		},
 		{
 			name:   "empty opaque-tag",
 			header: `""`,
-			want:   motmedelHttpTypes.ETag{Weak: false, Tag: ""},
+			want:   altshiftHttpTypes.ETag{Weak: false, Tag: ""},
 		},
 		{
 			name:   "weak",
 			header: `W/"xyzzy"`,
-			want:   motmedelHttpTypes.ETag{Weak: true, Tag: "xyzzy"},
+			want:   altshiftHttpTypes.ETag{Weak: true, Tag: "xyzzy"},
 		},
 		{
 			name:   "weak empty",
 			header: `W/""`,
-			want:   motmedelHttpTypes.ETag{Weak: true, Tag: ""},
+			want:   altshiftHttpTypes.ETag{Weak: true, Tag: ""},
 		},
 		{
 			name:   "hex-like",
 			header: `"33a64df551425fcc55e4d42a148795d9f25f89d4"`,
-			want:   motmedelHttpTypes.ETag{Weak: false, Tag: "33a64df551425fcc55e4d42a148795d9f25f89d4"},
+			want:   altshiftHttpTypes.ETag{Weak: false, Tag: "33a64df551425fcc55e4d42a148795d9f25f89d4"},
 		},
 		{
 			name:   "with dash",
 			header: `"686897696a7c876b7e"`,
-			want:   motmedelHttpTypes.ETag{Weak: false, Tag: "686897696a7c876b7e"},
+			want:   altshiftHttpTypes.ETag{Weak: false, Tag: "686897696a7c876b7e"},
 		},
 		{
 			name:   "weak hex",
 			header: `W/"0815"`,
-			want:   motmedelHttpTypes.ETag{Weak: true, Tag: "0815"},
+			want:   altshiftHttpTypes.ETag{Weak: true, Tag: "0815"},
 		},
 	}
 

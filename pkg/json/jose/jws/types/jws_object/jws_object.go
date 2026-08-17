@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/altshiftab/utils_go/pkg/crypto/interfaces"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jws"
 	"github.com/altshiftab/utils_go/pkg/utils"
@@ -22,18 +22,18 @@ type Object struct {
 
 func (o *Object) Verify(verifier interfaces.Verifier) error {
 	if utils.IsNil(verifier) {
-		return motmedelErrors.NewWithTrace(nil_error.New("verifier"))
+		return altshiftErrors.NewWithTrace(nil_error.New("verifier"))
 	}
 
 	rawSplit := strings.Split(o.Raw, ".")
 	if len(rawSplit) != 3 {
-		return motmedelErrors.NewWithTrace(motmedelErrors.ErrBadSplit, o.Raw)
+		return altshiftErrors.NewWithTrace(altshiftErrors.ErrBadSplit, o.Raw)
 	}
 
 	header := rawSplit[0]
 	payload := rawSplit[1]
 	if err := jws.Verify(header, payload, o.Signature, verifier); err != nil {
-		return motmedelErrors.New(fmt.Errorf("verifier verify: %w", err), header, payload, o.Signature)
+		return altshiftErrors.New(fmt.Errorf("verifier verify: %w", err), header, payload, o.Signature)
 	}
 
 	return nil

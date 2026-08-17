@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelJsonTag "github.com/altshiftab/utils_go/pkg/json/types/tag"
-	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	altshiftJsonTag "github.com/altshiftab/utils_go/pkg/json/types/tag"
+	altshiftReflect "github.com/altshiftab/utils_go/pkg/reflect"
 	typeExportErrors "github.com/altshiftab/utils_go/pkg/type_export/errors"
 	"github.com/altshiftab/utils_go/pkg/type_export/jsonschema/types/tag"
 	typeExportContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
@@ -38,7 +38,7 @@ func isTime(t reflect.Type) bool {
 
 // GetJSONSchemaType returns a JSON Schema fragment describing the provided type.
 func (c *Context) GetJSONSchemaType(reflectType reflect.Type) (map[string]any, error) {
-	reflectType = motmedelReflect.RemoveIndirection(reflectType)
+	reflectType = altshiftReflect.RemoveIndirection(reflectType)
 
 	//exhaustive:ignore
 	switch kind := reflectType.Kind(); kind {
@@ -54,7 +54,7 @@ func (c *Context) GetJSONSchemaType(reflectType reflect.Type) (map[string]any, e
 				return map[string]any{"$ref": "#/$defs/" + iface.QualifiedName()}, nil
 			}
 		}
-		return nil, motmedelErrors.NewWithTrace(typeExportErrors.ErrUnsupportedKind, kind)
+		return nil, altshiftErrors.NewWithTrace(typeExportErrors.ErrUnsupportedKind, kind)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return map[string]any{"type": schemaTypeInteger}, nil
@@ -66,21 +66,21 @@ func (c *Context) GetJSONSchemaType(reflectType reflect.Type) (map[string]any, e
 		return map[string]any{"type": schemaTypeBoolean}, nil
 	case reflect.Slice, reflect.Array:
 		// Special case: []byte -> base64 string
-		elem := motmedelReflect.RemoveIndirection(reflectType.Elem())
+		elem := altshiftReflect.RemoveIndirection(reflectType.Elem())
 		if elem.Kind() == reflect.Uint8 {
 			return map[string]any{"type": schemaTypeString, "contentEncoding": "base64"}, nil
 		}
 		itemSchema, err := c.GetJSONSchemaType(elem)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("get json schema type (items): %w", err), elem)
+			return nil, altshiftErrors.New(fmt.Errorf("get json schema type (items): %w", err), elem)
 		}
 		return map[string]any{"type": schemaTypeArray, "items": itemSchema}, nil
 	case reflect.Map:
 		// JSON object with additionalProperties as value schema
-		value := motmedelReflect.RemoveIndirection(reflectType.Elem())
+		value := altshiftReflect.RemoveIndirection(reflectType.Elem())
 		valueSchema, err := c.GetJSONSchemaType(value)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("get json schema type (map value): %w", err), value)
+			return nil, altshiftErrors.New(fmt.Errorf("get json schema type (map value): %w", err), value)
 		}
 		return map[string]any{"type": schemaTypeObject, "additionalProperties": valueSchema}, nil
 	case reflect.Interface:
@@ -88,7 +88,7 @@ func (c *Context) GetJSONSchemaType(reflectType reflect.Type) (map[string]any, e
 	case reflect.Pointer:
 		return c.GetJSONSchemaType(reflectType.Elem())
 	default:
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: %T", typeExportErrors.ErrUnsupportedKind, kind), kind,
 		)
 	}
@@ -157,7 +157,7 @@ func additionalPropertiesFromType(structType reflect.Type) (any, error) {
 	rawMarkerTag := markerField.Tag.Get("jsonschema")
 	markerTag, err := tag.New(rawMarkerTag)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("jsonschema tag new: %w", err), rawMarkerTag)
+		return nil, altshiftErrors.New(fmt.Errorf("jsonschema tag new: %w", err), rawMarkerTag)
 	}
 	if markerTag == nil || markerTag.AdditionalProperties == nil {
 		return false, nil
@@ -191,7 +191,7 @@ func (c *Context) buildInterfaceSchema(interfaceDeclaration *type_declaration.In
 
 		field := property.Field
 		if field == nil {
-			return nil, motmedelErrors.NewWithTrace(nil_error.New("property field"), property)
+			return nil, altshiftErrors.NewWithTrace(nil_error.New("property field"), property)
 		}
 
 		identifier := property.Identifier
@@ -200,7 +200,7 @@ func (c *Context) buildInterfaceSchema(interfaceDeclaration *type_declaration.In
 		rawJsonSchemaTag := field.Tag.Get("jsonschema")
 		jsonschemaTag, err := tag.New(rawJsonSchemaTag)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("jsonschema tag new: %w", err), rawJsonSchemaTag)
+			return nil, altshiftErrors.New(fmt.Errorf("jsonschema tag new: %w", err), rawJsonSchemaTag)
 		}
 
 		if jsonschemaTag != nil {
@@ -218,7 +218,7 @@ func (c *Context) buildInterfaceSchema(interfaceDeclaration *type_declaration.In
 		} else {
 			// As a fallback, use the `json` tag.
 			jsonTagRaw := field.Tag.Get("json")
-			jsonTag := motmedelJsonTag.New(jsonTagRaw)
+			jsonTag := altshiftJsonTag.New(jsonTagRaw)
 			if jsonTag != nil {
 				if jsonTag.Skip {
 					continue
@@ -237,7 +237,7 @@ func (c *Context) buildInterfaceSchema(interfaceDeclaration *type_declaration.In
 
 		propertySchema, err := c.GetJSONSchemaType(fieldType)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("get json schema type: %w", err), fieldType)
+			return nil, altshiftErrors.New(fmt.Errorf("get json schema type: %w", err), fieldType)
 		}
 
 		if t, ok := propertySchema["type"].(string); ok {
@@ -310,7 +310,7 @@ func (c *Context) buildInterfaceSchema(interfaceDeclaration *type_declaration.In
 // If root is a slice or array of structs, the top-level schema describes an array whose items
 // reference the element type.
 func (c *Context) RenderRoot(root reflect.Type) (string, error) {
-	root = motmedelReflect.RemoveIndirection(root)
+	root = altshiftReflect.RemoveIndirection(root)
 
 	isArray := false
 	elemType := root
@@ -320,27 +320,27 @@ func (c *Context) RenderRoot(root reflect.Type) (string, error) {
 	switch rootKind {
 	case reflect.Slice, reflect.Array:
 		isArray = true
-		elemType = motmedelReflect.RemoveIndirection(root.Elem())
+		elemType = altshiftReflect.RemoveIndirection(root.Elem())
 		if elemType.Kind() != reflect.Struct {
-			return "", motmedelErrors.NewWithTrace(typeExportErrors.ErrUnsupportedKind, elemType.Kind())
+			return "", altshiftErrors.NewWithTrace(typeExportErrors.ErrUnsupportedKind, elemType.Kind())
 		}
 	case reflect.Struct:
 		// supported as-is
 	default:
-		return "", motmedelErrors.NewWithTrace(typeExportErrors.ErrUnsupportedKind, rootKind)
+		return "", altshiftErrors.NewWithTrace(typeExportErrors.ErrUnsupportedKind, rootKind)
 	}
 
 	rootTypeDeclaration, ok := c.TypeDeclarations[elemType]
 	if !ok {
-		return "", motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w (root type)", motmedelErrors.ErrNotInMap),
+		return "", altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w (root type)", altshiftErrors.ErrNotInMap),
 			elemType,
 		)
 	}
 
 	rootInterfaceDeclaration, err := utils.ConvertToNonZero[*type_declaration.InterfaceDeclaration](rootTypeDeclaration)
 	if err != nil {
-		return "", motmedelErrors.New(
+		return "", altshiftErrors.New(
 			fmt.Errorf("convert to non zero (root type declaration): %w", err),
 			rootTypeDeclaration,
 		)
@@ -356,7 +356,7 @@ func (c *Context) RenderRoot(root reflect.Type) (string, error) {
 
 		schema, err := c.buildInterfaceSchema(interfaceDeclaration)
 		if err != nil {
-			return "", motmedelErrors.New(fmt.Errorf("build interface schema: %w", err), interfaceDeclaration)
+			return "", altshiftErrors.New(fmt.Errorf("build interface schema: %w", err), interfaceDeclaration)
 		}
 
 		defs[interfaceDeclaration.Identifier] = schema
@@ -381,7 +381,7 @@ func (c *Context) RenderRoot(root reflect.Type) (string, error) {
 
 	data, err := json.Marshal(schemaMap)
 	if err != nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("json marshal (schema map): %w", err), schemaMap)
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("json marshal (schema map): %w", err), schemaMap)
 	}
 
 	return string(data), nil

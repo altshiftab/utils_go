@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestClaimStrings_UnmarshalJSON(t *testing.T) {
@@ -220,7 +220,7 @@ func TestConvert(t *testing.T) {
 			input:       123,
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelErrors.ErrUnexpectedType)
+				return errors.Is(err, altshiftErrors.ErrUnexpectedType)
 			},
 		},
 		{
@@ -228,7 +228,7 @@ func TestConvert(t *testing.T) {
 			input:       nil,
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelErrors.ErrUnexpectedType)
+				return errors.Is(err, altshiftErrors.ErrUnexpectedType)
 			},
 		},
 		{
@@ -236,7 +236,7 @@ func TestConvert(t *testing.T) {
 			input:       map[string]string{"key": "value"},
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelErrors.ErrUnexpectedType)
+				return errors.Is(err, altshiftErrors.ErrUnexpectedType)
 			},
 		},
 	}

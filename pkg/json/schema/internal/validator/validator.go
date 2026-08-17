@@ -19,7 +19,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/json/schema/notes"
 	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
@@ -570,7 +570,7 @@ func ValidatePatternProperties(arg schema.PartMapSchema, instance any, state *sc
 	for reString, s := range arg {
 		re, err := regexp.Compile(reString)
 		if err != nil {
-			return motmedelErrors.NewWithTrace(
+			return altshiftErrors.NewWithTrace(
 				fmt.Errorf(`"patternProperties" regexp %q failed: %w`, reString, err),
 				reString,
 			)
@@ -1088,7 +1088,7 @@ func ValidatePattern(arg schema.PartString, instance any, state *schema.Validati
 
 	re, err := regexp.Compile(string(arg))
 	if err != nil {
-		return motmedelErrors.NewWithTrace(
+		return altshiftErrors.NewWithTrace(
 			fmt.Errorf(`"pattern" regexp %q failed: %w`, arg, err),
 			string(arg),
 		)

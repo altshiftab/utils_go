@@ -16,10 +16,10 @@ import (
 	"github.com/altshiftab/utils_go/pkg/type_export/types/generic_type_info"
 	"github.com/altshiftab/utils_go/pkg/type_export/types/shape"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	altshiftReflect "github.com/altshiftab/utils_go/pkg/reflect"
 )
 
 var (
@@ -78,12 +78,12 @@ func detectShapeTypes(
 func discoverUsingTypesImporter(pkgPath string, typeName string) (*generic_type_info.GenericTypeInfo, error) {
 	defaultImporter := importer.Default()
 	if defaultImporter == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("default importer"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("default importer"))
 	}
 
 	pkg, err := defaultImporter.Import(pkgPath)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("go importer default import: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("go importer default import: %w", err))
 	}
 
 	return discoverInTypesPackage(pkg, typeName)
@@ -91,12 +91,12 @@ func discoverUsingTypesImporter(pkgPath string, typeName string) (*generic_type_
 
 func discoverInTypesPackage(pkg *goTypes.Package, typeName string) (*generic_type_info.GenericTypeInfo, error) {
 	if pkg == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("package"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("package"))
 	}
 
 	pkgScope := pkg.Scope()
 	if pkgScope == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("scope"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("scope"))
 	}
 
 	object := pkgScope.Lookup(typeName)
@@ -106,22 +106,22 @@ func discoverInTypesPackage(pkg *goTypes.Package, typeName string) (*generic_typ
 
 	objectWithName, ok := object.(*goTypes.TypeName)
 	if !ok {
-		return nil, motmedelErrors.NewWithTrace(ErrNotTypeName)
+		return nil, altshiftErrors.NewWithTrace(ErrNotTypeName)
 	}
 
 	namedType, ok := objectWithName.Type().(*goTypes.Named)
 	if !ok {
-		return nil, motmedelErrors.NewWithTrace(ErrNotNamed)
+		return nil, altshiftErrors.NewWithTrace(ErrNotNamed)
 	}
 
 	structType, ok := namedType.Underlying().(*goTypes.Struct)
 	if !ok {
-		return nil, motmedelErrors.NewWithTrace(ErrNotStruct)
+		return nil, altshiftErrors.NewWithTrace(ErrNotStruct)
 	}
 
 	typeParameters := namedType.TypeParams()
 	if typeParameters.Len() == 0 {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("type parameters"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("type parameters"))
 	}
 
 	parameterNamesSet := map[*goTypes.TypeParam]struct{}{}
@@ -201,12 +201,12 @@ func detectShapeAst(e ast.Expr, paramSet map[string]struct{}) []astMatch {
 func discoverInWorkingDir(typeName string) (*generic_type_info.GenericTypeInfo, error) {
 	workingDirectoryPath, err := os.Getwd()
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("os getwd: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("os getwd: %w", err))
 	}
 
 	entries, err := os.ReadDir(workingDirectoryPath)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("os read dir: %w", err),
 			workingDirectoryPath,
 		)
@@ -223,7 +223,7 @@ func discoverInWorkingDir(typeName string) (*generic_type_info.GenericTypeInfo, 
 		filePath := filepath.Join(workingDirectoryPath, entryName)
 		file, err := parser.ParseFile(fileSet, filePath, nil, 0)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf("go parser parse file: %w", err),
 				filePath,
 			)
@@ -437,17 +437,17 @@ func discoverUsingReflection(structType reflect.Type) (*generic_type_info.Generi
 }
 
 func GetGenericTypeInfo(structType reflect.Type) (*generic_type_info.GenericTypeInfo, error) {
-	structType = motmedelReflect.RemoveIndirection(structType)
+	structType = altshiftReflect.RemoveIndirection(structType)
 	if structType.Kind() != reflect.Struct {
-		return nil, motmedelErrors.NewWithTrace(ErrNotStruct)
+		return nil, altshiftErrors.NewWithTrace(ErrNotStruct)
 	}
 
-	typeName, isGenericType := motmedelReflect.GetTypeName(structType)
+	typeName, isGenericType := altshiftReflect.GetTypeName(structType)
 	if typeName == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("type name"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("type name"))
 	}
 	if !isGenericType {
-		return nil, motmedelErrors.NewWithTrace(ErrNotGeneric)
+		return nil, altshiftErrors.NewWithTrace(ErrNotGeneric)
 	}
 
 	var genericTypeInfo *generic_type_info.GenericTypeInfo

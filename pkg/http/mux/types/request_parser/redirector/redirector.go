@@ -8,12 +8,12 @@ import (
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/redirector/redirector_config"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
-	motmedelStrings "github.com/altshiftab/utils_go/pkg/strings"
+	altshiftStrings "github.com/altshiftab/utils_go/pkg/strings"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
@@ -32,34 +32,34 @@ func (parser *Parser[T, S]) Parse(request *http.Request) (S, *response_error.Res
 	requestParser := parser.RequestParser
 	if utils.IsNil(requestParser) {
 		return zero, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request parser")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request parser")),
 		}
 	}
 
 	if parser.RedirectUrl == nil {
 		return zero, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("url")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("url")),
 		}
 	}
 
 	requestHeader := request.Header
 	if requestHeader == nil {
 		return zero, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request header")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request header")),
 		}
 	}
 
 	host := request.Host
 	if host == "" {
 		return zero, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(empty_error.New("host")),
+			ServerError: altshiftErrors.NewWithTrace(empty_error.New("host")),
 		}
 	}
 
 	requestUrl := request.URL
 	if requestUrl == nil {
 		return zero, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request url")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request url")),
 		}
 	}
 
@@ -68,7 +68,7 @@ func (parser *Parser[T, S]) Parse(request *http.Request) (S, *response_error.Res
 	if scheme == "" {
 		if parser.RequireProto {
 			return zero, &response_error.ResponseError{
-				ServerError: motmedelErrors.NewWithTrace(errMissingXForwardedProto),
+				ServerError: altshiftErrors.NewWithTrace(errMissingXForwardedProto),
 			}
 		}
 
@@ -115,7 +115,7 @@ func (parser *Parser[T, S]) Parse(request *http.Request) (S, *response_error.Res
 		responseError.Headers,
 		&response.HeaderEntry{
 			Name:  "Location",
-			Value: motmedelStrings.HexEscapeNonASCII(redirectUrl.String()),
+			Value: altshiftStrings.HexEscapeNonASCII(redirectUrl.String()),
 		},
 	)
 
@@ -128,11 +128,11 @@ func New[T request_parser.RequestParser[S], S any](
 	options ...redirector_config.Option,
 ) (*Parser[T, S], error) {
 	if utils.IsNil(requestParser) {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("request parser"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("request parser"))
 	}
 
 	if redirectUrl == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("url"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("url"))
 	}
 
 	requestParserConfig := redirector_config.New(options...)

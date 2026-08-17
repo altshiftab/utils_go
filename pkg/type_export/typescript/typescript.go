@@ -3,7 +3,7 @@ package typescript
 import (
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	typeExportTypesContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
 	"github.com/altshiftab/utils_go/pkg/type_export/typescript/types"
 )
@@ -16,7 +16,7 @@ func Convert(values ...any) (string, error) {
 
 	output, err := tsContext.Render()
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("render: %w", err), tsContext)
+		return "", altshiftErrors.New(fmt.Errorf("render: %w", err), tsContext)
 	}
 
 	return output, nil

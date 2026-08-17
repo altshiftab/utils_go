@@ -13,8 +13,8 @@ import (
 	"hash"
 	"math/big"
 
-	motmedelCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/utils"
@@ -57,21 +57,21 @@ func (m *Method) hash(message []byte) ([]byte, error) {
 
 func (m *Method) Sign(message []byte) ([]byte, error) {
 	if m == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.NewWithInstance("method", "signer"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.NewWithInstance("method", "signer"))
 	}
 
 	if m.PrivateKey == nil {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("secret"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("secret"))
 	}
 
 	digest, err := m.hash(message)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(err)
+		return nil, altshiftErrors.NewWithTrace(err)
 	}
 
 	r, s, err := ecdsa.Sign(rand.Reader, m.PrivateKey, digest)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(err)
+		return nil, altshiftErrors.NewWithTrace(err)
 	}
 
 	// Canonicalize S to low-S form for interoperability
@@ -87,7 +87,7 @@ func (m *Method) Sign(message []byte) ([]byte, error) {
 
 func (m *Method) Verify(message []byte, signature []byte) error {
 	if m == nil {
-		return motmedelErrors.NewWithTrace(nil_error.NewWithInstance("method", "verifier"))
+		return altshiftErrors.NewWithTrace(nil_error.NewWithInstance("method", "verifier"))
 	}
 
 	pub := m.PublicKey
@@ -95,13 +95,13 @@ func (m *Method) Verify(message []byte, signature []byte) error {
 		pub = &m.PrivateKey.PublicKey
 	}
 	if pub == nil {
-		return motmedelErrors.NewWithTrace(empty_error.New("public key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("public key"))
 	}
 
 	// Expect R||S with fixed lengths
 	if len(signature) != 2*m.size {
 		// Use signature mismatch to avoid leaking details about expected sizes
-		return motmedelErrors.NewWithTrace(motmedelCryptoErrors.ErrSignatureMismatch)
+		return altshiftErrors.NewWithTrace(altshiftCryptoErrors.ErrSignatureMismatch)
 	}
 
 	r := new(big.Int).SetBytes(signature[:m.size])
@@ -109,11 +109,11 @@ func (m *Method) Verify(message []byte, signature []byte) error {
 
 	digest, err := m.hash(message)
 	if err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("hash: %w", err))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("hash: %w", err))
 	}
 
 	if !ecdsa.Verify(pub, digest, r, s) {
-		return motmedelErrors.NewWithTrace(motmedelCryptoErrors.ErrSignatureMismatch)
+		return altshiftErrors.NewWithTrace(altshiftCryptoErrors.ErrSignatureMismatch)
 	}
 
 	return nil
@@ -125,7 +125,7 @@ func (m *Method) GetName() string {
 
 func FromPublicKey(publicKey *ecdsa.PublicKey) (*Method, error) {
 	if publicKey == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("public key"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("public key"))
 	}
 
 	method, err := New(nil, publicKey)
@@ -133,7 +133,7 @@ func FromPublicKey(publicKey *ecdsa.PublicKey) (*Method, error) {
 		return nil, err
 	}
 	if method == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("method"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("method"))
 	}
 
 	return method, nil
@@ -141,7 +141,7 @@ func FromPublicKey(publicKey *ecdsa.PublicKey) (*Method, error) {
 
 func FromPrivateKey(privateKey *ecdsa.PrivateKey) (*Method, error) {
 	if privateKey == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("private key"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("private key"))
 	}
 
 	method, err := New(privateKey, nil)
@@ -149,7 +149,7 @@ func FromPrivateKey(privateKey *ecdsa.PrivateKey) (*Method, error) {
 		return nil, err
 	}
 	if method == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("method"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("method"))
 	}
 
 	return method, nil
@@ -169,8 +169,8 @@ func deriveAlgFromCurveParams(curveParams *elliptic.CurveParams) (string, func()
 	case "P-521":
 		return "ES512", sha512.New, nil
 	default:
-		return "", nil, motmedelErrors.NewWithTrace(
-			motmedelCryptoErrors.ErrUnsupportedCurve,
+		return "", nil, altshiftErrors.NewWithTrace(
+			altshiftCryptoErrors.ErrUnsupportedCurve,
 			curveName,
 		)
 	}
@@ -211,12 +211,12 @@ func New(privateKey *ecdsa.PrivateKey, publicKey *ecdsa.PublicKey) (*Method, err
 	// The curve == nil check is redundant with utils.IsNil but lets static analysis
 	// narrow curve to non-nil for the curve.Params() call below.
 	if curve == nil || utils.IsNil(curve) {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("curve"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("curve"))
 	}
 
 	if privateKeyCurveParams != nil && publicKeyCurveParams != nil && privateKeyCurveParams.Name != publicKeyCurveParams.Name {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w (private/public)", motmedelCryptoErrors.ErrCurveMismatch),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w (private/public)", altshiftCryptoErrors.ErrCurveMismatch),
 			privateKeyCurveParams.Name, publicKeyCurveParams.Name,
 		)
 	}
@@ -251,7 +251,7 @@ func (m *Asn1DerEncodedMethod) Sign(message []byte) ([]byte, error) {
 	}
 
 	if len(raw) != 2*m.size {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: invalid signature length: %d", motmedelErrors.ErrValidationError, len(raw)))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: invalid signature length: %d", altshiftErrors.ErrValidationError, len(raw)))
 	}
 
 	r := new(big.Int).SetBytes(raw[:m.size])
@@ -259,7 +259,7 @@ func (m *Asn1DerEncodedMethod) Sign(message []byte) ([]byte, error) {
 
 	data, err := asn1.Marshal(struct{ R, S *big.Int }{R: r, S: s})
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("asn1 marshal: %w", err), r, s)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("asn1 marshal: %w", err), r, s)
 	}
 
 	return data, nil
@@ -271,7 +271,7 @@ func (m *Asn1DerEncodedMethod) Verify(message []byte, signature []byte) error {
 		publicKey = &m.PrivateKey.PublicKey
 	}
 	if publicKey == nil {
-		return motmedelErrors.NewWithTrace(empty_error.New("public key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("public key"))
 	}
 
 	var decodedSignature struct {
@@ -279,16 +279,16 @@ func (m *Asn1DerEncodedMethod) Verify(message []byte, signature []byte) error {
 	}
 
 	if _, err := asn1.Unmarshal(signature, &decodedSignature); err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("asn1 unmarshal: %w", err))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("asn1 unmarshal: %w", err))
 	}
 
 	digest, err := m.hash(message)
 	if err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("hash: %w", err))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("hash: %w", err))
 	}
 
 	if !ecdsa.Verify(publicKey, digest, decodedSignature.R, decodedSignature.S) {
-		return motmedelErrors.NewWithTrace(motmedelCryptoErrors.ErrSignatureMismatch)
+		return altshiftErrors.NewWithTrace(altshiftCryptoErrors.ErrSignatureMismatch)
 	}
 
 	return nil
@@ -297,21 +297,21 @@ func (m *Asn1DerEncodedMethod) Verify(message []byte, signature []byte) error {
 func FromPem(pemKey string) (*Method, error) {
 	block, _ := pem.Decode([]byte(pemKey))
 	if block == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("block"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("block"))
 	}
 
 	blockBytes := block.Bytes
 	privateKey, err := x509.ParseECPrivateKey(blockBytes)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("x509 parse pkcs8 private key: %w", err), blockBytes)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("x509 parse pkcs8 private key: %w", err), blockBytes)
 	}
 	if privateKey == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("private key"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("private key"))
 	}
 
 	method, err := New(privateKey, &privateKey.PublicKey)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("new method: %w", err), privateKey)
+		return nil, altshiftErrors.New(fmt.Errorf("new method: %w", err), privateKey)
 	}
 
 	return method, nil

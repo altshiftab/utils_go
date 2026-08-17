@@ -13,26 +13,26 @@ import (
 	"strings"
 	"time"
 
-	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
-	motmedelUtilsEnv "github.com/altshiftab/utils_go/pkg/env"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
+	altshiftUtilsEnv "github.com/altshiftab/utils_go/pkg/env"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/go/code_generation"
-	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
-	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
-	motmedelContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
+	altshiftContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
 	errorLogger "github.com/altshiftab/utils_go/pkg/log/error_logger"
 )
 
 func main() {
 	logger := errorLogger.Logger{
-		Logger: motmedelContextLogger.New(
+		Logger: altshiftContextLogger.New(
 			slog.NewJSONHandler(os.Stderr, nil),
-			&motmedelLog.ErrorContextExtractor{},
+			&altshiftLog.ErrorContextExtractor{},
 			&http_context_extractor.Extractor{},
 		),
 	}
@@ -45,7 +45,7 @@ func main() {
 	flag.StringVar(
 		&packageName,
 		"package-name",
-		motmedelUtilsEnv.GetEnvWithDefault("GOPACKAGE", "main"),
+		altshiftUtilsEnv.GetEnvWithDefault("GOPACKAGE", "main"),
 		"The name of the package in the output.",
 	)
 
@@ -73,17 +73,17 @@ func main() {
 	resultingPaths := []string{path}
 
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
-		ctxWithHttp := motmedelHttpContext.WithHttpContext(context.Background())
+		ctxWithHttp := altshiftHttpContext.WithHttpContext(context.Background())
 		httpClient := &http.Client{
 			Timeout: 10 * time.Second,
 			CheckRedirect: func(request *http.Request, via []*http.Request) error {
 				if request == nil {
-					return motmedelErrors.NewWithTrace(nil_error.New("request"))
+					return altshiftErrors.NewWithTrace(nil_error.New("request"))
 				}
 
 				requestUrl := request.URL
 				if requestUrl == nil {
-					return motmedelErrors.NewWithTrace(nil_error.New("request url"))
+					return altshiftErrors.NewWithTrace(nil_error.New("request url"))
 				}
 
 				resultingPaths = append(resultingPaths, requestUrl.String())
@@ -92,12 +92,12 @@ func main() {
 			},
 		}
 
-		response, body, err := motmedelHttpUtils.Fetch(ctxWithHttp, path, fetch_config.WithHttpClient(httpClient))
+		response, body, err := altshiftHttpUtils.Fetch(ctxWithHttp, path, fetch_config.WithHttpClient(httpClient))
 		if err != nil {
 			logger.ErrorContext(
-				motmedelContext.WithError(
+				altshiftContext.WithError(
 					ctxWithHttp,
-					motmedelErrors.New(fmt.Errorf("fetch: %w", err), path),
+					altshiftErrors.New(fmt.Errorf("fetch: %w", err), path),
 				),
 				"An error occurred when fetching. Exiting.",
 			)
@@ -105,9 +105,9 @@ func main() {
 		}
 		if response == nil {
 			logger.ErrorContext(
-				motmedelContext.WithError(
+				altshiftContext.WithError(
 					ctxWithHttp,
-					motmedelErrors.New(nil_error.New("http response"), path),
+					altshiftErrors.New(nil_error.New("http response"), path),
 				),
 				"The HTTP response is nil. Exiting.",
 			)
@@ -173,7 +173,7 @@ func main() {
 		if err := os.WriteFile(fileName, output, 0600); err != nil {
 			logger.FatalWithExitingMessage(
 				"An error occurred when writing the file.",
-				motmedelErrors.New(fmt.Errorf("os write file: %w", err), fileName, output),
+				altshiftErrors.New(fmt.Errorf("os write file: %w", err), fileName, output),
 			)
 		}
 	} else {

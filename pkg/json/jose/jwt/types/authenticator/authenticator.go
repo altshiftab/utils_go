@@ -4,16 +4,16 @@ import (
 	"context"
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
+	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/authenticator/authenticator_config"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/authenticator/authenticator_with_key_handler_config"
-	motmedelJwkToken "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
+	altshiftJwkToken "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token/authenticated_token_config"
-	motmedelJwtValidator "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/validator"
+	altshiftJwtValidator "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/validator"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
@@ -27,7 +27,7 @@ func (a *Authenticator) Authenticate(ctx context.Context, tokenString string) (*
 	}
 
 	signatureVerifier := a.config.SignatureVerifier
-	validator := &motmedelJwtValidator.Validator{
+	validator := &altshiftJwtValidator.Validator{
 		HeaderValidator:  a.config.HeaderValidator,
 		PayloadValidator: a.config.ClaimsValidator,
 	}
@@ -37,13 +37,13 @@ func (a *Authenticator) Authenticate(ctx context.Context, tokenString string) (*
 		authenticated_token_config.WithTokenValidator(validator),
 	)
 	if err != nil {
-		return nil, motmedelErrors.New(
+		return nil, altshiftErrors.New(
 			fmt.Errorf("authenticated token new: %w", err),
 			tokenString, signatureVerifier, validator,
 		)
 	}
 	if token == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("authenticated jwt token"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("authenticated jwt token"))
 	}
 
 	return token, nil
@@ -65,43 +65,43 @@ func (a *AuthenticatorWithKeyHandler) Authenticate(ctx context.Context, tokenStr
 		return nil, fmt.Errorf("context err: %w", err)
 	}
 
-	token, err := motmedelJwkToken.New(tokenString)
+	token, err := altshiftJwkToken.New(tokenString)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: token new: %w", motmedelErrors.ErrParseError, err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: token new: %w", altshiftErrors.ErrParseError, err))
 	}
 	if token == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("jwt token"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("jwt token"))
 	}
 
 	tokenHeader := token.Header
 	if tokenHeader == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("token header"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("token header"))
 	}
 
 	kid, err := utils.MapGetConvert[string](tokenHeader, "kid")
 	if err != nil {
-		return nil, motmedelErrors.New(
-			fmt.Errorf("%w: map get convert (kid): %w", motmedelErrors.ErrValidationError, err),
+		return nil, altshiftErrors.New(
+			fmt.Errorf("%w: map get convert (kid): %w", altshiftErrors.ErrValidationError, err),
 			tokenHeader,
 		)
 	}
 
 	keyHandler := a.Handler
 	if keyHandler == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("handler"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("handler"))
 	}
 	signatureVerifier, err := keyHandler.GetNamedVerifier(ctx, kid)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("handler get named verifier: %w", err), kid)
+		return nil, altshiftErrors.New(fmt.Errorf("handler get named verifier: %w", err), kid)
 	}
 	if utils.IsNil(signatureVerifier) {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrVerificationError, motmedelJwkErrors.ErrUnknownKeyId),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrVerificationError, altshiftJwkErrors.ErrUnknownKeyId),
 			kid,
 		)
 	}
 
-	validator := &motmedelJwtValidator.Validator{
+	validator := &altshiftJwtValidator.Validator{
 		HeaderValidator:  a.config.HeaderValidator,
 		PayloadValidator: a.config.ClaimsValidator,
 	}
@@ -112,13 +112,13 @@ func (a *AuthenticatorWithKeyHandler) Authenticate(ctx context.Context, tokenStr
 		authenticated_token_config.WithTokenValidator(validator),
 	)
 	if err != nil {
-		return nil, motmedelErrors.New(
+		return nil, altshiftErrors.New(
 			fmt.Errorf("authenticated token new: %w", err),
 			tokenString, signatureVerifier, validator,
 		)
 	}
 	if authenticatedToken == nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w (parsed)", nil_error.New("authenticated jwt token")))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w (parsed)", nil_error.New("authenticated jwt token")))
 	}
 
 	return authenticatedToken, nil
@@ -126,7 +126,7 @@ func (a *AuthenticatorWithKeyHandler) Authenticate(ctx context.Context, tokenStr
 
 func NewWithKeyHandler(handler *key_handler.Handler, options ...authenticator_with_key_handler_config.Option) (*AuthenticatorWithKeyHandler, error) {
 	if handler == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("handler"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("handler"))
 	}
 	return &AuthenticatorWithKeyHandler{
 		Handler: handler,

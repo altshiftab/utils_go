@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
@@ -24,7 +24,7 @@ func TestValidate(t *testing.T) {
 			name:         "nil map",
 			keyMap:       nil,
 			wantErr:      true,
-			wantIs:       []error{motmedelErrors.ErrValidationError},
+			wantIs:       []error{altshiftErrors.ErrValidationError},
 			wantNilError: true,
 		},
 		{
@@ -43,20 +43,20 @@ func TestValidate(t *testing.T) {
 			name:    "ec es256 missing crv",
 			keyMap:  map[string]any{"kty": "EC", "alg": "ES256"},
 			wantErr: true,
-			wantIs:  []error{motmedelErrors.ErrValidationError},
+			wantIs:  []error{altshiftErrors.ErrValidationError},
 		},
 		{
 			name:         "kty ec but rsa alg mismatch",
 			keyMap:       map[string]any{"kty": "EC", "alg": "RS256"},
 			wantErr:      true,
-			wantIs:       []error{motmedelErrors.ErrVerificationError},
+			wantIs:       []error{altshiftErrors.ErrVerificationError},
 			wantMismatch: true,
 		},
 		{
 			name:         "kty rsa but ec alg mismatch",
 			keyMap:       map[string]any{"kty": "RSA", "alg": "ES256"},
 			wantErr:      true,
-			wantIs:       []error{motmedelErrors.ErrVerificationError},
+			wantIs:       []error{altshiftErrors.ErrVerificationError},
 			wantMismatch: true,
 		},
 		{
@@ -67,25 +67,25 @@ func TestValidate(t *testing.T) {
 			name:    "missing kty",
 			keyMap:  map[string]any{"alg": "RS256"},
 			wantErr: true,
-			wantIs:  []error{motmedelErrors.ErrValidationError},
+			wantIs:  []error{altshiftErrors.ErrValidationError},
 		},
 		{
 			name:    "missing alg",
 			keyMap:  map[string]any{"kty": "RSA"},
 			wantErr: true,
-			wantIs:  []error{motmedelErrors.ErrValidationError},
+			wantIs:  []error{altshiftErrors.ErrValidationError},
 		},
 		{
 			name:    "kty wrong type",
 			keyMap:  map[string]any{"kty": 123, "alg": "RS256"},
 			wantErr: true,
-			wantIs:  []error{motmedelErrors.ErrValidationError},
+			wantIs:  []error{altshiftErrors.ErrValidationError},
 		},
 		{
 			name:    "alg wrong type",
 			keyMap:  map[string]any{"kty": "RSA", "alg": 123},
 			wantErr: true,
-			wantIs:  []error{motmedelErrors.ErrValidationError},
+			wantIs:  []error{altshiftErrors.ErrValidationError},
 		},
 	}
 

@@ -8,12 +8,12 @@ import (
 	"fmt"
 
 	"github.com/altshiftab/utils_go/pkg/cose"
-	motmedelCrypto "github.com/altshiftab/utils_go/pkg/crypto"
-	motmedelEcdsa "github.com/altshiftab/utils_go/pkg/crypto/ecdsa"
-	motmedelEddsa "github.com/altshiftab/utils_go/pkg/crypto/eddsa"
-	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
-	motmedelRsa "github.com/altshiftab/utils_go/pkg/crypto/rsa"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftCrypto "github.com/altshiftab/utils_go/pkg/crypto"
+	altshiftEcdsa "github.com/altshiftab/utils_go/pkg/crypto/ecdsa"
+	altshiftEddsa "github.com/altshiftab/utils_go/pkg/crypto/eddsa"
+	altshiftCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	altshiftRsa "github.com/altshiftab/utils_go/pkg/crypto/rsa"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
@@ -24,33 +24,33 @@ import (
 func NewVerifier(
 	algorithm cose.Algorithm,
 	publicKey crypto.PublicKey,
-) (motmedelCryptoInterfaces.Verifier, error) {
+) (altshiftCryptoInterfaces.Verifier, error) {
 	if utils.IsNil(publicKey) {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("public key"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("public key"))
 	}
 
-	algorithmName, ok := motmedelCrypto.CoseAlgNames[int(algorithm)]
+	algorithmName, ok := altshiftCrypto.CoseAlgNames[int(algorithm)]
 	if !ok {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: unsupported cose algorithm %d", motmedelErrors.ErrValidationError, algorithm),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: unsupported cose algorithm %d", altshiftErrors.ErrValidationError, algorithm),
 			algorithm,
 		)
 	}
 
 	switch typedPublicKey := publicKey.(type) {
 	case *ecdsa.PublicKey:
-		method, err := motmedelEcdsa.FromPublicKey(typedPublicKey)
+		method, err := altshiftEcdsa.FromPublicKey(typedPublicKey)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("ecdsa from public key: %w", err), typedPublicKey)
+			return nil, altshiftErrors.New(fmt.Errorf("ecdsa from public key: %w", err), typedPublicKey)
 		}
 
 		// FromPublicKey infers the algorithm from the curve; it must agree with the requested
 		// algorithm so a mismatching key cannot downgrade verification.
 		if inferredName := method.GetName(); inferredName != algorithmName {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: key algorithm %s does not match cose algorithm %s",
-					motmedelErrors.ErrValidationError,
+					altshiftErrors.ErrValidationError,
 					inferredName,
 					algorithmName,
 				),
@@ -59,24 +59,24 @@ func NewVerifier(
 			)
 		}
 
-		return &motmedelEcdsa.Asn1DerEncodedMethod{Method: *method}, nil
+		return &altshiftEcdsa.Asn1DerEncodedMethod{Method: *method}, nil
 	case ed25519.PublicKey:
-		if algorithmName != motmedelCrypto.AlgEdDsa {
-			return nil, motmedelErrors.NewWithTrace(
+		if algorithmName != altshiftCrypto.AlgEdDsa {
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: ed25519 key does not match cose algorithm %s",
-					motmedelErrors.ErrValidationError,
+					altshiftErrors.ErrValidationError,
 					algorithmName,
 				),
 				algorithmName,
 			)
 		}
 
-		return &motmedelEddsa.Method{PublicKey: typedPublicKey}, nil
+		return &altshiftEddsa.Method{PublicKey: typedPublicKey}, nil
 	case *rsa.PublicKey:
-		method, err := motmedelRsa.New(algorithmName, nil, typedPublicKey)
+		method, err := altshiftRsa.New(algorithmName, nil, typedPublicKey)
 		if err != nil {
-			return nil, motmedelErrors.New(
+			return nil, altshiftErrors.New(
 				fmt.Errorf("rsa new: %w", err),
 				algorithmName, typedPublicKey,
 			)
@@ -84,8 +84,8 @@ func NewVerifier(
 
 		return method, nil
 	default:
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: unsupported public key type %T", motmedelErrors.ErrValidationError, publicKey),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: unsupported public key type %T", altshiftErrors.ErrValidationError, publicKey),
 		)
 	}
 }

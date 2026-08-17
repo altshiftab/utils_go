@@ -7,13 +7,13 @@ import (
 	"log/slog"
 	"os"
 
-	motmedelEnv "github.com/altshiftab/utils_go/pkg/env"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftEnv "github.com/altshiftab/utils_go/pkg/env"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/go/code_generation"
 	"github.com/altshiftab/utils_go/pkg/go/code_generation/translate"
-	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
-	motmedelContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
+	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
+	altshiftContextLogger "github.com/altshiftab/utils_go/pkg/log/context_logger"
 	errorLogger "github.com/altshiftab/utils_go/pkg/log/error_logger"
 )
 
@@ -25,7 +25,7 @@ func run() error {
 	flag.StringVar(
 		&packageName,
 		"package-name",
-		motmedelEnv.GetEnvWithDefault("GOPACKAGE", "main"),
+		altshiftEnv.GetEnvWithDefault("GOPACKAGE", "main"),
 		"The name of the package in the output.",
 	)
 
@@ -37,17 +37,17 @@ func run() error {
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("os read file: %w", err), path)
+		return altshiftErrors.NewWithTrace(fmt.Errorf("os read file: %w", err), path)
 	}
 
 	var m map[string]any
 	if err := json.Unmarshal(data, &m); err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), data)
+		return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), data)
 	}
 
 	code, err := translate.Map(m)
 	if err != nil {
-		return motmedelErrors.New(fmt.Errorf("translate map: %w", err), m)
+		return altshiftErrors.New(fmt.Errorf("translate map: %w", err), m)
 	}
 
 	output, err := code_generation.MakeFileContent(
@@ -57,12 +57,12 @@ func run() error {
 		nil,
 	)
 	if err != nil {
-		return motmedelErrors.New(fmt.Errorf("make file content: %w", err), code, packageName)
+		return altshiftErrors.New(fmt.Errorf("make file content: %w", err), code, packageName)
 	}
 
 	if fileName := code_generation.GetGeneratedFilename(); fileName != "" {
 		if err := os.WriteFile(fileName, output, 0600); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("os write file: %w", err), fileName, output)
+			return altshiftErrors.NewWithTrace(fmt.Errorf("os write file: %w", err), fileName, output)
 		}
 	} else {
 		fmt.Println(string(output))
@@ -73,9 +73,9 @@ func run() error {
 
 func main() {
 	logger := errorLogger.Logger{
-		Logger: motmedelContextLogger.New(
+		Logger: altshiftContextLogger.New(
 			slog.NewJSONHandler(os.Stderr, nil),
-			&motmedelLog.ErrorContextExtractor{},
+			&altshiftLog.ErrorContextExtractor{},
 		),
 	}
 	slog.SetDefault(logger.Logger)

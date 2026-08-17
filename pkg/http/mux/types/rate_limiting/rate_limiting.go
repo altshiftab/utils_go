@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftNet "github.com/altshiftab/utils_go/pkg/net"
 )
 
 // TODO: This does not need to be in `mux`?
@@ -53,9 +53,9 @@ func DefaultGetRateLimitingKey(request *http.Request) (string, error) {
 	}
 
 	remoteAddr := request.RemoteAddr
-	ipAddress, _, err := motmedelNet.SplitAddress(remoteAddr)
+	ipAddress, _, err := altshiftNet.SplitAddress(remoteAddr)
 	if err != nil {
-		return "", motmedelErrors.New(fmt.Errorf("motmedel net split address: %w", err), remoteAddr)
+		return "", altshiftErrors.New(fmt.Errorf("split address: %w", err), remoteAddr)
 	}
 
 	return ipAddress, nil

@@ -36,11 +36,11 @@ func TestExtractAlternativeNames(t *testing.T) {
 	got := ExtractAlternativeNames(certificate)
 
 	expected := map[string]struct{}{
-		"example.com":            {},
-		"www.example.com":        {},
-		"192.0.2.1":              {},
-		"admin@example.com":      {},
-		"https://example.com/":   {},
+		"example.com":          {},
+		"www.example.com":      {},
+		"192.0.2.1":            {},
+		"admin@example.com":    {},
+		"https://example.com/": {},
 	}
 
 	if len(got) != len(expected) {

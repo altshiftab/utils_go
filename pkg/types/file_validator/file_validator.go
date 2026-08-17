@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 )
 
@@ -16,10 +16,10 @@ type Validator struct {
 
 func (v *Validator) ValidateDataContentType(data []byte) error {
 	if contentType := http.DetectContentType(data); contentType != v.ExpectedContentType {
-		return motmedelErrors.NewWithTrace(
+		return altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: %w",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				mismatch_error.New("content type", v.ExpectedContentType, contentType),
 			),
 		)
@@ -30,10 +30,10 @@ func (v *Validator) ValidateDataContentType(data []byte) error {
 func (v *Validator) ValidateFilePathExtension(path string) error {
 	fileExtension := filepath.Ext(path)
 	if fileExtension != v.ExpectedFileExtension {
-		return motmedelErrors.NewWithTrace(
+		return altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: %w",
-				motmedelErrors.ErrValidationError,
+				altshiftErrors.ErrValidationError,
 				mismatch_error.New("file extension", v.ExpectedFileExtension, fileExtension),
 			),
 		)

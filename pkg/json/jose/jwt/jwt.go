@@ -3,26 +3,26 @@ package jwt
 import (
 	"time"
 
-	motmedelJwtErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwt/errors"
+	altshiftJwtErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwt/errors"
 )
 
 func ValidateExpiresAt(expiresAt time.Time, cmp time.Time) error {
 	if cmp.After(expiresAt) {
-		return motmedelJwtErrors.ErrExpExpired
+		return altshiftJwtErrors.ErrExpExpired
 	}
 	return nil
 }
 
 func ValidateNotBefore(notBefore time.Time, cmp time.Time) error {
 	if cmp.Before(notBefore) {
-		return motmedelJwtErrors.ErrNbfBefore
+		return altshiftJwtErrors.ErrNbfBefore
 	}
 	return nil
 }
 
 func ValidateIssuedAt(issuedAt time.Time, cmp time.Time) error {
 	if cmp.Before(issuedAt) {
-		return motmedelJwtErrors.ErrIatBefore
+		return altshiftJwtErrors.ErrIatBefore
 	}
 	return nil
 }

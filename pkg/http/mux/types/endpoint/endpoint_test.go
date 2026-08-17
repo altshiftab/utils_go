@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 func cacheControlValue(endpoint *Endpoint) string {
@@ -38,15 +38,15 @@ func TestNewRobotsTxt(t *testing.T) {
 
 	t.Run("empty robots.txt", func(t *testing.T) {
 		t.Parallel()
-		if NewRobotsTxt(&motmedelHttpTypes.RobotsTxt{}) != nil {
+		if NewRobotsTxt(&altshiftHttpTypes.RobotsTxt{}) != nil {
 			t.Fatal("expected nil for an empty robots.txt")
 		}
 	})
 
 	t.Run("valid robots.txt", func(t *testing.T) {
 		t.Parallel()
-		endpoint := NewRobotsTxt(&motmedelHttpTypes.RobotsTxt{
-			Groups: []*motmedelHttpTypes.RobotsTxtGroup{
+		endpoint := NewRobotsTxt(&altshiftHttpTypes.RobotsTxt{
+			Groups: []*altshiftHttpTypes.RobotsTxtGroup{
 				{UserAgents: []string{"*"}, Disallowed: []string{"/private"}},
 			},
 		})

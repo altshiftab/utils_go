@@ -12,9 +12,9 @@ import (
 	"github.com/altshiftab/utils_go/pkg/type_export/types/shape"
 	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelJsonTag "github.com/altshiftab/utils_go/pkg/json/types/tag"
-	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftJsonTag "github.com/altshiftab/utils_go/pkg/json/types/tag"
+	altshiftReflect "github.com/altshiftab/utils_go/pkg/reflect"
 	jsonschemaTag "github.com/altshiftab/utils_go/pkg/type_export/jsonschema/types/tag"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
@@ -77,7 +77,7 @@ func (c *Context) GetTypeScriptType(reflectType reflect.Type) (Type, error) {
 		return nil, err
 	}
 
-	reflectType = motmedelReflect.RemoveIndirection(reflectType)
+	reflectType = altshiftReflect.RemoveIndirection(reflectType)
 
 	// Struct types are already returned as a TypeReference by
 	// getUnderlyingTypeScriptType (their TypeDeclaration is an
@@ -92,12 +92,12 @@ func (c *Context) GetTypeScriptType(reflectType reflect.Type) (Type, error) {
 	if useTypeAlias {
 		typeDeclaration, err := utils.MapGet(c.TypeDeclarations, reflectType)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("map get: %w", err), c.TypeDeclarations, reflectType)
+			return nil, altshiftErrors.New(fmt.Errorf("map get: %w", err), c.TypeDeclarations, reflectType)
 		}
 
 		typeAliasDeclaration, err := utils.Convert[*type_declaration.TypeAliasDeclaration](typeDeclaration)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("convert: %w", err), typeDeclaration)
+			return nil, altshiftErrors.New(fmt.Errorf("convert: %w", err), typeDeclaration)
 		}
 
 		return (&TypeAliasDeclaration{TypeAliasDeclaration: typeAliasDeclaration, c: c}).TypeReference(), nil
@@ -111,7 +111,7 @@ func (c *Context) GetTypeScriptType(reflectType reflect.Type) (Type, error) {
 // named alias. Used when emitting the right-hand side of an `export type X = …`
 // declaration, where wrapping would produce `export type X = X;`.
 func (c *Context) getUnderlyingTypeScriptType(reflectType reflect.Type) (Type, error) {
-	reflectType = motmedelReflect.RemoveIndirection(reflectType)
+	reflectType = altshiftReflect.RemoveIndirection(reflectType)
 
 	var typeScriptType Type
 	//exhaustive:ignore
@@ -122,12 +122,12 @@ func (c *Context) getUnderlyingTypeScriptType(reflectType reflect.Type) (Type, e
 		} else {
 			typeDeclaration, err := utils.MapGetNonZero(c.TypeDeclarations, reflectType)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("map get non zero: %w", err), c.TypeDeclarations, reflectType)
+				return nil, altshiftErrors.New(fmt.Errorf("map get non zero: %w", err), c.TypeDeclarations, reflectType)
 			}
 
 			interfaceDeclaration, err := utils.Convert[*type_declaration.InterfaceDeclaration](typeDeclaration)
 			if err != nil {
-				return nil, motmedelErrors.New(fmt.Errorf("convert: %w", err), typeDeclaration)
+				return nil, altshiftErrors.New(fmt.Errorf("convert: %w", err), typeDeclaration)
 			}
 
 			typeReference := (&InterfaceDeclaration{InterfaceDeclaration: interfaceDeclaration, c: c}).TypeReference()
@@ -140,7 +140,7 @@ func (c *Context) getUnderlyingTypeScriptType(reflectType reflect.Type) (Type, e
 					typeParameterNameToFieldName := genericTypeInfo.TypeParameterNameToFieldName
 					fieldName, err := utils.MapGet(typeParameterNameToFieldName, typeParameterName)
 					if err != nil {
-						return nil, motmedelErrors.New(
+						return nil, altshiftErrors.New(
 							fmt.Errorf("map get: %w", err),
 							typeParameterNameToFieldName, typeParameterName,
 						)
@@ -148,7 +148,7 @@ func (c *Context) getUnderlyingTypeScriptType(reflectType reflect.Type) (Type, e
 
 					field, ok := reflectType.FieldByName(fieldName)
 					if !ok {
-						return nil, motmedelErrors.NewWithTrace(
+						return nil, altshiftErrors.NewWithTrace(
 							typeExportErrors.ErrNoStructField,
 							reflectType, fieldName,
 						)
@@ -164,7 +164,7 @@ func (c *Context) getUnderlyingTypeScriptType(reflectType reflect.Type) (Type, e
 						}
 						switch fieldShape.Kind {
 						case shape.KindPointer:
-							argReflectType = motmedelReflect.RemoveIndirection(argReflectType)
+							argReflectType = altshiftReflect.RemoveIndirection(argReflectType)
 						case shape.KindSlice, shape.KindArray:
 							argReflectType = argReflectType.Elem()
 						case shape.KindMapValue:
@@ -229,7 +229,7 @@ func (c *Context) getUnderlyingTypeScriptType(reflectType reflect.Type) (Type, e
 		} else if isNumber(reflectTypeKeyKind) {
 			indexType = Number
 		} else {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf("%w: %T", typeExportErrors.ErrUnsupportedKind, reflectTypeKeyKind),
 				reflectTypeKeyKind,
 			)
@@ -256,7 +256,7 @@ func (c *Context) getUnderlyingTypeScriptType(reflectType reflect.Type) (Type, e
 	case reflect.Interface:
 		typeScriptType = Any
 	default:
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: %T", typeExportErrors.ErrUnsupportedKind, kind), kind)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %T", typeExportErrors.ErrUnsupportedKind, kind), kind)
 	}
 
 	return typeScriptType, nil
@@ -289,7 +289,7 @@ func (c *Context) Render() (string, error) {
 		}
 		d, err := interfaceDeclaration.String()
 		if err != nil {
-			return "", motmedelErrors.New(fmt.Errorf("to type script: %w", err), interfaceDeclaration)
+			return "", altshiftErrors.New(fmt.Errorf("to type script: %w", err), interfaceDeclaration)
 		}
 		stringBuilder.WriteString(d)
 		stringBuilder.WriteString("\n")
@@ -302,7 +302,7 @@ func (c *Context) Render() (string, error) {
 
 		d, err := typeAliasDeclaration.ToTypeScript()
 		if err != nil {
-			return "", motmedelErrors.New(fmt.Errorf("to type script: %w", err), typeAliasDeclaration)
+			return "", altshiftErrors.New(fmt.Errorf("to type script: %w", err), typeAliasDeclaration)
 		}
 		stringBuilder.WriteString(d)
 		stringBuilder.WriteString("\n")
@@ -339,7 +339,7 @@ func (t *InterfaceDeclaration) String() (string, error) {
 
 		field := property.Field
 		if field == nil {
-			return "", motmedelErrors.NewWithTrace(nil_error.New("property field"), property)
+			return "", altshiftErrors.NewWithTrace(nil_error.New("property field"), property)
 		}
 
 		identifier := property.Identifier
@@ -350,7 +350,7 @@ func (t *InterfaceDeclaration) String() (string, error) {
 		rawSchemaTag := fieldTag.Get("jsonschema")
 		schemaTag, err := jsonschemaTag.New(rawSchemaTag)
 		if err != nil {
-			return "", motmedelErrors.New(fmt.Errorf("jsonschema tag new: %w", err), schemaTag)
+			return "", altshiftErrors.New(fmt.Errorf("jsonschema tag new: %w", err), schemaTag)
 		}
 		if schemaTag != nil {
 			if schemaTag.Skip {
@@ -363,7 +363,7 @@ func (t *InterfaceDeclaration) String() (string, error) {
 
 			optional = optional || schemaTag.Optional
 		} else {
-			jsonTag := motmedelJsonTag.New(fieldTag.Get("json"))
+			jsonTag := altshiftJsonTag.New(fieldTag.Get("json"))
 			if jsonTag != nil {
 				if jsonTag.Skip {
 					continue

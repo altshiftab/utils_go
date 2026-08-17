@@ -1,9 +1,9 @@
 package service
 
 import (
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 )
 
 const strictTransportSecurityHeaderName = "Strict-Transport-Security"
@@ -15,14 +15,14 @@ const strictTransportSecurityHeaderName = "Strict-Transport-Security"
 // service on such a domain answers for what it takes with it.
 const strictTransportSecurityValue = "max-age=31536000; includeSubDomains"
 
-func patchStrictTransportSecurity(mux *motmedelMux.Mux) error {
+func patchStrictTransportSecurity(mux *altshiftMux.Mux) error {
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	defaultHeaders := mux.DefaultHeaders
 	if defaultHeaders == nil {
-		return motmedelErrors.NewWithTrace(nil_error.NewWithInstance("map", "default headers"))
+		return altshiftErrors.NewWithTrace(nil_error.NewWithInstance("map", "default headers"))
 	}
 
 	defaultHeaders[strictTransportSecurityHeaderName] = strictTransportSecurityValue

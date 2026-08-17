@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 var (
@@ -223,11 +223,11 @@ func TestValidateError(t *testing.T) {
 		t.Errorf("len(Errors) = %d, want 1", len(validateError.Errors))
 	}
 
-	if !errors.Is(err, motmedelErrors.ErrValidationError) {
-		t.Error("errors.Is(err, motmedelErrors.ErrValidationError) = false, want true")
+	if !errors.Is(err, altshiftErrors.ErrValidationError) {
+		t.Error("errors.Is(err, altshiftErrors.ErrValidationError) = false, want true")
 	}
-	if errors.Is(err, motmedelErrors.ErrParseError) {
-		t.Error("errors.Is(err, motmedelErrors.ErrParseError) = true, want false")
+	if errors.Is(err, altshiftErrors.ErrParseError) {
+		t.Error("errors.Is(err, altshiftErrors.ErrParseError) = true, want false")
 	}
 
 	if unwrapped := errors.Unwrap(err); !errors.Is(unwrapped, inner) {
@@ -235,7 +235,7 @@ func TestValidateError(t *testing.T) {
 	}
 
 	wrapped := fmt.Errorf("outer: %w", err)
-	if !errors.Is(wrapped, motmedelErrors.ErrValidationError) {
+	if !errors.Is(wrapped, altshiftErrors.ErrValidationError) {
 		t.Error("wrapped errors.Is(ErrValidationError) = false, want true")
 	}
 }

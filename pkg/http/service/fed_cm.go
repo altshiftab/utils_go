@@ -5,9 +5,9 @@ import (
 	"net/url"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 	csp "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 	cspUtils "github.com/altshiftab/utils_go/pkg/http/utils/content_security_policy"
 )
@@ -20,18 +20,18 @@ const permissionsPolicyHeaderName = "Permissions-Policy"
 // for each of them, without which the browser refuses the call whatever the policy says.
 //
 // The providers are whichever the service federates to; nothing here is particular to any of them.
-func patchFedCm(mux *motmedelMux.Mux, providerUrls ...*url.URL) error {
+func patchFedCm(mux *altshiftMux.Mux, providerUrls ...*url.URL) error {
 	if len(providerUrls) == 0 {
 		return nil
 	}
 
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	defaultDocumentHeaders := mux.DefaultDocumentHeaders
 	if defaultDocumentHeaders == nil {
-		return motmedelErrors.NewWithTrace(nil_error.NewWithInstance("map", "default document headers"))
+		return altshiftErrors.NewWithTrace(nil_error.NewWithInstance("map", "default document headers"))
 	}
 
 	var permissionsPolicyEntries []string

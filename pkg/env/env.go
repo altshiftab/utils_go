@@ -9,8 +9,8 @@ import (
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 
 	context2 "github.com/altshiftab/utils_go/pkg/context"
-	motmedelEnvErrors "github.com/altshiftab/utils_go/pkg/env/errors"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftEnvErrors "github.com/altshiftab/utils_go/pkg/env/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func GetEnvWithDefault(key string, defaultValue string) string {
@@ -26,9 +26,9 @@ func ReadEnv(name string) (string, error) {
 
 	var err error
 	if !found {
-		err = motmedelErrors.NewWithTrace(fmt.Errorf("%w: %q", motmedelEnvErrors.ErrNotPresent, name), name)
+		err = altshiftErrors.NewWithTrace(fmt.Errorf("%w: %q", altshiftEnvErrors.ErrNotPresent, name), name)
 	} else if value == "" {
-		err = motmedelErrors.NewWithTrace(fmt.Errorf("%w: %q", empty_error.New("environment variable"), name), name)
+		err = altshiftErrors.NewWithTrace(fmt.Errorf("%w: %q", empty_error.New("environment variable"), name), name)
 	}
 
 	if err != nil {
@@ -62,7 +62,7 @@ func PopEnv(name string) (string, error) {
 	}
 
 	if unsetErr := os.Unsetenv(name); unsetErr != nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("os unsetenv: %w", unsetErr))
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("os unsetenv: %w", unsetErr))
 	}
 
 	return value, nil

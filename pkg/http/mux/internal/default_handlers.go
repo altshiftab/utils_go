@@ -8,14 +8,14 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
 	muxContext "github.com/altshiftab/utils_go/pkg/http/mux/context"
 	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
 	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response_writer"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 // The messages the mux logs an error response under. What is worth saying about one is in the HTTP
@@ -65,9 +65,9 @@ func DefaultResponseErrorHandler(
 
 	if responseWriter == nil {
 		slog.ErrorContext(
-			motmedelContext.WithError(
+			altshiftContext.WithError(
 				ctx,
-				motmedelErrors.NewWithTrace(nil_error.New("response writer")),
+				altshiftErrors.NewWithTrace(nil_error.New("response writer")),
 			),
 			"The response writer is nil.",
 		)
@@ -79,10 +79,10 @@ func DefaultResponseErrorHandler(
 	switch responseErrorType := responseError.Type(); responseErrorType {
 	case muxTypesResponseError.ResponseErrorType_ClientError:
 		defer func() {
-			clientError := motmedelErrors.New(responseError.ClientError)
+			clientError := altshiftErrors.New(responseError.ClientError)
 			clientError.Id = errorId
 			slog.WarnContext(
-				motmedelContext.WithError(ctx, clientError),
+				altshiftContext.WithError(ctx, clientError),
 				ClientErrorMessage,
 				slog.Group(
 					"event",
@@ -93,10 +93,10 @@ func DefaultResponseErrorHandler(
 		}()
 	case muxTypesResponseError.ResponseErrorType_ServerError:
 		defer func() {
-			serverError := motmedelErrors.New(responseError.ServerError)
+			serverError := altshiftErrors.New(responseError.ServerError)
 			serverError.Id = errorId
 			slog.ErrorContext(
-				motmedelContext.WithError(ctx, serverError),
+				altshiftContext.WithError(ctx, serverError),
 				ServerErrorMessage,
 				slog.Group(
 					"event",
@@ -107,18 +107,18 @@ func DefaultResponseErrorHandler(
 		}()
 	case muxTypesResponseError.ResponseErrorType_Invalid:
 		slog.ErrorContext(
-			motmedelContext.WithError(
+			altshiftContext.WithError(
 				ctx,
-				motmedelErrors.NewWithTrace(muxErrors.ErrUnusableResponseError, responseError),
+				altshiftErrors.NewWithTrace(muxErrors.ErrUnusableResponseError, responseError),
 			),
 			"An invalid response error type was encountered.",
 		)
 		return
 	default:
 		slog.ErrorContext(
-			motmedelContext.WithError(
+			altshiftContext.WithError(
 				ctx,
-				motmedelErrors.NewWithTrace(
+				altshiftErrors.NewWithTrace(
 					fmt.Errorf("%w: %v", muxErrors.ErrUnexpectedResponseErrorType, responseErrorType),
 				),
 			),
@@ -134,9 +134,9 @@ func DefaultResponseErrorHandler(
 	problemDetail, err := responseError.GetEffectiveProblemDetail()
 	if err != nil {
 		slog.ErrorContext(
-			motmedelContext.WithError(
+			altshiftContext.WithError(
 				ctx,
-				motmedelErrors.NewWithTrace(
+				altshiftErrors.NewWithTrace(
 					fmt.Errorf("response error get effective problem detail: %w", err),
 					responseError,
 				),
@@ -148,36 +148,36 @@ func DefaultResponseErrorHandler(
 	responseError.ProblemDetail = problemDetail
 	errorId = problemDetail.Instance
 
-	contentNegotiation, _ := ctx.Value(muxContext.ContentNegotiationContextKey).(*motmedelHttpTypes.ContentNegotiation)
+	contentNegotiation, _ := ctx.Value(muxContext.ContentNegotiationContextKey).(*altshiftHttpTypes.ContentNegotiation)
 	response, err := responseError.MakeResponse(contentNegotiation)
 	if err != nil {
 		slog.ErrorContext(
-			motmedelContext.WithError(
+			altshiftContext.WithError(
 				ctx,
-				motmedelErrors.New(fmt.Errorf("make response error response: %w", err), responseError),
+				altshiftErrors.New(fmt.Errorf("make response error response: %w", err), responseError),
 			),
 			"An error occurred when making a response from a response error.",
 		)
 		return
 	}
 
-	var acceptEncoding *motmedelHttpTypes.AcceptEncoding
+	var acceptEncoding *altshiftHttpTypes.AcceptEncoding
 	if contentNegotiation != nil {
 		acceptEncoding = contentNegotiation.AcceptEncoding
 	}
 
 	if err := responseWriter.WriteResponse(ctx, response, acceptEncoding); err != nil {
 		slog.ErrorContext(
-			motmedelContext.WithError(
+			altshiftContext.WithError(
 				ctx,
-				motmedelErrors.New(fmt.Errorf("write response: %w", err), responseError),
+				altshiftErrors.New(fmt.Errorf("write response: %w", err), responseError),
 			),
 			"An error occurred when writing an error response.",
 		)
 		return
 	}
 
-	if httpContext, ok := ctx.Value(motmedelHttpContext.HttpContextContextKey).(*motmedelHttpTypes.HttpContext); ok {
+	if httpContext, ok := ctx.Value(altshiftHttpContext.HttpContextContextKey).(*altshiftHttpTypes.HttpContext); ok {
 		httpContext.Response = &http.Response{
 			StatusCode: responseWriter.WrittenStatusCode,
 			Header:     responseWriter.Header(),

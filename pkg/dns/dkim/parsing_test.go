@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/testing/cmp"
@@ -24,13 +24,13 @@ func TestParseRecord(t *testing.T) {
 			name:           "empty data",
 			input:          nil,
 			expected:       nil,
-			expectedErrors: []error{motmedelErrors.ErrSyntaxError},
+			expectedErrors: []error{altshiftErrors.ErrSyntaxError},
 		},
 		{
 			name:           "syntax error",
 			input:          []byte("garbage"),
 			expected:       nil,
-			expectedErrors: []error{motmedelErrors.ErrSyntaxError},
+			expectedErrors: []error{altshiftErrors.ErrSyntaxError},
 		},
 		{
 			name:  "basic record",
@@ -80,27 +80,27 @@ func TestParseRecord(t *testing.T) {
 		{
 			name:           "misplaced v",
 			input:          []byte("p= ; v=DKIM1"),
-			expectedErrors: []error{motmedelErrors.ErrSemanticError, ErrVNotFirstTag},
+			expectedErrors: []error{altshiftErrors.ErrSemanticError, ErrVNotFirstTag},
 		},
 		{
 			name:           "missing p",
 			input:          []byte("v=DKIM1"),
-			expectedErrors: []error{motmedelErrors.ErrSemanticError, ErrMissingPublicKeyData},
+			expectedErrors: []error{altshiftErrors.ErrSemanticError, ErrMissingPublicKeyData},
 		},
 		{
 			name:           "duplicate tags",
 			input:          []byte("p= ; p="),
-			expectedErrors: []error{motmedelErrors.ErrSemanticError, ErrDuplicateTags},
+			expectedErrors: []error{altshiftErrors.ErrSemanticError, ErrDuplicateTags},
 		},
 		{
 			name:           "malformed tag",
 			input:          []byte("v=garbage"),
-			expectedErrors: []error{motmedelErrors.ErrSyntaxError, ErrMalformedTag},
+			expectedErrors: []error{altshiftErrors.ErrSyntaxError, ErrMalformedTag},
 		},
 		{
 			name:           "malformed p data",
 			input:          []byte("p=11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="),
-			expectedErrors: []error{motmedelErrors.ErrSemanticError, ErrMalformedPublicKeyData},
+			expectedErrors: []error{altshiftErrors.ErrSemanticError, ErrMalformedPublicKeyData},
 		},
 	}
 
@@ -115,7 +115,7 @@ func TestParseRecord(t *testing.T) {
 				t.Fatalf("expected no errors, got: %v", err)
 			}
 
-			if !motmedelErrors.IsAll(err, expectedErrors...) {
+			if !altshiftErrors.IsAll(err, expectedErrors...) {
 				t.Fatalf("expected errors: %v, got: %v", expectedErrors, err)
 			}
 
@@ -144,13 +144,13 @@ func TestParseHeader(t *testing.T) {
 			name:           "empty data",
 			input:          nil,
 			expected:       nil,
-			expectedErrors: []error{motmedelErrors.ErrSyntaxError},
+			expectedErrors: []error{altshiftErrors.ErrSyntaxError},
 		},
 		{
 			name:           "syntax error",
 			input:          []byte("garbage"),
 			expected:       nil,
-			expectedErrors: []error{motmedelErrors.ErrSyntaxError},
+			expectedErrors: []error{altshiftErrors.ErrSyntaxError},
 		},
 		{
 			name:  "extensions and empty tags",
@@ -183,17 +183,17 @@ func TestParseHeader(t *testing.T) {
 		{
 			name:           "missing required tag h",
 			input:          []byte("v=1; a=rsa-sha256; b=AAAA; bh=AAAA; d=example.net; s=brisbane"),
-			expectedErrors: []error{motmedelErrors.ErrSemanticError, ErrMissingRequiredTag},
+			expectedErrors: []error{altshiftErrors.ErrSemanticError, ErrMissingRequiredTag},
 		},
 		{
 			name:           "bad base64 in b",
 			input:          []byte("v=1; a=rsa-sha256; b=A; bh=AAAA; d=example.net; h=from; s=brisbane"),
-			expectedErrors: []error{motmedelErrors.ErrSemanticError},
+			expectedErrors: []error{altshiftErrors.ErrSemanticError},
 		},
 		{
 			name:           "bad base64 in bh",
 			input:          []byte("v=1; a=rsa-sha256; b=AAAA; bh=A; d=example.net; h=from; s=brisbane"),
-			expectedErrors: []error{motmedelErrors.ErrSemanticError},
+			expectedErrors: []error{altshiftErrors.ErrSemanticError},
 		},
 		{
 			name:  "rfc example",
@@ -232,7 +232,7 @@ func TestParseHeader(t *testing.T) {
 				t.Fatalf("expected no errors, got: %v", err)
 			}
 
-			if !motmedelErrors.IsAll(err, expectedErrors...) {
+			if !altshiftErrors.IsAll(err, expectedErrors...) {
 				t.Fatalf("expected errors: %v, got: %v", expectedErrors, err)
 			}
 
@@ -312,7 +312,7 @@ func TestExtractTagPath(t *testing.T) {
 				t.Fatalf("expected no errors, got: %v", err)
 			}
 
-			if !motmedelErrors.IsAll(err, expectedErrors...) {
+			if !altshiftErrors.IsAll(err, expectedErrors...) {
 				t.Fatalf("expected errors: %v, got: %v", expectedErrors, err)
 			}
 
@@ -414,7 +414,7 @@ func TestExtractBase64String(t *testing.T) {
 				t.Fatalf("expected no errors, got: %v", err)
 			}
 
-			if !motmedelErrors.IsAll(err, expectedErrors...) {
+			if !altshiftErrors.IsAll(err, expectedErrors...) {
 				t.Fatalf("expected errors: %v, got: %v", expectedErrors, err)
 			}
 

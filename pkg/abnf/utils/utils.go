@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
@@ -71,22 +71,22 @@ func SearchPathSingleName(path *abnf.Path, name string, maxDepth int, searchMatc
 
 func GetParsedDataPaths(grammar *abnf.Grammar, data []byte, rootRulename string) ([]*abnf.Path, error) {
 	if grammar == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("grammar"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("grammar"))
 	}
 
 	if len(data) == 0 {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %w", motmedelErrors.ErrSyntaxError, empty_error.New("data")),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %w", altshiftErrors.ErrSyntaxError, empty_error.New("data")),
 		)
 	}
 
 	if rootRulename == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("root rulename"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("root rulename"))
 	}
 
 	paths, err := abnf.Parse(data, grammar, rootRulename)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("abnf parse: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("abnf parse: %w", err))
 	}
 
 	return paths, nil

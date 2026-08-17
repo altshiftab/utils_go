@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 func TestContextKeys(t *testing.T) {
@@ -18,10 +18,10 @@ func TestContextKeys(t *testing.T) {
 func TestWithHttpContextValue(t *testing.T) {
 	t.Parallel()
 
-	httpContext := &motmedelHttpTypes.HttpContext{}
+	httpContext := &altshiftHttpTypes.HttpContext{}
 	ctx := WithHttpContextValue(context.Background(), httpContext)
 
-	stored, ok := ctx.Value(HttpContextContextKey).(*motmedelHttpTypes.HttpContext)
+	stored, ok := ctx.Value(HttpContextContextKey).(*altshiftHttpTypes.HttpContext)
 	if !ok {
 		t.Fatalf("value not stored as *HttpContext")
 	}
@@ -35,7 +35,7 @@ func TestWithHttpContextValueNil(t *testing.T) {
 
 	ctx := WithHttpContextValue(context.Background(), nil)
 
-	stored, ok := ctx.Value(HttpContextContextKey).(*motmedelHttpTypes.HttpContext)
+	stored, ok := ctx.Value(HttpContextContextKey).(*altshiftHttpTypes.HttpContext)
 	if !ok {
 		t.Fatalf("value not stored as *HttpContext")
 	}
@@ -49,7 +49,7 @@ func TestWithHttpContext(t *testing.T) {
 
 	ctx := WithHttpContext(context.Background())
 
-	stored, ok := ctx.Value(HttpContextContextKey).(*motmedelHttpTypes.HttpContext)
+	stored, ok := ctx.Value(HttpContextContextKey).(*altshiftHttpTypes.HttpContext)
 	if !ok {
 		t.Fatalf("value not stored as *HttpContext")
 	}

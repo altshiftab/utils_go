@@ -9,13 +9,13 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_parser"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_parser/json_body_parser"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
-	motmedelJsonSchema "github.com/altshiftab/utils_go/pkg/json/schema"
+	altshiftJsonSchema "github.com/altshiftab/utils_go/pkg/json/schema"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
@@ -23,7 +23,7 @@ var jsonMapBodyParser = json_body_parser.New[map[string]any]()
 var jsonArrayBodyParser = json_body_parser.New[[]any]()
 
 type Parser[T any] struct {
-	schema     *motmedelJsonSchema.Schema
+	schema     *altshiftJsonSchema.Schema
 	bodyParser body_parser.BodyParser[T]
 }
 
@@ -32,12 +32,12 @@ func (p *Parser[T]) Parse(request *http.Request, body []byte) (T, *response_erro
 
 	schema := p.schema
 	if schema == nil {
-		return zero, &response_error.ResponseError{ServerError: motmedelErrors.NewWithTrace(nil_error.New("schema"))}
+		return zero, &response_error.ResponseError{ServerError: altshiftErrors.NewWithTrace(nil_error.New("schema"))}
 	}
 
 	bodyParser := p.bodyParser
 	if utils.IsNil(bodyParser) {
-		return zero, &response_error.ResponseError{ServerError: motmedelErrors.NewWithTrace(nil_error.New("body parser"))}
+		return zero, &response_error.ResponseError{ServerError: altshiftErrors.NewWithTrace(nil_error.New("body parser"))}
 	}
 
 	var data any
@@ -53,9 +53,9 @@ func (p *Parser[T]) Parse(request *http.Request, body []byte) (T, *response_erro
 	}
 
 	if err := schema.Validate(data); err != nil {
-		wrappedErr := motmedelErrors.New(fmt.Errorf("validate (input): %w", err), data, schema)
+		wrappedErr := altshiftErrors.New(fmt.Errorf("validate (input): %w", err), data, schema)
 
-		if validateError, ok := errors.AsType[*motmedelJsonSchema.ValidateError](err); ok {
+		if validateError, ok := errors.AsType[*altshiftJsonSchema.ValidateError](err); ok {
 			return zero, &response_error.ResponseError{
 				ProblemDetail: problem_detail.New(
 					http.StatusUnprocessableEntity,
@@ -78,9 +78,9 @@ func (p *Parser[T]) Parse(request *http.Request, body []byte) (T, *response_erro
 	return result, nil
 }
 
-func NewWithSchema[T any](schema *motmedelJsonSchema.Schema) (*Parser[T], error) {
+func NewWithSchema[T any](schema *altshiftJsonSchema.Schema) (*Parser[T], error) {
 	if schema == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("schema"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("schema"))
 	}
 
 	// The schema owns the unknown-member policy (additionalProperties), and validation runs before
@@ -89,7 +89,7 @@ func NewWithSchema[T any](schema *motmedelJsonSchema.Schema) (*Parser[T], error)
 }
 
 func New[T any]() (*Parser[T], error) {
-	schema, err := motmedelJsonSchema.NewFromType[T]()
+	schema, err := altshiftJsonSchema.NewFromType[T]()
 	if err != nil {
 		return nil, fmt.Errorf("schema new: %w", err)
 	}

@@ -11,7 +11,7 @@ import (
 
 	context2 "github.com/altshiftab/utils_go/pkg/context"
 	"github.com/altshiftab/utils_go/pkg/database/sql/types/tx_caller"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/interfaces/parser"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
@@ -28,19 +28,19 @@ func WithTx[T any](
 	}
 
 	if database == nil {
-		return zero, motmedelErrors.NewWithTrace(nil_error.New("sql database"))
+		return zero, altshiftErrors.NewWithTrace(nil_error.New("sql database"))
 	}
 
 	if utils.IsNil(txCaller) {
-		return zero, motmedelErrors.NewWithTrace(nil_error.New("tx caller"))
+		return zero, altshiftErrors.NewWithTrace(nil_error.New("tx caller"))
 	}
 
 	transaction, err := database.BeginTx(ctx, nil)
 	if err != nil {
-		return zero, motmedelErrors.NewWithTrace(fmt.Errorf("begin transaction: %w", err))
+		return zero, altshiftErrors.NewWithTrace(fmt.Errorf("begin transaction: %w", err))
 	}
 	if transaction == nil {
-		return zero, motmedelErrors.NewWithTrace(nil_error.New("tx"))
+		return zero, altshiftErrors.NewWithTrace(nil_error.New("tx"))
 	}
 
 	out, err := txCaller.Call(ctx, transaction)
@@ -50,7 +50,7 @@ func WithTx[T any](
 			slog.ErrorContext(
 				context2.WithError(
 					ctx,
-					motmedelErrors.NewWithTrace(fmt.Errorf("tx rollback: %w", rollbackErr), transaction),
+					altshiftErrors.NewWithTrace(fmt.Errorf("tx rollback: %w", rollbackErr), transaction),
 				),
 				"An error occurred when rolling back a transaction.",
 			)
@@ -59,7 +59,7 @@ func WithTx[T any](
 	}
 
 	if err := transaction.Commit(); err != nil {
-		return zero, motmedelErrors.NewWithTrace(fmt.Errorf("tx commit: %w", err), transaction)
+		return zero, altshiftErrors.NewWithTrace(fmt.Errorf("tx commit: %w", err), transaction)
 	}
 
 	return out, nil
@@ -79,15 +79,15 @@ func QueryReturningById[T any](
 	}
 
 	if query == "" {
-		return zero, motmedelErrors.NewWithTrace(empty_error.New("query"))
+		return zero, altshiftErrors.NewWithTrace(empty_error.New("query"))
 	}
 
 	if database == nil {
-		return zero, motmedelErrors.NewWithTrace(nil_error.New("sql database"))
+		return zero, altshiftErrors.NewWithTrace(nil_error.New("sql database"))
 	}
 
 	if utils.IsNil(rowParser) {
-		return zero, motmedelErrors.NewWithTrace(nil_error.New("parser"))
+		return zero, altshiftErrors.NewWithTrace(nil_error.New("parser"))
 	}
 
 	if id == "" {

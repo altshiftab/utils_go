@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	motmedelHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config/retry_config"
 )
@@ -100,7 +100,7 @@ func TestFetch_Non2xxStatusReturnsError(t *testing.T) {
 
 	resp, _, err := Fetch(context.Background(), server.URL)
 
-	var non2xx *motmedelHttpErrors.Non2xxStatusCodeError
+	var non2xx *altshiftHttpErrors.Non2xxStatusCodeError
 	if !errors.As(err, &non2xx) {
 		t.Fatalf("err = %v, want *Non2xxStatusCodeError", err)
 	}
@@ -368,7 +368,7 @@ func TestFetch_RetryExhaustedReturnsError(t *testing.T) {
 	if got := attempts.Load(); got != 3 {
 		t.Fatalf("attempts = %d, want 3", got)
 	}
-	var non2xx *motmedelHttpErrors.Non2xxStatusCodeError
+	var non2xx *altshiftHttpErrors.Non2xxStatusCodeError
 	if !errors.As(err, &non2xx) {
 		t.Errorf("err = %v, want it to wrap *Non2xxStatusCodeError", err)
 	}
@@ -421,14 +421,14 @@ func TestGetSingleHeader(t *testing.T) {
 
 	t.Run("multiple values", func(t *testing.T) {
 		t.Parallel()
-		if _, err := GetSingleHeader("X-Multi", header); !errors.Is(err, motmedelHttpErrors.ErrMultipleHeaderValues) {
+		if _, err := GetSingleHeader("X-Multi", header); !errors.Is(err, altshiftHttpErrors.ErrMultipleHeaderValues) {
 			t.Fatalf("err = %v, want ErrMultipleHeaderValues", err)
 		}
 	})
 
 	t.Run("missing", func(t *testing.T) {
 		t.Parallel()
-		if _, err := GetSingleHeader("X-Absent", header); !errors.Is(err, motmedelHttpErrors.ErrMissingHeader) {
+		if _, err := GetSingleHeader("X-Absent", header); !errors.Is(err, altshiftHttpErrors.ErrMissingHeader) {
 			t.Fatalf("err = %v, want ErrMissingHeader", err)
 		}
 	})
@@ -580,13 +580,13 @@ func TestFetch_HTTPS(t *testing.T) {
 func TestGetMatchingContentEncoding(t *testing.T) {
 	t.Parallel()
 
-	enc := func(coding string, quality float32) *motmedelHttpTypes.Encoding {
-		return &motmedelHttpTypes.Encoding{Coding: coding, QualityValue: quality}
+	enc := func(coding string, quality float32) *altshiftHttpTypes.Encoding {
+		return &altshiftHttpTypes.Encoding{Coding: coding, QualityValue: quality}
 	}
 
 	testCases := []struct {
 		name   string
-		client []*motmedelHttpTypes.Encoding
+		client []*altshiftHttpTypes.Encoding
 		server []string
 		want   string
 	}{
@@ -598,31 +598,31 @@ func TestGetMatchingContentEncoding(t *testing.T) {
 		},
 		{
 			name:   "exact match",
-			client: []*motmedelHttpTypes.Encoding{enc("gzip", 1)},
+			client: []*altshiftHttpTypes.Encoding{enc("gzip", 1)},
 			server: []string{"gzip", "br"},
 			want:   "gzip",
 		},
 		{
 			name:   "wildcard picks first server encoding",
-			client: []*motmedelHttpTypes.Encoding{enc("*", 1)},
+			client: []*altshiftHttpTypes.Encoding{enc("*", 1)},
 			server: []string{"br", "gzip"},
 			want:   "br",
 		},
 		{
 			name:   "identity explicitly accepted",
-			client: []*motmedelHttpTypes.Encoding{enc("identity", 1)},
+			client: []*altshiftHttpTypes.Encoding{enc("identity", 1)},
 			server: []string{"gzip"},
 			want:   AcceptContentIdentity,
 		},
 		{
 			name:   "no match falls back to identity",
-			client: []*motmedelHttpTypes.Encoding{enc("gzip", 1)},
+			client: []*altshiftHttpTypes.Encoding{enc("gzip", 1)},
 			server: []string{"br"},
 			want:   AcceptContentIdentity,
 		},
 		{
 			name:   "identity disallowed with no match yields empty",
-			client: []*motmedelHttpTypes.Encoding{enc("*", 0)},
+			client: []*altshiftHttpTypes.Encoding{enc("*", 0)},
 			server: []string{"gzip"},
 			want:   "",
 		},
@@ -630,37 +630,37 @@ func TestGetMatchingContentEncoding(t *testing.T) {
 			// Browsers list gzip first with equal quality; the server's
 			// preference (smallest variant first) decides within the group.
 			name:   "equal quality defers to server preference",
-			client: []*motmedelHttpTypes.Encoding{enc("gzip", 1), enc("deflate", 1), enc("br", 1), enc("zstd", 1)},
+			client: []*altshiftHttpTypes.Encoding{enc("gzip", 1), enc("deflate", 1), enc("br", 1), enc("zstd", 1)},
 			server: []string{"br", "gzip"},
 			want:   "br",
 		},
 		{
 			name:   "higher client quality beats server preference",
-			client: []*motmedelHttpTypes.Encoding{enc("gzip", 1), enc("br", 0.5)},
+			client: []*altshiftHttpTypes.Encoding{enc("gzip", 1), enc("br", 0.5)},
 			server: []string{"br", "gzip"},
 			want:   "gzip",
 		},
 		{
 			name:   "zero quality excludes an encoding",
-			client: []*motmedelHttpTypes.Encoding{enc("gzip", 1), enc("br", 0)},
+			client: []*altshiftHttpTypes.Encoding{enc("gzip", 1), enc("br", 0)},
 			server: []string{"br", "gzip"},
 			want:   "gzip",
 		},
 		{
 			name:   "wildcard does not resurrect an excluded encoding",
-			client: []*motmedelHttpTypes.Encoding{enc("br", 0), enc("*", 1)},
+			client: []*altshiftHttpTypes.Encoding{enc("br", 0), enc("*", 1)},
 			server: []string{"br", "gzip"},
 			want:   "gzip",
 		},
 		{
 			name:   "equal quality identity loses to a supported encoding",
-			client: []*motmedelHttpTypes.Encoding{enc("identity", 1), enc("gzip", 1)},
+			client: []*altshiftHttpTypes.Encoding{enc("identity", 1), enc("gzip", 1)},
 			server: []string{"gzip"},
 			want:   "gzip",
 		},
 		{
 			name:   "higher quality identity wins",
-			client: []*motmedelHttpTypes.Encoding{enc("identity", 1), enc("gzip", 0.5)},
+			client: []*altshiftHttpTypes.Encoding{enc("identity", 1), enc("gzip", 0.5)},
 			server: []string{"gzip"},
 			want:   AcceptContentIdentity,
 		},
@@ -679,17 +679,17 @@ func TestGetMatchingContentEncoding(t *testing.T) {
 func TestGetMatchingAccept(t *testing.T) {
 	t.Parallel()
 
-	client := func(typ, subtype string) *motmedelHttpTypes.MediaRange {
-		return &motmedelHttpTypes.MediaRange{Type: typ, Subtype: subtype}
+	client := func(typ, subtype string) *altshiftHttpTypes.MediaRange {
+		return &altshiftHttpTypes.MediaRange{Type: typ, Subtype: subtype}
 	}
-	server := func(typ, subtype string) *motmedelHttpTypes.ServerMediaRange {
-		return &motmedelHttpTypes.ServerMediaRange{Type: typ, Subtype: subtype}
+	server := func(typ, subtype string) *altshiftHttpTypes.ServerMediaRange {
+		return &altshiftHttpTypes.ServerMediaRange{Type: typ, Subtype: subtype}
 	}
 
 	testCases := []struct {
 		name        string
-		client      []*motmedelHttpTypes.MediaRange
-		server      []*motmedelHttpTypes.ServerMediaRange
+		client      []*altshiftHttpTypes.MediaRange
+		server      []*altshiftHttpTypes.ServerMediaRange
 		wantType    string
 		wantSubtype string
 		wantNil     bool
@@ -697,46 +697,46 @@ func TestGetMatchingAccept(t *testing.T) {
 		{
 			name:    "no client ranges",
 			client:  nil,
-			server:  []*motmedelHttpTypes.ServerMediaRange{server("application", "json")},
+			server:  []*altshiftHttpTypes.ServerMediaRange{server("application", "json")},
 			wantNil: true,
 		},
 		{
 			name:    "no server ranges",
-			client:  []*motmedelHttpTypes.MediaRange{client("application", "json")},
+			client:  []*altshiftHttpTypes.MediaRange{client("application", "json")},
 			server:  nil,
 			wantNil: true,
 		},
 		{
 			name:        "full wildcard picks first server range",
-			client:      []*motmedelHttpTypes.MediaRange{client("*", "*")},
-			server:      []*motmedelHttpTypes.ServerMediaRange{server("application", "json"), server("text", "html")},
+			client:      []*altshiftHttpTypes.MediaRange{client("*", "*")},
+			server:      []*altshiftHttpTypes.ServerMediaRange{server("application", "json"), server("text", "html")},
 			wantType:    "application",
 			wantSubtype: "json",
 		},
 		{
 			name:        "exact match",
-			client:      []*motmedelHttpTypes.MediaRange{client("application", "json")},
-			server:      []*motmedelHttpTypes.ServerMediaRange{server("text", "html"), server("application", "json")},
+			client:      []*altshiftHttpTypes.MediaRange{client("application", "json")},
+			server:      []*altshiftHttpTypes.ServerMediaRange{server("text", "html"), server("application", "json")},
 			wantType:    "application",
 			wantSubtype: "json",
 		},
 		{
 			name:        "subtype wildcard",
-			client:      []*motmedelHttpTypes.MediaRange{client("application", "*")},
-			server:      []*motmedelHttpTypes.ServerMediaRange{server("application", "xml")},
+			client:      []*altshiftHttpTypes.MediaRange{client("application", "*")},
+			server:      []*altshiftHttpTypes.ServerMediaRange{server("application", "xml")},
 			wantType:    "application",
 			wantSubtype: "xml",
 		},
 		{
 			name:    "no match",
-			client:  []*motmedelHttpTypes.MediaRange{client("text", "plain")},
-			server:  []*motmedelHttpTypes.ServerMediaRange{server("application", "json")},
+			client:  []*altshiftHttpTypes.MediaRange{client("text", "plain")},
+			server:  []*altshiftHttpTypes.ServerMediaRange{server("application", "json")},
 			wantNil: true,
 		},
 		{
 			name:        "nil client entry is skipped",
-			client:      []*motmedelHttpTypes.MediaRange{nil, client("application", "json")},
-			server:      []*motmedelHttpTypes.ServerMediaRange{server("application", "json")},
+			client:      []*altshiftHttpTypes.MediaRange{nil, client("application", "json")},
+			server:      []*altshiftHttpTypes.ServerMediaRange{server("application", "json")},
 			wantType:    "application",
 			wantSubtype: "json",
 		},
@@ -778,7 +778,7 @@ func TestParseLastModifiedTimestamp(t *testing.T) {
 
 	t.Run("invalid", func(t *testing.T) {
 		t.Parallel()
-		if _, err := ParseLastModifiedTimestamp("not a date"); !errors.Is(err, motmedelHttpErrors.ErrBadIfModifiedSinceTimestamp) {
+		if _, err := ParseLastModifiedTimestamp("not a date"); !errors.Is(err, altshiftHttpErrors.ErrBadIfModifiedSinceTimestamp) {
 			t.Fatalf("err = %v, want ErrBadIfModifiedSinceTimestamp", err)
 		}
 	})

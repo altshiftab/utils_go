@@ -6,10 +6,10 @@ import (
 	"os"
 
 	gcpHttpContextExtractor "github.com/altshiftab/utils_go/pkg/cloud/gcp/types/http_context_extractor"
-	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor"
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const DefaultLogLevel = slog.LevelInfo
@@ -22,10 +22,10 @@ var DefaultWriter io.Writer = os.Stdout
 // the request is in the HTTP context rather than in the message. The extractor that reads that
 // context replaces them with what it says; see http_context_extractor_config.WithReplaceableMessages.
 var DefaultReplaceableMessages = []string{
-	motmedelMux.ClientErrorMessage,
-	motmedelMux.ServerErrorMessage,
-	motmedelMux.ResponseServedMessage,
-	motmedelHttpUtils.FetchPerformedMessage,
+	altshiftMux.ClientErrorMessage,
+	altshiftMux.ServerErrorMessage,
+	altshiftMux.ResponseServedMessage,
+	altshiftHttpUtils.FetchPerformedMessage,
 }
 
 type Config struct {

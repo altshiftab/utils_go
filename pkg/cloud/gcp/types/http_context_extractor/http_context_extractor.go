@@ -7,11 +7,11 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/http_context_extractor/http_context_extractor_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/log_entry"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
-	motmedelJson "github.com/altshiftab/utils_go/pkg/json"
-	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftJson "github.com/altshiftab/utils_go/pkg/json"
+	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
 )
 
 type Extractor struct {
@@ -23,7 +23,7 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 		return nil
 	}
 
-	if httpContext, ok := ctx.Value(motmedelHttpContext.HttpContextContextKey).(*motmedelHttpTypes.HttpContext); ok && httpContext != nil {
+	if httpContext, ok := ctx.Value(altshiftHttpContext.HttpContextContextKey).(*altshiftHttpTypes.HttpContext); ok && httpContext != nil {
 		if logEntry := log_entry.ParseHttp(httpContext.Request, httpContext.Response); logEntry != nil {
 			if projectId := e.ProjectId; projectId != "" {
 				if traceId := logEntry.TraceId; traceId != "" {
@@ -31,12 +31,12 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 				}
 			}
 
-			logEntryMap, err := motmedelJson.ObjectToMap(logEntry)
+			logEntryMap, err := altshiftJson.ObjectToMap(logEntry)
 			if err != nil {
-				return motmedelErrors.New(fmt.Errorf("object to map: %w", err), logEntry)
+				return altshiftErrors.New(fmt.Errorf("object to map: %w", err), logEntry)
 			}
 
-			record.Add(motmedelLog.AttrsFromMap(logEntryMap)...)
+			record.Add(altshiftLog.AttrsFromMap(logEntryMap)...)
 		}
 	}
 

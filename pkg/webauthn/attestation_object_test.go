@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/cbor"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // The attestation object of a real registration ceremony, and the credential public key of the
@@ -107,7 +107,7 @@ func TestParseAttestationObjectRejects(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := ParseAttestationObject(testCase.data); !errors.Is(err, motmedelErrors.ErrParseError) {
+			if _, err := ParseAttestationObject(testCase.data); !errors.Is(err, altshiftErrors.ErrParseError) {
 				t.Errorf("expected parse error, got %v", err)
 			}
 		})

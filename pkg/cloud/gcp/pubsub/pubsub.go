@@ -9,11 +9,11 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/pubsub_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/types/publish_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/types/publish_response"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const Domain = "pubsub.googleapis.com"
@@ -51,13 +51,13 @@ func (c *Client) Publish(
 	options ...fetch_config.Option,
 ) (*publish_response.Response, error) {
 	if project == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("project"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("project"))
 	}
 	if topic == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("topic"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("topic"))
 	}
 	if request == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("publish request"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("publish request"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -72,16 +72,16 @@ func (c *Client) Publish(
 	urlString := u.String()
 
 	options = append(append(c.config.FetchOptions, options...), fetch_config.WithMethod(http.MethodPost))
-	_, response, err := motmedelHttpUtils.FetchJsonWithBody[*publish_response.Response](ctx, urlString, request, options...)
+	_, response, err := altshiftHttpUtils.FetchJsonWithBody[*publish_response.Response](ctx, urlString, request, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
 	}
 	if response == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("publish response"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("publish response"))
 	}
 
 	if response == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("response"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("response"))
 	}
 
 	return response, nil

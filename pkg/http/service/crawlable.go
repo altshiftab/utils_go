@@ -9,17 +9,17 @@ import (
 	"strings"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
 	muxUtils "github.com/altshiftab/utils_go/pkg/http/mux/utils"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	contentTypeParsing "github.com/altshiftab/utils_go/pkg/http/types/content_type"
-	motmedelHttpTypesSitemapxml "github.com/altshiftab/utils_go/pkg/http/types/sitemapxml"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpTypesSitemapxml "github.com/altshiftab/utils_go/pkg/http/types/sitemapxml"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 // sitemapContentTypes are the response content types whose endpoints are eligible for inclusion in
@@ -38,13 +38,13 @@ const apiPathPrefix = "/api/"
 func makeSitemapUrl(
 	staticContentData *static_content.StaticContentData,
 	location string,
-) (*motmedelHttpTypesSitemapxml.Url, error) {
+) (*altshiftHttpTypesSitemapxml.Url, error) {
 	if staticContentData == nil {
 		return nil, nil
 	}
 
 	if location == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("location"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("location"))
 	}
 
 	var lastModified string
@@ -74,28 +74,28 @@ func makeSitemapUrl(
 	if lastModified != "" {
 		parsedTime, err := time.Parse(time.RFC1123, lastModified)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("time parse: %w", err), lastModified)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("time parse: %w", err), lastModified)
 		}
 
 		formattedLastModified = parsedTime.Format(time.RFC3339)
 	}
 
-	return &motmedelHttpTypesSitemapxml.Url{Loc: location, Lastmod: formattedLastModified}, nil
+	return &altshiftHttpTypesSitemapxml.Url{Loc: location, Lastmod: formattedLastModified}, nil
 }
 
 // patchSitemap adds a sitemap.xml listing the documents the mux serves statically, and returns
 // where it is served. Nothing is added, and nothing returned, where the mux serves no documents --
 // an empty sitemap says less than no sitemap.
-func patchSitemap(mux *motmedelMux.Mux, baseUrl *url.URL) (string, error) {
+func patchSitemap(mux *altshiftMux.Mux, baseUrl *url.URL) (string, error) {
 	if mux == nil {
-		return "", motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return "", altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	if baseUrl == nil {
-		return "", motmedelErrors.NewWithTrace(nil_error.New("base url"))
+		return "", altshiftErrors.NewWithTrace(nil_error.New("base url"))
 	}
 
-	var sitemapUrls []*motmedelHttpTypesSitemapxml.Url
+	var sitemapUrls []*altshiftHttpTypesSitemapxml.Url
 
 	// Every endpoint is considered, not only the ones the mux calls documents -- it calls only
 	// text/html one, whereas a crawler indexes the other document types in sitemapContentTypes
@@ -113,7 +113,7 @@ func patchSitemap(mux *motmedelMux.Mux, baseUrl *url.URL) (string, error) {
 
 			pathUrl := baseUrl.JoinPath(endpoint.Path)
 			if pathUrl == nil {
-				return "", motmedelErrors.NewWithTrace(nil_error.New("path url"), endpoint.Path)
+				return "", altshiftErrors.NewWithTrace(nil_error.New("path url"), endpoint.Path)
 			}
 
 			staticContentData := staticContent.StaticContentData
@@ -121,7 +121,7 @@ func patchSitemap(mux *motmedelMux.Mux, baseUrl *url.URL) (string, error) {
 
 			sitemapUrl, err := makeSitemapUrl(&staticContentData, location)
 			if err != nil {
-				return "", motmedelErrors.New(
+				return "", altshiftErrors.New(
 					fmt.Errorf("make sitemap url: %w", err),
 					staticContentData, location,
 				)
@@ -138,27 +138,27 @@ func patchSitemap(mux *motmedelMux.Mux, baseUrl *url.URL) (string, error) {
 
 	// The endpoints are held in maps, which are walked in no particular order. Sorting makes the
 	// sitemap, and with it the entity tag it is served with, the same from one start to the next.
-	slices.SortFunc(sitemapUrls, func(a *motmedelHttpTypesSitemapxml.Url, b *motmedelHttpTypesSitemapxml.Url) int {
+	slices.SortFunc(sitemapUrls, func(a *altshiftHttpTypesSitemapxml.Url, b *altshiftHttpTypesSitemapxml.Url) int {
 		return strings.Compare(a.Loc, b.Loc)
 	})
 
-	urlSet := motmedelHttpTypesSitemapxml.UrlSet{
+	urlSet := altshiftHttpTypesSitemapxml.UrlSet{
 		Xmlns: "https://www.sitemaps.org/schemas/sitemap/0.9",
 		Urls:  sitemapUrls,
 	}
 
 	urlSetData, err := xml.Marshal(urlSet)
 	if err != nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("xml marshal: %w", err), urlSet)
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("xml marshal: %w", err), urlSet)
 	}
 
 	data := append([]byte(xml.Header), urlSetData...)
-	etag := motmedelHttpUtils.MakeStrongEtag(data)
+	etag := altshiftHttpUtils.MakeStrongEtag(data)
 	lastModified := time.Now().UTC().Format(http.TimeFormat)
 
 	sitemapUrl := baseUrl.JoinPath("/sitemap.xml")
 	if sitemapUrl == nil {
-		return "", motmedelErrors.NewWithTrace(nil_error.New("sitemap url"))
+		return "", altshiftErrors.NewWithTrace(nil_error.New("sitemap url"))
 	}
 
 	mux.Add(
@@ -188,14 +188,14 @@ func patchSitemap(mux *motmedelMux.Mux, baseUrl *url.URL) (string, error) {
 // patchRobotsTxt adds a robots.txt. Where sitemapUrl names a sitemap, every crawler is invited to
 // everything but the API paths and pointed at it; otherwise every crawler is told to keep out,
 // there being nothing meant for one to index.
-func patchRobotsTxt(mux *motmedelMux.Mux, sitemapUrl string) error {
+func patchRobotsTxt(mux *altshiftMux.Mux, sitemapUrl string) error {
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	// One group, for every crawler there is. Naming the ones that may crawl would leave out every
 	// crawler that appears after the naming, which is a list that only ever grows stale.
-	group := &motmedelHttpTypes.RobotsTxtGroup{UserAgents: []string{"*"}}
+	group := &altshiftHttpTypes.RobotsTxtGroup{UserAgents: []string{"*"}}
 
 	if sitemapUrl != "" {
 		group.Disallowed = []string{apiPathPrefix}
@@ -205,10 +205,10 @@ func patchRobotsTxt(mux *motmedelMux.Mux, sitemapUrl string) error {
 	}
 
 	robotsTxtEndpoint := endpointPkg.NewRobotsTxt(
-		&motmedelHttpTypes.RobotsTxt{Groups: []*motmedelHttpTypes.RobotsTxtGroup{group}},
+		&altshiftHttpTypes.RobotsTxt{Groups: []*altshiftHttpTypes.RobotsTxtGroup{group}},
 	)
 	if robotsTxtEndpoint == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("robots txt endpoint"))
+		return altshiftErrors.NewWithTrace(nil_error.New("robots txt endpoint"))
 	}
 
 	mux.Add(robotsTxtEndpoint)

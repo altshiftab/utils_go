@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/missing_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -34,7 +34,7 @@ func TestValidate(t *testing.T) {
 			fields:    nil,
 			expectErr: true,
 			errorCheck: func(t *testing.T, err error) {
-				if !errors.Is(err, motmedelErrors.ErrValidationError) {
+				if !errors.Is(err, altshiftErrors.ErrValidationError) {
 					t.Errorf("error = %v, want ErrValidationError", err)
 				}
 				if _, ok := errors.AsType[*nil_error.Error](err); !ok {
@@ -64,7 +64,7 @@ func TestValidate(t *testing.T) {
 			fields:    map[string]any{"alg": "none"},
 			expectErr: true,
 			errorCheck: func(t *testing.T, err error) {
-				if !errors.Is(err, motmedelErrors.ErrValidationError) {
+				if !errors.Is(err, altshiftErrors.ErrValidationError) {
 					t.Errorf("error = %v, want ErrValidationError", err)
 				}
 				if _, ok := errors.AsType[*mismatch_error.Error](err); !ok {
@@ -88,7 +88,7 @@ func TestValidate(t *testing.T) {
 			fields:    map[string]any{"typ": "none"},
 			expectErr: true,
 			errorCheck: func(t *testing.T, err error) {
-				if !errors.Is(err, motmedelErrors.ErrValidationError) {
+				if !errors.Is(err, altshiftErrors.ErrValidationError) {
 					t.Errorf("error = %v, want ErrValidationError", err)
 				}
 			},
@@ -101,7 +101,7 @@ func TestValidate(t *testing.T) {
 			fields:    map[string]any{},
 			expectErr: true,
 			errorCheck: func(t *testing.T, err error) {
-				if !errors.Is(err, motmedelErrors.ErrValidationError) {
+				if !errors.Is(err, altshiftErrors.ErrValidationError) {
 					t.Errorf("error = %v, want ErrValidationError", err)
 				}
 				if _, ok := errors.AsType[*missing_error.Error](err); !ok {
@@ -124,10 +124,10 @@ func TestValidate(t *testing.T) {
 			fields:    map[string]any{"alg": 123},
 			expectErr: true,
 			errorCheck: func(t *testing.T, err error) {
-				if !errors.Is(err, motmedelErrors.ErrConversionNotOk) {
+				if !errors.Is(err, altshiftErrors.ErrConversionNotOk) {
 					t.Errorf("error = %v, want ErrConversionNotOk", err)
 				}
-				if errors.Is(err, motmedelErrors.ErrValidationError) {
+				if errors.Is(err, altshiftErrors.ErrValidationError) {
 					t.Errorf("error = %v, unexpectedly wrapped as ErrValidationError", err)
 				}
 			},

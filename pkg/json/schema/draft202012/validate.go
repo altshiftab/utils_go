@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/json/schema/internal/validator"
 	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
@@ -173,7 +173,7 @@ func resolveDynamicRef(arg schema.PartString, state *schema.ValidationState) (*s
 
 	uri, err := url.Parse(string(arg))
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("failed to parse dynamic reference %q: %w", arg, err),
 			string(arg),
 		)

@@ -10,10 +10,10 @@ import (
 	"slices"
 	"strings"
 
-	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
 	muxContext "github.com/altshiftab/utils_go/pkg/http/mux/context"
 	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
 	muxInternal "github.com/altshiftab/utils_go/pkg/http/mux/internal"
@@ -30,11 +30,11 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/userer"
 	utils2 "github.com/altshiftab/utils_go/pkg/http/mux/utils"
 	muxUtilsContentNegotiation "github.com/altshiftab/utils_go/pkg/http/mux/utils/content_negotiation"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
-	motmedelIter "github.com/altshiftab/utils_go/pkg/iter"
+	altshiftIter "github.com/altshiftab/utils_go/pkg/iter"
 	"github.com/altshiftab/utils_go/pkg/utils"
 	"github.com/altshiftab/utils_go/pkg/uuid"
 )
@@ -93,7 +93,7 @@ func (bm *baseMux) ServeHttpWithCallback(
 
 	// Create an HTTP context and populate it with the request and put it in the request context.
 
-	httpContext := &motmedelHttpTypes.HttpContext{Request: request}
+	httpContext := &altshiftHttpTypes.HttpContext{Request: request}
 	request = request.WithContext(
 		context.WithValue(request.Context(), MuxHttpContextContextKey, httpContext),
 	)
@@ -101,15 +101,15 @@ func (bm *baseMux) ServeHttpWithCallback(
 	requestId, err := uuid.NewV7()
 	if err != nil {
 		slog.WarnContext(
-			motmedelContext.WithError(
+			altshiftContext.WithError(
 				request.Context(),
-				motmedelErrors.NewWithTrace(fmt.Errorf("uuid new v7: %w", err)),
+				altshiftErrors.NewWithTrace(fmt.Errorf("uuid new v7: %w", err)),
 			),
 			"An error occurred when generating a request id.",
 		)
 	} else {
 		contextRequest := request.WithContext(
-			context.WithValue(request.Context(), motmedelHttpContext.RequestIdContextKey, requestId.String()),
+			context.WithValue(request.Context(), altshiftHttpContext.RequestIdContextKey, requestId.String()),
 		)
 		if contextRequest != nil {
 			request = contextRequest
@@ -161,9 +161,9 @@ func (bm *baseMux) ServeHttpWithCallback(
 			connection, _, err := hijacker.Hijack()
 			if err != nil {
 				responseErrorHandler(
-					motmedelHttpContext.WithHttpContextValue(request.Context(), httpContext),
+					altshiftHttpContext.WithHttpContextValue(request.Context(), httpContext),
 					&muxTypesResponseError.ResponseError{
-						ServerError: motmedelErrors.NewWithTrace(
+						ServerError: altshiftErrors.NewWithTrace(
 							fmt.Errorf("response writer hijacker hijack: %w", err),
 						),
 					},
@@ -173,9 +173,9 @@ func (bm *baseMux) ServeHttpWithCallback(
 			if connection != nil {
 				if err := connection.Close(); err != nil {
 					slog.ErrorContext(
-						motmedelContext.WithError(
+						altshiftContext.WithError(
 							request.Context(),
-							motmedelErrors.NewWithTrace(
+							altshiftErrors.NewWithTrace(
 								fmt.Errorf("connection close: %w", err),
 							),
 						),
@@ -194,7 +194,7 @@ func (bm *baseMux) ServeHttpWithCallback(
 				ProblemDetail: problem_detail.New(http.StatusForbidden),
 			}
 		}
-		responseErrorHandler(motmedelHttpContext.WithHttpContextValue(request.Context(), httpContext), firewallResponseError, responseWriter)
+		responseErrorHandler(altshiftHttpContext.WithHttpContextValue(request.Context(), httpContext), firewallResponseError, responseWriter)
 	default:
 		for _, middleware := range bm.Middleware {
 			if middleware != nil {
@@ -204,7 +204,7 @@ func (bm *baseMux) ServeHttpWithCallback(
 			}
 		}
 
-		var acceptEncoding *motmedelHttpTypes.AcceptEncoding
+		var acceptEncoding *altshiftHttpTypes.AcceptEncoding
 
 		if contentNegotiation, _ := muxUtilsContentNegotiation.GetContentNegotiation(request.Header, false); contentNegotiation != nil {
 			request = request.WithContext(
@@ -219,7 +219,7 @@ func (bm *baseMux) ServeHttpWithCallback(
 
 		if !responseWriter.WriteHeaderCalled {
 			if responseError != nil {
-				responseErrorHandler(motmedelHttpContext.WithHttpContextValue(request.Context(), httpContext), responseError, responseWriter)
+				responseErrorHandler(altshiftHttpContext.WithHttpContextValue(request.Context(), httpContext), responseError, responseWriter)
 			} else {
 				if response == nil {
 					response = &muxTypesResponse.Response{}
@@ -227,9 +227,9 @@ func (bm *baseMux) ServeHttpWithCallback(
 
 				if err := responseWriter.WriteResponse(request.Context(), response, acceptEncoding); err != nil {
 					responseErrorHandler(
-						motmedelHttpContext.WithHttpContextValue(request.Context(), httpContext),
+						altshiftHttpContext.WithHttpContextValue(request.Context(), httpContext),
 						&muxTypesResponseError.ResponseError{
-							ServerError: motmedelErrors.New(
+							ServerError: altshiftErrors.New(
 								fmt.Errorf("write response: %w", err),
 								response,
 							),
@@ -251,16 +251,16 @@ func (bm *baseMux) ServeHttpWithCallback(
 
 	if !responseWriter.WriteHeaderCalled {
 		responseErrorHandler(
-			motmedelHttpContext.WithHttpContextValue(request.Context(), httpContext),
+			altshiftHttpContext.WithHttpContextValue(request.Context(), httpContext),
 			&muxTypesResponseError.ResponseError{
-				ServerError: motmedelErrors.NewWithTrace(muxErrors.ErrNoResponseWritten),
+				ServerError: altshiftErrors.NewWithTrace(muxErrors.ErrNoResponseWritten),
 			},
 			responseWriter,
 		)
 	}
 
 	if doneCallback := bm.DoneCallback; doneCallback != nil {
-		doneCallback(motmedelHttpContext.WithHttpContextValue(request.Context(), httpContext))
+		doneCallback(altshiftHttpContext.WithHttpContextValue(request.Context(), httpContext))
 	}
 }
 
@@ -276,32 +276,32 @@ func muxHandleRequest(
 ) (*muxTypesResponse.Response, *muxTypesResponseError.ResponseError) {
 	if mux == nil {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("mux")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("mux")),
 		}
 	}
 
 	if request == nil {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request")),
 		}
 	}
 
 	requestHeader := request.Header
 	if requestHeader == nil {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request header")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request header")),
 		}
 	}
 
-	httpContext, ok := request.Context().Value(MuxHttpContextContextKey).(*motmedelHttpTypes.HttpContext)
+	httpContext, ok := request.Context().Value(MuxHttpContextContextKey).(*altshiftHttpTypes.HttpContext)
 	if !ok {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(muxErrors.ErrCouldNotObtainHttpContext),
+			ServerError: altshiftErrors.NewWithTrace(muxErrors.ErrCouldNotObtainHttpContext),
 		}
 	}
 	if httpContext == nil {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("http context")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("http context")),
 		}
 	}
 
@@ -320,7 +320,7 @@ func muxHandleRequest(
 		// and for no other methods either, which is an error (as "Not Found" should be produced by `GetEndpoint`)
 		if len(methodToEndpoint) == 0 {
 			return nil, &muxTypesResponseError.ResponseError{
-				ServerError: motmedelErrors.NewWithTrace(nil_error.New("endpoint specification")),
+				ServerError: altshiftErrors.NewWithTrace(nil_error.New("endpoint specification")),
 			}
 		}
 
@@ -457,7 +457,7 @@ func handleUnmatchedMethod(
 
 	if strings.ToUpper(request.Method) == http.MethodOptions {
 		if len(corsEndpoints) > 0 {
-			var corsConfiguration motmedelHttpTypes.CorsConfiguration
+			var corsConfiguration altshiftHttpTypes.CorsConfiguration
 			accessControlRequestMethod := strings.ToUpper(requestHeader.Get("Access-Control-Request-Method"))
 			accessControlRequestHeaders := requestHeader.Get("Access-Control-Request-Headers")
 
@@ -477,7 +477,7 @@ func handleUnmatchedMethod(
 				// Sanity check. Should not be `nil` based on the previous check.
 				if utils.IsNil(corsParser) {
 					return nil, &muxTypesResponseError.ResponseError{
-						ServerError: motmedelErrors.NewWithTrace(
+						ServerError: altshiftErrors.NewWithTrace(
 							nil_error.NewWithInstance("request parser", "cors"),
 						),
 					}
@@ -505,7 +505,7 @@ func handleUnmatchedMethod(
 			}
 
 			if methods := corsConfiguration.Methods; len(methods) > 0 {
-				uniqueMethods := motmedelIter.Set(methods)
+				uniqueMethods := altshiftIter.Set(methods)
 				slices.Sort(uniqueMethods)
 
 				headerEntries = append(
@@ -602,7 +602,7 @@ func handleRequestBody(
 	request *http.Request,
 	responseWriter http.ResponseWriter,
 	requestHeader http.Header,
-	httpContext *motmedelHttpTypes.HttpContext,
+	httpContext *altshiftHttpTypes.HttpContext,
 ) (*http.Request, []byte, *muxTypesResponseError.ResponseError) {
 	var expectedContentType string
 	var maxBytes int64
@@ -724,8 +724,8 @@ func produceResponse(
 			return nil, responseError
 		}
 
-		var acceptEncoding *motmedelHttpTypes.AcceptEncoding
-		contentNegotiation, _ := request.Context().Value(muxContext.ContentNegotiationContextKey).(*motmedelHttpTypes.ContentNegotiation)
+		var acceptEncoding *altshiftHttpTypes.AcceptEncoding
+		contentNegotiation, _ := request.Context().Value(muxContext.ContentNegotiationContextKey).(*altshiftHttpTypes.ContentNegotiation)
 		if contentNegotiation != nil {
 			acceptEncoding = contentNegotiation.AcceptEncoding
 		}
@@ -902,7 +902,7 @@ func (mux *Mux) GetDocumentEndpointSpecifications() []*endpointPkg.Endpoint {
 
 func (mux *Mux) DuplicateEndpointSpecification(endpoint *endpointPkg.Endpoint, routes ...string) error {
 	if endpoint == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("endpoint"))
+		return altshiftErrors.NewWithTrace(nil_error.New("endpoint"))
 	}
 
 	mux.Add(endpointPkg.Duplicate(endpoint, routes...)...)
@@ -927,7 +927,7 @@ func (mux *Mux) GetContentSecurityPolicy() (*content_security_policy.ContentSecu
 func (mux *Mux) SetContentSecurityPolicy(csp *content_security_policy.ContentSecurityPolicy) error {
 	defaultDocumentHeaders := mux.DefaultDocumentHeaders
 	if defaultDocumentHeaders == nil {
-		return motmedelErrors.NewWithTrace(nil_error.NewWithInstance("map", "default document headers"))
+		return altshiftErrors.NewWithTrace(nil_error.NewWithInstance("map", "default document headers"))
 	}
 
 	if csp == nil {

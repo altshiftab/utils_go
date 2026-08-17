@@ -6,14 +6,14 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/http/types/integrity_policy"
 	"github.com/altshiftab/utils_go/pkg/http/types/reporting_api"
-	motmedelJsonSchema "github.com/altshiftab/utils_go/pkg/json/schema"
+	altshiftJsonSchema "github.com/altshiftab/utils_go/pkg/json/schema"
 )
 
 // A report is serialized by the browser, so the schema has to take what engines actually send.
 func TestReportSchemaTakesWhatBrowsersSend(t *testing.T) {
 	t.Parallel()
 
-	schema, err := motmedelJsonSchema.NewFromType[[]*reporting_api.Report[*integrity_policy.IntegrityViolationReportBody]]()
+	schema, err := altshiftJsonSchema.NewFromType[[]*reporting_api.Report[*integrity_policy.IntegrityViolationReportBody]]()
 	if err != nil {
 		t.Fatalf("new from type: %v", err)
 	}

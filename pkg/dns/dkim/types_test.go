@@ -9,7 +9,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 )
 
@@ -128,8 +128,8 @@ func TestRecord_GetPublicKey(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if _, ok := errors.AsType[*motmedelErrors.ExtendedError](err); !ok {
-			t.Errorf("expected wrapped *motmedelErrors.ExtendedError, got %T", err)
+		if _, ok := errors.AsType[*altshiftErrors.ExtendedError](err); !ok {
+			t.Errorf("expected wrapped *altshiftErrors.ExtendedError, got %T", err)
 		}
 	})
 }
@@ -206,7 +206,7 @@ func TestParseKey(t *testing.T) {
 				t.Fatalf("expected no errors, got: %v", err)
 			}
 
-			if !motmedelErrors.IsAll(err, expectedErrors...) {
+			if !altshiftErrors.IsAll(err, expectedErrors...) {
 				t.Fatalf("expected errors: %v, got: %v", expectedErrors, err)
 			}
 
@@ -242,7 +242,7 @@ func TestGetKeyData(t *testing.T) {
 				t.Fatalf("expected no errors, got: %v", err)
 			}
 
-			if !motmedelErrors.IsAll(err, expectedErrors...) {
+			if !altshiftErrors.IsAll(err, expectedErrors...) {
 				t.Fatalf("expected errors: %v, got: %v", expectedErrors, err)
 			}
 

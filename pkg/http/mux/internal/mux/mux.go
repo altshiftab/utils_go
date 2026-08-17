@@ -16,20 +16,20 @@ import (
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
+	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
 	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
 	muxTypes "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
 	muxTypesStaticContent "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
 	muxTypesRateLimiting "github.com/altshiftab/utils_go/pkg/http/mux/types/rate_limiting"
 	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/content_type"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 func HandleRateLimiting(
@@ -42,7 +42,7 @@ func HandleRateLimiting(
 
 	if request == nil {
 		return &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request")),
 		}
 	}
 
@@ -54,7 +54,7 @@ func HandleRateLimiting(
 	key, err := getKeyFunc(request)
 	if err != nil {
 		return &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(fmt.Errorf("get key func: %w", err)),
+			ServerError: altshiftErrors.NewWithTrace(fmt.Errorf("get key func: %w", err)),
 		}
 	}
 
@@ -108,13 +108,13 @@ func HandleRateLimiting(
 func HandleFetchMetadata(requestHeader http.Header, method string) *muxTypesResponseError.ResponseError {
 	if requestHeader == nil {
 		return &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request header")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request header")),
 		}
 	}
 
 	if method == "" {
 		return &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(empty_error.New("method")),
+			ServerError: altshiftErrors.NewWithTrace(empty_error.New("method")),
 		}
 	}
 
@@ -152,7 +152,7 @@ func ValidateContentType(expectedContentType string, requestHeader http.Header) 
 
 	if requestHeader == nil {
 		return &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request header")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request header")),
 		}
 	}
 
@@ -171,8 +171,8 @@ func ValidateContentType(expectedContentType string, requestHeader http.Header) 
 	contentTypeData := []byte(requestHeader.Get("Content-Type"))
 	contentType, err := content_type.Parse(contentTypeData)
 	if err != nil {
-		wrappedErr := motmedelErrors.New(fmt.Errorf("content type parse: %w", err), contentTypeData)
-		if motmedelErrors.IsAny(err, motmedelErrors.ErrSyntaxError, motmedelErrors.ErrSemanticError) {
+		wrappedErr := altshiftErrors.New(fmt.Errorf("content type parse: %w", err), contentTypeData)
+		if altshiftErrors.IsAny(err, altshiftErrors.ErrSyntaxError, altshiftErrors.ErrSemanticError) {
 			return &muxTypesResponseError.ResponseError{
 				ClientError: wrappedErr,
 				ProblemDetail: problem_detail.New(
@@ -185,7 +185,7 @@ func ValidateContentType(expectedContentType string, requestHeader http.Header) 
 	}
 	if contentType == nil {
 		return &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("content type")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("content type")),
 		}
 	}
 
@@ -213,7 +213,7 @@ func ValidateContentType(expectedContentType string, requestHeader http.Header) 
 func ValidateContentLength(allowEmpty bool, requestHeader http.Header) *muxTypesResponseError.ResponseError {
 	if requestHeader == nil {
 		return &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request header")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request header")),
 		}
 	}
 
@@ -231,7 +231,7 @@ func ValidateContentLength(allowEmpty bool, requestHeader http.Header) *muxTypes
 					http.StatusBadRequest,
 					problem_detail_config.WithDetail("Malformed Content-Length."),
 				),
-				ClientError: motmedelErrors.NewWithTrace(
+				ClientError: altshiftErrors.NewWithTrace(
 					fmt.Errorf("strconv parse uint: %w", err),
 					headerValue, 10, 64,
 				),
@@ -263,7 +263,7 @@ func ObtainRequestBody(
 ) ([]byte, *muxTypesResponseError.ResponseError) {
 	if bodyReader == nil {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("http request body reader")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("http request body reader")),
 		}
 	}
 
@@ -280,7 +280,7 @@ func ObtainRequestBody(
 		var err error
 		requestBody, err := io.ReadAll(bodyReader)
 		if err != nil {
-			wrappedErr := motmedelErrors.NewWithTrace(
+			wrappedErr := altshiftErrors.NewWithTrace(
 				fmt.Errorf("io read all (request body): %w", err),
 				bodyReader,
 			)
@@ -303,9 +303,9 @@ func ObtainRequestBody(
 		defer func() {
 			if err := bodyReader.Close(); err != nil {
 				slog.WarnContext(
-					motmedelContext.WithError(
+					altshiftContext.WithError(
 						ctx,
-						motmedelErrors.NewWithTrace(fmt.Errorf("body reader close: %w", err), bodyReader),
+						altshiftErrors.NewWithTrace(fmt.Errorf("body reader close: %w", err), bodyReader),
 					),
 					"An error occurred when closing the request body reader.",
 				)
@@ -330,14 +330,14 @@ func GetEndpoint(
 
 	if request == nil {
 		return nil, nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request")),
 		}
 	}
 
 	requestUrl := request.URL
 	if requestUrl == nil {
 		return nil, nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request url")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request url")),
 		}
 	}
 
@@ -366,29 +366,29 @@ func GetEndpoint(
 func ObtainIsCached(staticContent *muxTypesStaticContent.StaticContent, requestHeader http.Header) (bool, *muxTypesResponseError.ResponseError) {
 	if staticContent == nil {
 		return false, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("static content")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("static content")),
 		}
 	}
 
 	if requestHeader == nil {
 		return false, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request header")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request header")),
 		}
 	}
 
-	isCached := motmedelHttpUtils.IfNoneMatchCacheHit(requestHeader.Get("If-None-Match"), staticContent.Etag)
+	isCached := altshiftHttpUtils.IfNoneMatchCacheHit(requestHeader.Get("If-None-Match"), staticContent.Etag)
 	if !isCached {
 		var err error
 		ifModifiedSince := requestHeader.Get("If-Modified-Since")
 		lastModified := staticContent.LastModified
-		isCached, err = motmedelHttpUtils.IfModifiedSinceCacheHit(ifModifiedSince, lastModified)
+		isCached, err = altshiftHttpUtils.IfModifiedSinceCacheHit(ifModifiedSince, lastModified)
 		if err != nil {
-			wrappedErr := motmedelErrors.New(
+			wrappedErr := altshiftErrors.New(
 				fmt.Errorf("if modified since cache hit: %w", err),
 				ifModifiedSince,
 				lastModified,
 			)
-			if errors.Is(err, motmedelHttpErrors.ErrBadIfModifiedSinceTimestamp) {
+			if errors.Is(err, altshiftHttpErrors.ErrBadIfModifiedSinceTimestamp) {
 				return false, &muxTypesResponseError.ResponseError{
 					ProblemDetail: problem_detail.New(
 						http.StatusBadRequest,
@@ -409,17 +409,17 @@ func ObtainStaticContentResponse(
 	staticContent *muxTypesStaticContent.StaticContent,
 	isCached bool,
 	requestHeader http.Header,
-	acceptEncoding *motmedelHttpTypes.AcceptEncoding,
+	acceptEncoding *altshiftHttpTypes.AcceptEncoding,
 ) (*muxTypesResponse.Response, *muxTypesResponseError.ResponseError) {
 	if staticContent == nil {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("static content")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("static content")),
 		}
 	}
 
 	if requestHeader == nil {
 		return nil, &muxTypesResponseError.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request header")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request header")),
 		}
 	}
 
@@ -431,7 +431,7 @@ func ObtainStaticContentResponse(
 	if isCached {
 		response.StatusCode = http.StatusNotModified
 	} else {
-		encoding := motmedelHttpUtils.AcceptContentIdentity
+		encoding := altshiftHttpUtils.AcceptContentIdentity
 
 		if acceptEncoding != nil {
 			supportedEncodings := slices.Collect(maps.Keys(staticContent.ContentEncodingToData))
@@ -448,7 +448,7 @@ func ObtainStaticContentResponse(
 				return 0
 			})
 
-			encoding = motmedelHttpUtils.GetMatchingContentEncoding(
+			encoding = altshiftHttpUtils.GetMatchingContentEncoding(
 				acceptEncoding.GetPriorityOrderedEncodings(),
 				supportedEncodings,
 			)
@@ -463,7 +463,7 @@ func ObtainStaticContentResponse(
 		}
 
 		response.StatusCode = http.StatusOK
-		if encoding == motmedelHttpUtils.AcceptContentIdentity {
+		if encoding == altshiftHttpUtils.AcceptContentIdentity {
 			response.Body = staticContent.Data
 		} else {
 			response.Headers = append(
@@ -474,19 +474,19 @@ func ObtainStaticContentResponse(
 			contentEncodingToData := staticContent.ContentEncodingToData
 			if contentEncodingToData == nil {
 				return nil, &muxTypesResponseError.ResponseError{
-					ServerError: motmedelErrors.NewWithTrace(nil_error.New("content-encoding to data")),
+					ServerError: altshiftErrors.NewWithTrace(nil_error.New("content-encoding to data")),
 				}
 			}
 
 			staticContentData, ok := contentEncodingToData[encoding]
 			if !ok {
 				return nil, &muxTypesResponseError.ResponseError{
-					ServerError: motmedelErrors.NewWithTrace(muxErrors.ErrContentEncodingToDataNotOk),
+					ServerError: altshiftErrors.NewWithTrace(muxErrors.ErrContentEncodingToDataNotOk),
 				}
 			}
 			if staticContentData == nil {
 				return nil, &muxTypesResponseError.ResponseError{
-					ServerError: motmedelErrors.NewWithTrace(nil_error.New("static content data")),
+					ServerError: altshiftErrors.NewWithTrace(nil_error.New("static content data")),
 				}
 			}
 

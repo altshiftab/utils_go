@@ -8,7 +8,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/asset_list"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource_search_result_list"
 	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
@@ -50,7 +50,7 @@ func (c *Client) urlString(path string, query url.Values) string {
 // Use the query parameter to specify assetTypes, contentType, pageSize, pageToken, and other query parameters.
 func (c *Client) ListAssets(ctx context.Context, parent string, query url.Values, options ...fetch_config.Option) (*asset_list.AssetList, error) {
 	if parent == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("parent"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("parent"))
 	}
 
 	return rest.GetJson[asset_list.AssetList](
@@ -64,7 +64,7 @@ func (c *Client) ListAssets(ctx context.Context, parent string, query url.Values
 // Use the query parameter to specify query, assetTypes, pageSize, pageToken, orderBy, readMask, and other query parameters.
 func (c *Client) SearchAllResources(ctx context.Context, scope string, query url.Values, options ...fetch_config.Option) (*resource_search_result_list.ResourceSearchResultList, error) {
 	if scope == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("scope"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("scope"))
 	}
 
 	return rest.GetJson[resource_search_result_list.ResourceSearchResultList](

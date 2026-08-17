@@ -3,11 +3,11 @@ package service
 import (
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelMux "github.com/altshiftab/utils_go/pkg/http/mux"
+	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 )
 
@@ -27,13 +27,13 @@ const (
 // What it costs is on the wire: a client that asked for application/problem+xml is answered with a
 // laxer type than it asked for, and can no longer tell from the type alone that the body is a
 // problem detail. The body is unchanged either way.
-func patchRenderableProblemDetails(mux *motmedelMux.Mux) error {
+func patchRenderableProblemDetails(mux *altshiftMux.Mux) error {
 	if mux == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("mux"))
+		return altshiftErrors.NewWithTrace(nil_error.New("mux"))
 	}
 
 	mux.ProblemDetailConverter = response_error.ProblemDetailConverterFunction(
-		func(detail *problem_detail.Detail, negotiation *motmedelHttpTypes.ContentNegotiation) ([]byte, string, error) {
+		func(detail *problem_detail.Detail, negotiation *altshiftHttpTypes.ContentNegotiation) ([]byte, string, error) {
 			data, contentType, err := response_error.ConvertProblemDetail(detail, negotiation)
 			if err != nil {
 				return nil, "", fmt.Errorf("convert problem detail: %w", err)

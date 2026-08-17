@@ -9,8 +9,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 //go:embed grammar.abnf
@@ -22,16 +22,16 @@ var (
 	ErrInvalidQuotedParameterValue = errors.New("invalid quoted parameter value")
 )
 
-func Parse(data []byte) (*motmedelHttpTypes.ContentType, error) {
+func Parse(data []byte) (*altshiftHttpTypes.ContentType, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(ContentTypeGrammar, data, "Content-Type")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
-	var contentType motmedelHttpTypes.ContentType
+	var contentType altshiftHttpTypes.ContentType
 
 	interestingPaths := abnfUtils.SearchPath(
 		paths[0],
@@ -58,10 +58,10 @@ func Parse(data []byte) (*motmedelHttpTypes.ContentType, error) {
 				quotedString := string(abnfUtils.ExtractPathValue(data, quotedStringPath))
 				parameterValue, err = strconv.Unquote(quotedString)
 				if err != nil {
-					return nil, motmedelErrors.NewWithTrace(
+					return nil, altshiftErrors.NewWithTrace(
 						fmt.Errorf(
 							"%w: %w: strvconv unquote: %w",
-							motmedelErrors.ErrSemanticError,
+							altshiftErrors.ErrSemanticError,
 							ErrInvalidQuotedParameterValue,
 							err,
 						),

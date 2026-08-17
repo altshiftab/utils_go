@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"math/big"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
@@ -37,7 +37,7 @@ func (k *Key) PublicKey() (crypto.PublicKey, error) {
 	x := k.X
 	xBytes, err := base64.RawURLEncoding.DecodeString(x)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"base64 raw url encoding decode string (x): %w",
 				err,
@@ -49,7 +49,7 @@ func (k *Key) PublicKey() (crypto.PublicKey, error) {
 	y := k.Y
 	yBytes, err := base64.RawURLEncoding.DecodeString(y)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"base64 raw url encoding decode string (y): %w",
 				err,
@@ -61,7 +61,7 @@ func (k *Key) PublicKey() (crypto.PublicKey, error) {
 	crv := k.Crv
 	curve := curveFromCrv(crv)
 	if utils.IsNil(curve) {
-		return nil, motmedelErrors.NewWithTrace(motmedelJwkErrors.ErrUnsupportedCrv, crv)
+		return nil, altshiftErrors.NewWithTrace(altshiftJwkErrors.ErrUnsupportedCrv, crv)
 	}
 
 	return &ecdsa.PublicKey{Curve: curve, X: new(big.Int).SetBytes(xBytes), Y: new(big.Int).SetBytes(yBytes)}, nil
@@ -78,7 +78,7 @@ func New(m map[string]any) (*Key, error) {
 	}
 
 	if kty != "EC" {
-		return nil, motmedelErrors.NewWithTrace(motmedelJwkErrors.ErrKtyMismatch)
+		return nil, altshiftErrors.NewWithTrace(altshiftJwkErrors.ErrKtyMismatch)
 	}
 
 	crv, err := utils.MapGetConvert[string](m, "crv")
@@ -117,7 +117,7 @@ func NewFromPublicKey(publicKey *ecdsa.PublicKey) (*Key, error) {
 		crv = "P-521"
 		size = 66
 	default:
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: %T", motmedelJwkErrors.ErrUnsupportedCrv, publicKey.Curve))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %T", altshiftJwkErrors.ErrUnsupportedCrv, publicKey.Curve))
 	}
 
 	// Bytes returns the uncompressed SEC1 point (0x04 || X || Y), each coordinate
@@ -125,11 +125,11 @@ func NewFromPublicKey(publicKey *ecdsa.PublicKey) (*Key, error) {
 	// PublicKey.X / PublicKey.Y big.Int fields.
 	point, err := publicKey.Bytes()
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("ecdsa public key bytes: %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("ecdsa public key bytes: %w", err))
 	}
 	if len(point) != 1+2*size {
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: unexpected ecdsa public key point length %d", motmedelErrors.ErrUnexpectedType, len(point)),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: unexpected ecdsa public key point length %d", altshiftErrors.ErrUnexpectedType, len(point)),
 		)
 	}
 

@@ -16,14 +16,14 @@ import (
 
 	gmailMessage "github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
 	gmailMessagePart "github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message/message_part"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
-	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftNet "github.com/altshiftab/utils_go/pkg/net"
 	"github.com/altshiftab/utils_go/pkg/net/types/domain_parts"
 	"github.com/altshiftab/utils_go/pkg/net/types/flow_tuple"
 	"github.com/altshiftab/utils_go/pkg/schema"
-	motmedelTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
-	motmedelWhoisTypes "github.com/altshiftab/utils_go/pkg/whois/types"
+	altshiftTlsTypes "github.com/altshiftab/utils_go/pkg/tls/types"
+	altshiftWhoisTypes "github.com/altshiftab/utils_go/pkg/whois/types"
 )
 
 const (
@@ -193,7 +193,7 @@ func ParseHttp(
 			destination = &schema.Target{Address: trimmedHost, Port: port}
 			if ip := net.ParseIP(trimmedHost); ip != nil {
 				destination.Ip = trimmedHost
-				if ipVersion := motmedelNet.GetIpVersion(&ip); ipVersion == 4 {
+				if ipVersion := altshiftNet.GetIpVersion(&ip); ipVersion == 4 {
 					network.Type = "ipv4"
 				} else if ipVersion == 6 {
 					network.Type = "ipv6"
@@ -215,7 +215,7 @@ func ParseHttp(
 			destination.Ip = destinationTcpAddr.IP.String()
 			destination.Port = destinationTcpAddr.Port
 
-			if ipVersion := motmedelNet.GetIpVersion(&destinationTcpAddr.IP); ipVersion == 4 {
+			if ipVersion := altshiftNet.GetIpVersion(&destinationTcpAddr.IP); ipVersion == 4 {
 				network.Type = "ipv4"
 			} else if ipVersion == 6 {
 				network.Type = "ipv6"
@@ -231,9 +231,9 @@ func ParseHttp(
 
 		// TODO: Maybe I can use `parseTarget()`?
 		if remoteAddr := request.RemoteAddr; remoteAddr != "" {
-			sourceIpAddress, sourcePort, err := motmedelNet.SplitAddress(remoteAddr)
+			sourceIpAddress, sourcePort, err := altshiftNet.SplitAddress(remoteAddr)
 			if err != nil {
-				return nil, motmedelErrors.New(
+				return nil, altshiftErrors.New(
 					fmt.Errorf("split address: %w", err),
 					remoteAddr,
 				)
@@ -487,14 +487,14 @@ func MakeHttpMessage(base *schema.Base) string {
 	)
 }
 
-func ParseHttpContext(httpContext *motmedelHttpTypes.HttpContext) (*schema.Base, error) {
+func ParseHttpContext(httpContext *altshiftHttpTypes.HttpContext) (*schema.Base, error) {
 	if httpContext == nil {
 		return nil, nil
 	}
 
 	base, err := ParseHttp(httpContext.Request, httpContext.RequestBody, httpContext.Response, httpContext.ResponseBody)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("parse http: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("parse http: %w", err))
 	}
 
 	if base == nil {
@@ -502,9 +502,9 @@ func ParseHttpContext(httpContext *motmedelHttpTypes.HttpContext) (*schema.Base,
 	}
 
 	if localAddr := httpContext.LocalAddr; localAddr != nil && base.Source == nil {
-		ipAddress, port, err := motmedelNet.SplitAddress(localAddr.String())
+		ipAddress, port, err := altshiftNet.SplitAddress(localAddr.String())
 		if err != nil {
-			return nil, motmedelErrors.New(
+			return nil, altshiftErrors.New(
 				fmt.Errorf("split address (local addr): %w", err),
 				localAddr.String(),
 			)
@@ -513,9 +513,9 @@ func ParseHttpContext(httpContext *motmedelHttpTypes.HttpContext) (*schema.Base,
 	}
 
 	if remoteAddr := httpContext.RemoteAddr; remoteAddr != nil {
-		ipAddress, port, err := motmedelNet.SplitAddress(remoteAddr.String())
+		ipAddress, port, err := altshiftNet.SplitAddress(remoteAddr.String())
 		if err != nil {
-			return nil, motmedelErrors.New(
+			return nil, altshiftErrors.New(
 				fmt.Errorf("split address (remote addr): %w", err),
 				remoteAddr.String(),
 			)
@@ -557,7 +557,7 @@ func parseTarget(rawAddress string, rawIpAddress string, rawPort int) (*schema.T
 		ipAddressUrl := fmt.Sprintf("fake://%s", rawIpAddress)
 		urlParsedClientIpAddress, err := url.Parse(ipAddressUrl)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf("url parse (crafted ip address url): %w", err),
 				ipAddressUrl,
 			)
@@ -568,7 +568,7 @@ func parseTarget(rawAddress string, rawIpAddress string, rawPort int) (*schema.T
 		if portString := urlParsedClientIpAddress.Port(); portString != "" {
 			port, err = strconv.Atoi(portString)
 			if err != nil {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf("strconv atoi (port string): %w", err),
 					portString,
 				)
@@ -604,7 +604,7 @@ func parseTarget(rawAddress string, rawIpAddress string, rawPort int) (*schema.T
 	return target, nil
 }
 
-func ParseWhoisContext(whoisContext *motmedelWhoisTypes.WhoisContext) (*schema.Base, error) {
+func ParseWhoisContext(whoisContext *altshiftWhoisTypes.WhoisContext) (*schema.Base, error) {
 	if whoisContext == nil {
 		return nil, nil
 	}
@@ -614,7 +614,7 @@ func ParseWhoisContext(whoisContext *motmedelWhoisTypes.WhoisContext) (*schema.B
 	clientPort := whoisContext.ClientPort
 	client, err := parseTarget(clientAddress, clientIpAddress, clientPort)
 	if err != nil {
-		return nil, motmedelErrors.New(
+		return nil, altshiftErrors.New(
 			fmt.Errorf("parse target (client data): %w", err),
 			clientAddress, clientAddress, clientPort,
 		)
@@ -629,7 +629,7 @@ func ParseWhoisContext(whoisContext *motmedelWhoisTypes.WhoisContext) (*schema.B
 	serverPort := whoisContext.ServerPort
 	server, err := parseTarget(serverAddress, serverIpAddress, serverPort)
 	if err != nil {
-		return nil, motmedelErrors.New(
+		return nil, altshiftErrors.New(
 			fmt.Errorf("parse target (server data): %w", err),
 			serverAddress, serverIpAddress, serverPort,
 		)
@@ -806,7 +806,7 @@ func EnrichWithTlsConnectionState(base *schema.Base, connectionState *tls.Connec
 	}
 }
 
-func EnrichWithTlsContext(base *schema.Base, tlsContext *motmedelTlsTypes.TlsContext) {
+func EnrichWithTlsContext(base *schema.Base, tlsContext *altshiftTlsTypes.TlsContext) {
 	if base == nil {
 		return
 	}

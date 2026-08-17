@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
@@ -88,10 +88,10 @@ func (c *Client) CreatePermission(
 	options ...create_permission_config.Option,
 ) (*permission.Permission, error) {
 	if fileId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("file id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("file id"))
 	}
 	if p == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("permission"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("permission"))
 	}
 
 	createPermissionConfig := create_permission_config.New(options...)
@@ -125,10 +125,10 @@ func (c *Client) GetPermission(
 	options ...fetch_config.Option,
 ) (*permission.Permission, error) {
 	if fileId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("file id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("file id"))
 	}
 	if permissionId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("permission id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("permission id"))
 	}
 
 	return rest.GetJson[permission.Permission](
@@ -150,7 +150,7 @@ func (c *Client) ListPermissions(
 	options ...fetch_config.Option,
 ) ([]*permission.Permission, error) {
 	if fileId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("file id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("file id"))
 	}
 
 	return rest.ListPaginated(
@@ -180,13 +180,13 @@ func (c *Client) UpdatePermission(
 	options ...update_permission_config.Option,
 ) (*permission.Permission, error) {
 	if fileId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("file id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("file id"))
 	}
 	if permissionId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("permission id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("permission id"))
 	}
 	if p == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("permission"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("permission"))
 	}
 
 	updatePermissionConfig := update_permission_config.New(options...)
@@ -217,10 +217,10 @@ func (c *Client) DeletePermission(
 	options ...fetch_config.Option,
 ) error {
 	if fileId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("file id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("file id"))
 	}
 	if permissionId == "" {
-		return motmedelErrors.NewWithTrace(empty_error.New("permission id"))
+		return altshiftErrors.NewWithTrace(empty_error.New("permission id"))
 	}
 
 	return rest.Do(

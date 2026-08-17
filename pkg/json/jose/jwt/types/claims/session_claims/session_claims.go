@@ -3,7 +3,7 @@ package session_claims
 import (
 	"fmt"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/claims/registered_claims"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/numeric_date"
@@ -25,7 +25,7 @@ func New(m map[string]any) (*Claims, error) {
 		return nil, fmt.Errorf("registered claims new: %w", err)
 	}
 	if registeredClaims == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("registered claims"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("registered claims"))
 	}
 
 	sessionClaims := &Claims{Claims: *registeredClaims}
@@ -33,7 +33,7 @@ func New(m map[string]any) (*Claims, error) {
 	if v, ok := m["amr"]; ok && v != nil {
 		vs, err := utils.ConvertSlice[string](v)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("convert slice (amr): %w", err), v)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("convert slice (amr): %w", err), v)
 		}
 		sessionClaims.AuthenticationMethods = vs
 	}
@@ -41,7 +41,7 @@ func New(m map[string]any) (*Claims, error) {
 	if v, ok := m["auth_time"]; ok && v != nil {
 		numericDate, err := numeric_date.Convert(v)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("numeric date convert (auth_time): %w", err), v)
+			return nil, altshiftErrors.New(fmt.Errorf("numeric date convert (auth_time): %w", err), v)
 		}
 		sessionClaims.AuthenticatedAt = numericDate
 	}
@@ -49,7 +49,7 @@ func New(m map[string]any) (*Claims, error) {
 	if v, ok := m["azp"]; ok && v != nil {
 		vs, err := utils.Convert[string](v)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("convert (azp): %w", err), v)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("convert (azp): %w", err), v)
 		}
 		sessionClaims.AuthorizedParty = vs
 	}
@@ -57,7 +57,7 @@ func New(m map[string]any) (*Claims, error) {
 	if v, ok := m["roles"]; ok && v != nil {
 		vs, err := utils.ConvertSlice[string](v)
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("convert slice (roles): %w", err), v)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("convert slice (roles): %w", err), v)
 		}
 		sessionClaims.Roles = vs
 	}
@@ -77,16 +77,16 @@ func NewParsedClaims(claimsMap map[string]any) (ParsedClaims, error) {
 		return nil, fmt.Errorf("registered claims new parsed claims: %w", err)
 	}
 	if parsedRegisteredClaims == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("parsed registered claims"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("parsed registered claims"))
 	}
 
 	if v, ok := parsedRegisteredClaims["auth_time"]; ok && v != nil {
 		numericDate, err := numeric_date.Convert(v)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("numeric date convert (auth_time): %w", err), v)
+			return nil, altshiftErrors.New(fmt.Errorf("numeric date convert (auth_time): %w", err), v)
 		}
 		if numericDate == nil {
-			return nil, motmedelErrors.NewWithTrace(nil_error.New("numeric date"))
+			return nil, altshiftErrors.NewWithTrace(nil_error.New("numeric date"))
 		}
 		parsedRegisteredClaims["auth_time"] = *numericDate
 	}

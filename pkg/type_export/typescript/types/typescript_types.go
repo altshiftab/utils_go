@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	typescriptErrors "github.com/altshiftab/utils_go/pkg/type_export/typescript/errors"
 )
 
@@ -87,7 +87,7 @@ func (m *MapType) String() (string, error) {
 	}
 
 	if indexTypeString != "number" && indexTypeString != "string" {
-		return "", motmedelErrors.NewWithTrace(typescriptErrors.ErrUnsupportedIndexType, indexTypeString)
+		return "", altshiftErrors.NewWithTrace(typescriptErrors.ErrUnsupportedIndexType, indexTypeString)
 	}
 
 	valueTypeString, err := m.ValueType.String()

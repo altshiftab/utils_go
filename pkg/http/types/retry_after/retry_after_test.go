@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestRetryAfterBadInput(t *testing.T) {
@@ -14,7 +14,7 @@ func TestRetryAfterBadInput(t *testing.T) {
 	data := []byte("so bad")
 
 	retryAfter, err := Parse(data)
-	if retryAfter != nil && errors.Is(err, motmedelErrors.ErrSyntaxError) {
+	if retryAfter != nil && errors.Is(err, altshiftErrors.ErrSyntaxError) {
 		t.Error("expected nil retry after and syntax error")
 	}
 }

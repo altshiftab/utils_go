@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"math/big"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
+	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
@@ -23,7 +23,7 @@ func (k *Key) PublicKey() (crypto.PublicKey, error) {
 	n := k.N
 	nBytes, err := base64.RawURLEncoding.DecodeString(n)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"base64 raw url encoding decode string (n): %w",
 				err,
@@ -35,7 +35,7 @@ func (k *Key) PublicKey() (crypto.PublicKey, error) {
 	e := k.E
 	eBytes, err := base64.RawURLEncoding.DecodeString(e)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(
+		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"base64 raw url encoding decode string (e): %w",
 				err,
@@ -63,7 +63,7 @@ func New(m map[string]any) (*Key, error) {
 	}
 
 	if kty != "RSA" {
-		return nil, motmedelErrors.NewWithTrace(motmedelJwkErrors.ErrKtyMismatch)
+		return nil, altshiftErrors.NewWithTrace(altshiftJwkErrors.ErrKtyMismatch)
 	}
 
 	n, err := utils.MapGetConvert[string](m, "n")
@@ -106,7 +106,7 @@ func NewFromPublicKey(publicKey *rsa2.PublicKey) (*Key, error) {
 	}
 
 	if publicKey.N == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("public key N"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("public key N"))
 	}
 
 	nB64 := base64.RawURLEncoding.EncodeToString(publicKey.N.Bytes())

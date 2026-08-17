@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	motmedelCryptoEcdsa "github.com/altshiftab/utils_go/pkg/crypto/ecdsa"
+	altshiftCryptoEcdsa "github.com/altshiftab/utils_go/pkg/crypto/ecdsa"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	ecKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key/ec"
 )
@@ -122,7 +122,7 @@ func TestHandler_GetNamedVerifier_Success(t *testing.T) {
 
 	// The returned verifier must correspond to the served key: a signature made
 	// with the matching private key verifies.
-	signer, err := motmedelCryptoEcdsa.FromPrivateKey(privateKey)
+	signer, err := altshiftCryptoEcdsa.FromPrivateKey(privateKey)
 	if err != nil {
 		t.Fatalf("from private key: %v", err)
 	}

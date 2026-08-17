@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"testing"
 
-	motmedelJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
+	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 )
 
 func TestKey_PublicKey(t *testing.T) {
@@ -135,7 +135,7 @@ func TestNew(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelJwkErrors.ErrKtyMismatch)
+				return errors.Is(err, altshiftJwkErrors.ErrKtyMismatch)
 			},
 		},
 		{

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelJsonSchema "github.com/altshiftab/utils_go/pkg/json/schema"
+	altshiftJsonSchema "github.com/altshiftab/utils_go/pkg/json/schema"
 )
 
 type payload struct {
@@ -38,14 +38,14 @@ func TestNew(t *testing.T) {
 func TestNewWithSchema(t *testing.T) {
 	t.Parallel()
 
-	schema, err := motmedelJsonSchema.NewFromType[payload]()
+	schema, err := altshiftJsonSchema.NewFromType[payload]()
 	if err != nil {
 		t.Fatalf("new from type: %v", err)
 	}
 
 	testCases := []struct {
 		name        string
-		schema      *motmedelJsonSchema.Schema
+		schema      *altshiftJsonSchema.Schema
 		expectError bool
 	}{
 		{name: "nil schema", schema: nil, expectError: true},
@@ -170,7 +170,7 @@ func TestParserParse(t *testing.T) {
 			}
 
 			if testCase.expectValidateError {
-				if _, ok := errors.AsType[*motmedelJsonSchema.ValidateError](responseError.ClientError); !ok {
+				if _, ok := errors.AsType[*altshiftJsonSchema.ValidateError](responseError.ClientError); !ok {
 					t.Errorf("client error is not a *ValidateError: %v", responseError.ClientError)
 				}
 			}
@@ -226,7 +226,7 @@ func TestParserParseAdditionalProperties(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			schema, err := motmedelJsonSchema.New([]byte(testCase.schemaData))
+			schema, err := altshiftJsonSchema.New([]byte(testCase.schemaData))
 			if err != nil {
 				t.Fatalf("schema new: %v", err)
 			}
@@ -286,7 +286,7 @@ func TestParserParseSlice(t *testing.T) {
 	if responseError == nil {
 		t.Fatal("expected a response error for a schema violation")
 	}
-	if _, ok := errors.AsType[*motmedelJsonSchema.ValidateError](responseError.ClientError); !ok {
+	if _, ok := errors.AsType[*altshiftJsonSchema.ValidateError](responseError.ClientError); !ok {
 		t.Errorf("client error is not a *ValidateError: %v", responseError.ClientError)
 	}
 	if problemDetail := responseError.ProblemDetail; problemDetail == nil {
@@ -316,7 +316,7 @@ func TestParserParseNilSchema(t *testing.T) {
 func TestParserParseNilBodyParser(t *testing.T) {
 	t.Parallel()
 
-	schema, err := motmedelJsonSchema.NewFromType[payload]()
+	schema, err := altshiftJsonSchema.NewFromType[payload]()
 	if err != nil {
 		t.Fatalf("new from type: %v", err)
 	}

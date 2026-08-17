@@ -12,7 +12,7 @@ import (
 
 	argumentParserErrors "github.com/altshiftab/utils_go/pkg/cli/argument_parser/errors"
 	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 const (
@@ -110,7 +110,7 @@ func (parser *Parser) Parse() error {
 	}
 
 	if err := parser.ParseArgs(arguments); err != nil {
-		return motmedelErrors.New(fmt.Errorf("parse args: %w", err), arguments)
+		return altshiftErrors.New(fmt.Errorf("parse args: %w", err), arguments)
 	}
 
 	return nil
@@ -141,7 +141,7 @@ func (parser *Parser) lendTo(subparser Subparser, command string) {
 // that happens to reach it.
 func (parser *Parser) Validate() error {
 	if _, err := makeNameTables(parser.Options); err != nil {
-		return motmedelErrors.New(fmt.Errorf("make name tables: %w", err), parser.Options)
+		return altshiftErrors.New(fmt.Errorf("make name tables: %w", err), parser.Options)
 	}
 
 	for _, opt := range parser.Options {
@@ -161,7 +161,7 @@ func (parser *Parser) Validate() error {
 
 		for _, choice := range provider.GetChoices() {
 			if _, err := normalizer.NormalizeChoice(choice); err != nil {
-				return motmedelErrors.New(
+				return altshiftErrors.New(
 					fmt.Errorf("normalize choice: %w", err),
 					formatInvocation(opt),
 					choice,
@@ -171,11 +171,11 @@ func (parser *Parser) Validate() error {
 	}
 
 	if err := checkGroups(parser.Options, parser.Groups, parser.ExclusiveGroups); err != nil {
-		return motmedelErrors.New(fmt.Errorf("check groups: %w", err), parser.Options)
+		return altshiftErrors.New(fmt.Errorf("check groups: %w", err), parser.Options)
 	}
 
 	if err := checkPositionals(parser.Positionals); err != nil {
-		return motmedelErrors.New(fmt.Errorf("check positionals: %w", err), parser.Positionals)
+		return altshiftErrors.New(fmt.Errorf("check positionals: %w", err), parser.Positionals)
 	}
 
 	for _, subparser := range parser.Parsers {
@@ -189,7 +189,7 @@ func (parser *Parser) Validate() error {
 		}
 
 		if err := validator.Validate(); err != nil {
-			return motmedelErrors.New(fmt.Errorf("subparser validate: %w", err), subparser)
+			return altshiftErrors.New(fmt.Errorf("subparser validate: %w", err), subparser)
 		}
 	}
 
@@ -387,7 +387,7 @@ func checkPositionals(positionals []option.Option) error {
 	}
 
 	if variadic > 1 {
-		return motmedelErrors.NewWithTrace(argumentParserErrors.ErrAmbiguousPositionals)
+		return altshiftErrors.NewWithTrace(argumentParserErrors.ErrAmbiguousPositionals)
 	}
 
 	return nil
@@ -427,7 +427,7 @@ func assignPositionals(positionals []option.Option, arguments []string) ([]strin
 		}
 
 		if count < nargs.Minimum() || index+count > len(arguments) {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: %s",
 					argumentParserErrors.ErrMissingPositional,
@@ -485,7 +485,7 @@ func checkGroups(options []option.Option, groups []*Group, exclusiveGroups []*Ex
 			return nil
 		}
 
-		return motmedelErrors.NewWithTrace(
+		return altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: %s", argumentParserErrors.ErrUndeclaredOption, formatInvocation(opt)),
 		)
 	}
@@ -541,7 +541,7 @@ func checkExclusive(groups []*ExclusiveGroup, seen *seenNames) error {
 		}
 
 		if len(given) > 1 {
-			return motmedelErrors.NewWithTrace(
+			return altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: %s",
 					argumentParserErrors.ErrMutuallyExclusiveOptions,
@@ -551,7 +551,7 @@ func checkExclusive(groups []*ExclusiveGroup, seen *seenNames) error {
 		}
 
 		if group.Required && len(given) == 0 && len(all) != 0 {
-			return motmedelErrors.NewWithTrace(
+			return altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: one of %s",
 					argumentParserErrors.ErrMissingRequiredOption,
@@ -1129,7 +1129,7 @@ func makeNameTables(options []option.Option) (*nameTables, error) {
 			}
 
 			if _, ok := pair.table[pair.name]; ok {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf(
 						"%w: %s",
 						argumentParserErrors.ErrMultipleOptionsWithSameName,
@@ -1261,7 +1261,7 @@ func offersChoice(opt option.Option, choices []string, value string) bool {
 func setOption(opt option.Option, value string) error {
 	if provider, ok := opt.(option.ChoicesProvider); ok {
 		if choices := provider.GetChoices(); len(choices) != 0 && !offersChoice(opt, choices, value) {
-			return motmedelErrors.NewWithTrace(
+			return altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: %s (choose from %s)",
 					argumentParserErrors.ErrInvalidChoice,
@@ -1274,7 +1274,7 @@ func setOption(opt option.Option, value string) error {
 	}
 
 	if err := opt.Set(value); err != nil {
-		return motmedelErrors.New(fmt.Errorf("option set: %w", err), opt, value)
+		return altshiftErrors.New(fmt.Errorf("option set: %w", err), opt, value)
 	}
 
 	return nil
@@ -1294,7 +1294,7 @@ func closePending(pending option.Option, pendingName string, pendingCount int) e
 	}
 
 	if nargs != option.NargsOptional {
-		return motmedelErrors.NewWithTrace(
+		return altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: %s", argumentParserErrors.ErrUnsetOption, pendingName),
 		)
 	}
@@ -1343,7 +1343,7 @@ func checkRequired(options []option.Option, seen *seenNames) error {
 			continue
 		}
 
-		return motmedelErrors.NewWithTrace(
+		return altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: %s",
 				argumentParserErrors.ErrMissingRequiredOption,
@@ -1370,7 +1370,7 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 
 				subcommandArguments := arguments[1:]
 				if err := subparser.ParseArgs(subcommandArguments); err != nil {
-					return motmedelErrors.New(
+					return altshiftErrors.New(
 						fmt.Errorf("subcommand parse args: %w", err),
 						subparser,
 						subcommandArguments,
@@ -1394,15 +1394,15 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 
 	tables, err := makeNameTables(tableOptions)
 	if err != nil {
-		return motmedelErrors.New(fmt.Errorf("make name tables: %w", err), options)
+		return altshiftErrors.New(fmt.Errorf("make name tables: %w", err), options)
 	}
 
 	if err := checkGroups(options, parser.Groups, parser.ExclusiveGroups); err != nil {
-		return motmedelErrors.New(fmt.Errorf("check groups: %w", err), options)
+		return altshiftErrors.New(fmt.Errorf("check groups: %w", err), options)
 	}
 
 	if err := checkPositionals(parser.Positionals); err != nil {
-		return motmedelErrors.New(fmt.Errorf("check positionals: %w", err), parser.Positionals)
+		return altshiftErrors.New(fmt.Errorf("check positionals: %w", err), parser.Positionals)
 	}
 
 	// An option named like a negative number makes "-1" ambiguous; argparse resolves it in favour
@@ -1460,7 +1460,7 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 			if !ok && parsed.long && !parser.DisableAbbrev {
 				abbreviated, matches := tables.resolveAbbreviation(name)
 				if len(matches) > 1 {
-					return motmedelErrors.NewWithTrace(
+					return altshiftErrors.NewWithTrace(
 						fmt.Errorf(
 							"%w: %s could match %s",
 							argumentParserErrors.ErrAmbiguousOption,
@@ -1475,7 +1475,7 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 				}
 			}
 			if !ok {
-				return motmedelErrors.NewWithTrace(
+				return altshiftErrors.NewWithTrace(
 					fmt.Errorf("%w: %s", argumentParserErrors.ErrNameNotFound, name),
 				)
 			}
@@ -1506,7 +1506,7 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 			switch {
 			case parsed.inlineValue != nil:
 				if nargs == option.NargsNone {
-					return motmedelErrors.NewWithTrace(
+					return altshiftErrors.NewWithTrace(
 						fmt.Errorf(
 							"%w: %s=%s",
 							argumentParserErrors.ErrUnexpectedOptionValue,
@@ -1543,11 +1543,11 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 
 	leftover, err := assignPositionals(parser.Positionals, rest)
 	if err != nil {
-		return motmedelErrors.New(fmt.Errorf("assign positionals: %w", err), rest)
+		return altshiftErrors.New(fmt.Errorf("assign positionals: %w", err), rest)
 	}
 
 	if len(leftover) != 0 && parser.Rest == nil {
-		return motmedelErrors.NewWithTrace(
+		return altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: %s", argumentParserErrors.ErrUnexpectedArgument, leftover[0]),
 		)
 	}

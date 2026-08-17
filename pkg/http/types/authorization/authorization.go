@@ -9,8 +9,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 var (
@@ -21,16 +21,16 @@ var (
 
 var Grammar *abnf.Grammar
 
-func Parse(data []byte) (*motmedelHttpTypes.Authorization, error) {
+func Parse(data []byte) (*altshiftHttpTypes.Authorization, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(Grammar, data, "Authorization")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
-	var authorization motmedelHttpTypes.Authorization
+	var authorization altshiftHttpTypes.Authorization
 
 	interestingPaths := abnfUtils.SearchPath(
 		paths[0],
@@ -47,7 +47,7 @@ func Parse(data []byte) (*motmedelHttpTypes.Authorization, error) {
 			if authorization.Params != nil {
 				return nil, fmt.Errorf(
 					"%w: %w",
-					motmedelErrors.ErrSyntaxError, ErrMutuallyExclusiveToken68Parameters,
+					altshiftErrors.ErrSyntaxError, ErrMutuallyExclusiveToken68Parameters,
 				)
 			}
 			authorization.Token68 = value
@@ -56,7 +56,7 @@ func Parse(data []byte) (*motmedelHttpTypes.Authorization, error) {
 			if authorization.Token68 != "" {
 				return nil, fmt.Errorf(
 					"%w: %w",
-					motmedelErrors.ErrSyntaxError, ErrMutuallyExclusiveToken68Parameters,
+					altshiftErrors.ErrSyntaxError, ErrMutuallyExclusiveToken68Parameters,
 				)
 			}
 
@@ -75,10 +75,10 @@ func Parse(data []byte) (*motmedelHttpTypes.Authorization, error) {
 				quotedString := string(abnfUtils.ExtractPathValue(data, quotedStringPath))
 				parameterValue, err = strconv.Unquote(quotedString)
 				if err != nil {
-					return nil, motmedelErrors.NewWithTrace(
+					return nil, altshiftErrors.NewWithTrace(
 						fmt.Errorf(
 							"%w: %w: strvconv unquote: %w",
-							motmedelErrors.ErrSemanticError,
+							altshiftErrors.ErrSemanticError,
 							ErrInvalidQuotedParameterValue,
 							err,
 						),
@@ -92,8 +92,8 @@ func Parse(data []byte) (*motmedelHttpTypes.Authorization, error) {
 			}
 
 			if _, ok := authorization.Params[key]; ok {
-				return nil, motmedelErrors.New(
-					fmt.Errorf("%w: %w: %s", motmedelErrors.ErrSemanticError, ErrDuplicateParameter, key),
+				return nil, altshiftErrors.New(
+					fmt.Errorf("%w: %w: %s", altshiftErrors.ErrSemanticError, ErrDuplicateParameter, key),
 					key,
 				)
 			}

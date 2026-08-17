@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // ErrInvalidSchema indicates that a schema document itself is invalid:
 // unparseable JSON, a keyword argument of the wrong type, or an
 // unresolvable reference. It is not a validation failure of an
-// instance, and deliberately does not match the Motmedel client-input
+// instance, and deliberately does not match the altshift client-input
 // error categories: an invalid schema is a programming error.
 var ErrInvalidSchema = errors.New("invalid schema")
 
@@ -74,9 +74,9 @@ func (ve *ValidateError) Unwrap() error {
 }
 
 // Is marks a ValidateError as a client-input validation failure,
-// so that errors.Is(err, motmedelErrors.ErrValidationError) reports true.
+// so that errors.Is(err, altshiftErrors.ErrValidationError) reports true.
 func (ve *ValidateError) Is(target error) bool {
-	return target == motmedelErrors.ErrValidationError
+	return target == altshiftErrors.ErrValidationError
 }
 
 // NewValidateError returns a [*ValidateError] wrapping err and

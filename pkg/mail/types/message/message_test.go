@@ -9,7 +9,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
-	motmedelMailErrors "github.com/altshiftab/utils_go/pkg/mail/errors"
+	altshiftMailErrors "github.com/altshiftab/utils_go/pkg/mail/errors"
 	"github.com/altshiftab/utils_go/pkg/mail/types/message/message_config"
 	"github.com/altshiftab/utils_go/pkg/mail/types/message/message_header"
 )
@@ -176,7 +176,7 @@ func TestMessage_String_BadFromAddress(t *testing.T) {
 		To:      validTo(),
 		Subject: "subj",
 	}
-	if _, err := msg.String(); !errors.Is(err, motmedelMailErrors.ErrBadFromAddress) {
+	if _, err := msg.String(); !errors.Is(err, altshiftMailErrors.ErrBadFromAddress) {
 		t.Fatalf("err = %v, want ErrBadFromAddress", err)
 	}
 }

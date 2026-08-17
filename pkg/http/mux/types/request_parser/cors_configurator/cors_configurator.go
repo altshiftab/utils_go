@@ -8,9 +8,9 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
 	"github.com/altshiftab/utils_go/pkg/interfaces/comparer"
@@ -29,17 +29,17 @@ type Configurator struct {
 	ExposeHeaders []string
 }
 
-func (c *Configurator) Parse(request *http.Request) (*motmedelHttpTypes.CorsConfiguration, *response_error.ResponseError) {
+func (c *Configurator) Parse(request *http.Request) (*altshiftHttpTypes.CorsConfiguration, *response_error.ResponseError) {
 	if request == nil {
 		return nil, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request")),
 		}
 	}
 
 	requestHeader := request.Header
 	if requestHeader == nil {
 		return nil, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request header")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request header")),
 		}
 	}
 
@@ -67,7 +67,7 @@ func (c *Configurator) Parse(request *http.Request) (*motmedelHttpTypes.CorsConf
 		parsedOrigin, err := url.Parse(origin)
 		if err != nil {
 			return nil, &response_error.ResponseError{
-				ClientError: motmedelErrors.NewWithTrace(fmt.Errorf("url parse (origin): %w", err), origin),
+				ClientError: altshiftErrors.NewWithTrace(fmt.Errorf("url parse (origin): %w", err), origin),
 				ProblemDetail: problem_detail.New(
 					http.StatusBadRequest,
 					problem_detail_config.WithDetail("Invalid Origin header."),
@@ -95,7 +95,7 @@ func (c *Configurator) Parse(request *http.Request) (*motmedelHttpTypes.CorsConf
 		return nil, nil
 	}
 
-	return &motmedelHttpTypes.CorsConfiguration{
+	return &altshiftHttpTypes.CorsConfiguration{
 		Origin:        matchedAllowedOrigin,
 		Headers:       c.Headers,
 		Credentials:   c.Credentials,

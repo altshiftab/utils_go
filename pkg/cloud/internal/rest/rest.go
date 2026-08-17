@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"slices"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 // GetJson performs a GET request and returns the decoded, nil-checked response.
@@ -20,13 +20,13 @@ func GetJson[T any](ctx context.Context, urlString string, options []fetch_confi
 		return nil, fmt.Errorf("context err: %w", err)
 	}
 
-	_, value, err := motmedelHttpUtils.FetchJson[*T](ctx, urlString, options...)
+	_, value, err := altshiftHttpUtils.FetchJson[*T](ctx, urlString, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
 	}
 
 	if value == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("response value"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("response value"))
 	}
 
 	return value, nil
@@ -46,13 +46,13 @@ func SendJson[T any, B any](
 	}
 
 	options = append(slices.Clip(options), fetch_config.WithMethod(method))
-	_, value, err := motmedelHttpUtils.FetchJsonWithBody[*T](ctx, urlString, body, options...)
+	_, value, err := altshiftHttpUtils.FetchJsonWithBody[*T](ctx, urlString, body, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
 	}
 
 	if value == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("response value"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("response value"))
 	}
 
 	return value, nil
@@ -65,8 +65,8 @@ func Do(ctx context.Context, method string, urlString string, options []fetch_co
 	}
 
 	options = append(slices.Clip(options), fetch_config.WithMethod(method))
-	if _, _, err := motmedelHttpUtils.Fetch(ctx, urlString, options...); err != nil {
-		return motmedelErrors.New(fmt.Errorf("fetch: %w", err), urlString)
+	if _, _, err := altshiftHttpUtils.Fetch(ctx, urlString, options...); err != nil {
+		return altshiftErrors.New(fmt.Errorf("fetch: %w", err), urlString)
 	}
 
 	return nil
@@ -86,8 +86,8 @@ func DoWithBody[B any](
 	}
 
 	options = append(slices.Clip(options), fetch_config.WithMethod(method))
-	if _, _, err := motmedelHttpUtils.FetchJsonWithBody[*struct{}](ctx, urlString, body, options...); err != nil {
-		return motmedelErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
+	if _, _, err := altshiftHttpUtils.FetchJsonWithBody[*struct{}](ctx, urlString, body, options...); err != nil {
+		return altshiftErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
 	}
 
 	return nil
@@ -111,9 +111,9 @@ func ListPaginated[R any, T any](
 	for {
 		urlString := makeUrlString(pageToken)
 
-		_, response, err := motmedelHttpUtils.FetchJson[*R](ctx, urlString, options...)
+		_, response, err := altshiftHttpUtils.FetchJson[*R](ctx, urlString, options...)
 		if err != nil {
-			return nil, motmedelErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+			return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
 		}
 		if response == nil {
 			break

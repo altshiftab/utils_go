@@ -7,7 +7,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cbor"
 	cborSchema "github.com/altshiftab/utils_go/pkg/cbor/schema"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
@@ -23,7 +23,7 @@ func (p *Parser[T]) Parse(_ *http.Request, body []byte) (T, *response_error.Resp
 	schema := p.schema
 	if schema == nil {
 		return zero, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(cborSchema.ErrNilSchema),
+			ServerError: altshiftErrors.NewWithTrace(cborSchema.ErrNilSchema),
 		}
 	}
 
@@ -32,7 +32,7 @@ func (p *Parser[T]) Parse(_ *http.Request, body []byte) (T, *response_error.Resp
 	value, err := cbor.DecodeNoCopy(body)
 	if err != nil {
 		return zero, &response_error.ResponseError{
-			ClientError: motmedelErrors.NewWithTrace(fmt.Errorf("cbor decode: %w", err), body),
+			ClientError: altshiftErrors.NewWithTrace(fmt.Errorf("cbor decode: %w", err), body),
 			ProblemDetail: problem_detail.New(
 				http.StatusBadRequest,
 				problem_detail_config.WithDetail("Malformed CBOR body."),
@@ -41,7 +41,7 @@ func (p *Parser[T]) Parse(_ *http.Request, body []byte) (T, *response_error.Resp
 	}
 
 	if err := schema.Validate(value); err != nil {
-		wrappedErr := motmedelErrors.New(fmt.Errorf("validate (input): %w", err), value, schema)
+		wrappedErr := altshiftErrors.New(fmt.Errorf("validate (input): %w", err), value, schema)
 
 		var validateError *cborSchema.ValidateError
 		if errors.As(err, &validateError) {
@@ -61,7 +61,7 @@ func (p *Parser[T]) Parse(_ *http.Request, body []byte) (T, *response_error.Resp
 	var result T
 	if err := cbor.UnmarshalValue(value, &result); err != nil {
 		return zero, &response_error.ResponseError{
-			ServerError: motmedelErrors.New(fmt.Errorf("cbor unmarshal value: %w", err), value),
+			ServerError: altshiftErrors.New(fmt.Errorf("cbor unmarshal value: %w", err), value),
 		}
 	}
 
@@ -70,7 +70,7 @@ func (p *Parser[T]) Parse(_ *http.Request, body []byte) (T, *response_error.Resp
 
 func NewWithSchema[T any](schema *cborSchema.Schema) (*Parser[T], error) {
 	if schema == nil {
-		return nil, motmedelErrors.NewWithTrace(cborSchema.ErrNilSchema)
+		return nil, altshiftErrors.NewWithTrace(cborSchema.ErrNilSchema)
 	}
 
 	return &Parser[T]{schema: schema}, nil

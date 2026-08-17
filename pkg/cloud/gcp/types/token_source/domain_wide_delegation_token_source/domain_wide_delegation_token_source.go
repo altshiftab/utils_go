@@ -11,14 +11,14 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_response"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/token"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/token_source"
-	motmedelOauth2Transport "github.com/altshiftab/utils_go/pkg/oauth2/types/transport"
+	altshiftOauth2Transport "github.com/altshiftab/utils_go/pkg/oauth2/types/transport"
 )
 
 const (
@@ -58,21 +58,21 @@ func (s *TokenSource) Token() (*token.Token, error) {
 		"exp":   now.Add(time.Hour).Unix(),
 	})
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("json marshal (jwt claims): %w", err))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json marshal (jwt claims): %w", err))
 	}
 
 	// Authenticate the signJwt call as the signer (e.g. Application Default
 	// Credentials), which must hold roles/iam.serviceAccountTokenCreator on saEmail.
 	signerOption := fetch_config.WithHttpClient(&http.Client{
-		Transport: &motmedelOauth2Transport.Transport{Source: s.signerSource},
+		Transport: &altshiftOauth2Transport.Transport{Source: s.signerSource},
 	})
 
 	signResponse, err := s.iamCredentialsClient.SignJwt(s.ctx, s.saEmail, string(claimsJSON), signerOption)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("iam credentials sign jwt: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("iam credentials sign jwt: %w", err))
 	}
 	if signResponse == nil || signResponse.SignedJwt == "" {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("signed jwt"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("signed jwt"))
 	}
 
 	return s.exchange(signResponse.SignedJwt)
@@ -91,12 +91,12 @@ func (s *TokenSource) exchange(assertion string) (*token.Token, error) {
 		fetch_config.WithBody([]byte(form.Encode())),
 	}
 
-	_, tokenResponse, err := motmedelHttpUtils.FetchJson[*token_response.Response](s.ctx, s.tokenURL, options...)
+	_, tokenResponse, err := altshiftHttpUtils.FetchJson[*token_response.Response](s.ctx, s.tokenURL, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json: %w", err), s.tokenURL)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), s.tokenURL)
 	}
 	if tokenResponse == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("token response"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("token response"))
 	}
 
 	return tokenResponse.Token(), nil
@@ -116,13 +116,13 @@ func New(
 	tokenURL string,
 ) (token_source.TokenSource, error) {
 	if signerSource == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("signer source"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("signer source"))
 	}
 	if saEmail == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("service account email"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("service account email"))
 	}
 	if subject == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("subject"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("subject"))
 	}
 	if tokenURL == "" {
 		tokenURL = defaultTokenURL

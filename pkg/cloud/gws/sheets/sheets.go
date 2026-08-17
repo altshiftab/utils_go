@@ -5,7 +5,7 @@ import (
 	"net/url"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 
@@ -76,7 +76,7 @@ func withQuery(urlString string, query url.Values) string {
 // GetSpreadsheet retrieves spreadsheet metadata (the sheet list and properties), not cell data.
 func (c *Client) GetSpreadsheet(ctx context.Context, spreadsheetId string, options ...get_spreadsheet_config.Option) (*spreadsheet.Spreadsheet, error) {
 	if spreadsheetId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("spreadsheet id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("spreadsheet id"))
 	}
 
 	getSpreadsheetConfig := get_spreadsheet_config.New(options...)
@@ -97,10 +97,10 @@ func (c *Client) GetSpreadsheet(ctx context.Context, spreadsheetId string, optio
 // (e.g. "'Besök'!A2:E") or as a named range.
 func (c *Client) GetValues(ctx context.Context, spreadsheetId string, valuesRange string, options ...get_values_config.Option) (*value_range.ValueRange, error) {
 	if spreadsheetId == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("spreadsheet id"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("spreadsheet id"))
 	}
 	if valuesRange == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("values range"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("values range"))
 	}
 
 	getValuesConfig := get_values_config.New(options...)

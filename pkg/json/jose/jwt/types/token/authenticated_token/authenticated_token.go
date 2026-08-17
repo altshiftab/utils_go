@@ -3,19 +3,19 @@ package authenticated_token
 import (
 	"fmt"
 
-	motmedelCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
+	altshiftCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
 	"github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jws/types/jws_object"
-	motmedelJwtToken "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
+	altshiftJwtToken "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token/authenticated_token_config"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Token struct {
-	*motmedelJwtToken.Token
-	verifier motmedelCryptoInterfaces.NamedVerifier
+	*altshiftJwtToken.Token
+	verifier altshiftCryptoInterfaces.NamedVerifier
 	raw      string
 }
 
@@ -23,7 +23,7 @@ func (token *Token) Raw() string {
 	return token.raw
 }
 
-func (token *Token) Verifier() motmedelCryptoInterfaces.NamedVerifier {
+func (token *Token) Verifier() altshiftCryptoInterfaces.NamedVerifier {
 	return token.verifier
 }
 
@@ -40,7 +40,7 @@ func New(tokenString string, options ...authenticated_token_config.Option) (*Tok
 		return nil, errors.NewWithTrace(nil_error.New("raw jwt token"))
 	}
 
-	token, err := motmedelJwtToken.NewFromJws(rawToken)
+	token, err := altshiftJwtToken.NewFromJws(rawToken)
 	if err != nil {
 		return nil, errors.New(
 			fmt.Errorf("%w: token from raw token: %w", errors.ErrParseError, err),

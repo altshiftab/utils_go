@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"hash"
 
-	motmedelCrypto "github.com/altshiftab/utils_go/pkg/crypto"
-	motmedelCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftCrypto "github.com/altshiftab/utils_go/pkg/crypto"
+	altshiftCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 )
 
@@ -37,12 +37,12 @@ func (m *Method) hash(message []byte) ([]byte, error) {
 
 func (m *Method) Sign(message []byte) ([]byte, error) {
 	if m.PrivateKey == nil {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("secret"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("secret"))
 	}
 
 	digest, err := m.hash(message)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(err)
+		return nil, altshiftErrors.NewWithTrace(err)
 	}
 
 	if m.pss {
@@ -51,14 +51,14 @@ func (m *Method) Sign(message []byte) ([]byte, error) {
 			Hash:       m.Hash,
 		})
 		if err != nil {
-			return nil, motmedelErrors.NewWithTrace(err)
+			return nil, altshiftErrors.NewWithTrace(err)
 		}
 		return sig, nil
 	}
 
 	sig, err := rsa.SignPKCS1v15(rand.Reader, m.PrivateKey, m.Hash, digest)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(err)
+		return nil, altshiftErrors.NewWithTrace(err)
 	}
 	return sig, nil
 }
@@ -69,12 +69,12 @@ func (m *Method) Verify(message []byte, signature []byte) error {
 		pub = &m.PrivateKey.PublicKey
 	}
 	if pub == nil {
-		return motmedelErrors.NewWithTrace(empty_error.New("public key"))
+		return altshiftErrors.NewWithTrace(empty_error.New("public key"))
 	}
 
 	digest, err := m.hash(message)
 	if err != nil {
-		return motmedelErrors.NewWithTrace(err)
+		return altshiftErrors.NewWithTrace(err)
 	}
 
 	if m.pss {
@@ -82,13 +82,13 @@ func (m *Method) Verify(message []byte, signature []byte) error {
 			SaltLength: m.Hash.Size(),
 			Hash:       m.Hash,
 		}); err != nil {
-			return motmedelErrors.NewWithTrace(motmedelCryptoErrors.ErrSignatureMismatch)
+			return altshiftErrors.NewWithTrace(altshiftCryptoErrors.ErrSignatureMismatch)
 		}
 		return nil
 	}
 
 	if err := rsa.VerifyPKCS1v15(pub, m.Hash, digest, signature); err != nil {
-		return motmedelErrors.NewWithTrace(motmedelCryptoErrors.ErrSignatureMismatch)
+		return altshiftErrors.NewWithTrace(altshiftCryptoErrors.ErrSignatureMismatch)
 	}
 	return nil
 }
@@ -106,39 +106,39 @@ func New(algorithm string, privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey)
 	)
 
 	switch algorithm {
-	case motmedelCrypto.AlgRs256:
+	case altshiftCrypto.AlgRs256:
 		hashFunc = sha256.New
 		hash = crypto.SHA256
 		pss = false
-		name = motmedelCrypto.AlgRs256
-	case motmedelCrypto.AlgRs384:
+		name = altshiftCrypto.AlgRs256
+	case altshiftCrypto.AlgRs384:
 		hashFunc = sha512.New384
 		hash = crypto.SHA384
 		pss = false
-		name = motmedelCrypto.AlgRs384
-	case motmedelCrypto.AlgRs512:
+		name = altshiftCrypto.AlgRs384
+	case altshiftCrypto.AlgRs512:
 		hashFunc = sha512.New
 		hash = crypto.SHA512
 		pss = false
-		name = motmedelCrypto.AlgRs512
-	case motmedelCrypto.AlgPs256:
+		name = altshiftCrypto.AlgRs512
+	case altshiftCrypto.AlgPs256:
 		hashFunc = sha256.New
 		hash = crypto.SHA256
 		pss = true
-		name = motmedelCrypto.AlgPs256
-	case motmedelCrypto.AlgPs384:
+		name = altshiftCrypto.AlgPs256
+	case altshiftCrypto.AlgPs384:
 		hashFunc = sha512.New384
 		hash = crypto.SHA384
 		pss = true
-		name = motmedelCrypto.AlgPs384
-	case motmedelCrypto.AlgPs512:
+		name = altshiftCrypto.AlgPs384
+	case altshiftCrypto.AlgPs512:
 		hashFunc = sha512.New
 		hash = crypto.SHA512
 		pss = true
-		name = motmedelCrypto.AlgPs512
+		name = altshiftCrypto.AlgPs512
 	default:
-		return nil, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %q", motmedelCryptoErrors.ErrUnsupportedAlgorithm, algorithm),
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %q", altshiftCryptoErrors.ErrUnsupportedAlgorithm, algorithm),
 		)
 	}
 
@@ -164,18 +164,18 @@ func New(algorithm string, privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey)
 // from the key alone. This helper defaults to RS* for maximum interoperability.
 func NewFromPublicKey(publicKey *rsa.PublicKey) (*Method, error) {
 	if publicKey == nil {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("public key"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("public key"))
 	}
 
 	bits := publicKey.N.BitLen()
 	var alg string
 	switch {
 	case bits >= 4096:
-		alg = motmedelCrypto.AlgRs512
+		alg = altshiftCrypto.AlgRs512
 	case bits >= 3072:
-		alg = motmedelCrypto.AlgRs384
+		alg = altshiftCrypto.AlgRs384
 	default:
-		alg = motmedelCrypto.AlgRs256
+		alg = altshiftCrypto.AlgRs256
 	}
 
 	return New(alg, nil, publicKey)

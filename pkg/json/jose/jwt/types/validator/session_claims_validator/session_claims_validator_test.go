@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/interfaces/comparer"
 )
 
@@ -34,7 +34,7 @@ func TestValidator_Validate(t *testing.T) {
 			claims:      nil,
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelErrors.ErrValidationError)
+				return errors.Is(err, altshiftErrors.ErrValidationError)
 			},
 		},
 		{
@@ -69,7 +69,7 @@ func TestValidator_Validate(t *testing.T) {
 			errorCheck: func(err error) bool {
 				// Should get a validation error containing the conversion error
 				// but NOT a mismatch error (the bug was that it would also add mismatch)
-				return errors.Is(err, motmedelErrors.ErrValidationError)
+				return errors.Is(err, altshiftErrors.ErrValidationError)
 			},
 		},
 		{
@@ -84,7 +84,7 @@ func TestValidator_Validate(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelErrors.ErrValidationError)
+				return errors.Is(err, altshiftErrors.ErrValidationError)
 			},
 		},
 		{
@@ -113,7 +113,7 @@ func TestValidator_Validate(t *testing.T) {
 			errorCheck: func(err error) bool {
 				// Should get a validation error containing the conversion error
 				// but NOT a mismatch error (the bug was that it would also add mismatch)
-				return errors.Is(err, motmedelErrors.ErrValidationError)
+				return errors.Is(err, altshiftErrors.ErrValidationError)
 			},
 		},
 		{
@@ -128,7 +128,7 @@ func TestValidator_Validate(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelErrors.ErrValidationError)
+				return errors.Is(err, altshiftErrors.ErrValidationError)
 			},
 		},
 		{
@@ -155,7 +155,7 @@ func TestValidator_Validate(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelErrors.ErrValidationError)
+				return errors.Is(err, altshiftErrors.ErrValidationError)
 			},
 		},
 		{
@@ -186,7 +186,7 @@ func TestValidator_Validate(t *testing.T) {
 			},
 			expectError: true,
 			errorCheck: func(err error) bool {
-				return errors.Is(err, motmedelErrors.ErrValidationError)
+				return errors.Is(err, altshiftErrors.ErrValidationError)
 			},
 		},
 	}

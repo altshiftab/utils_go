@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strconv"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
 )
@@ -73,7 +73,7 @@ func (d *Detail) MarshalJSON() ([]byte, error) {
 
 	b, err := json.Marshal(m, json.Deterministic(true))
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("json marshal (detail): %w", err), m)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json marshal (detail): %w", err), m)
 	}
 	return b, nil
 }
@@ -82,7 +82,7 @@ func (d *Detail) MarshalJSON() ([]byte, error) {
 // non-standard fields into the Extension map.
 func (d *Detail) UnmarshalJSON(data []byte) error {
 	if d == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("json unmarshal (detail): nil receiver"))
+		return altshiftErrors.NewWithTrace(nil_error.New("json unmarshal (detail): nil receiver"))
 	}
 
 	// Accept null
@@ -94,7 +94,7 @@ func (d *Detail) UnmarshalJSON(data []byte) error {
 	// Decode into raw map first to separate known vs extension fields.
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return motmedelErrors.NewWithTrace(
+		return altshiftErrors.NewWithTrace(
 			fmt.Errorf("json unmarshal (detail map): %w", err),
 			string(data),
 		)
@@ -109,14 +109,14 @@ func (d *Detail) UnmarshalJSON(data []byte) error {
 	// Known fields
 	if v, ok := raw["type"]; ok {
 		if err := json.Unmarshal(v, &d.Type); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal (type): %w", err))
+			return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (type): %w", err))
 		}
 		delete(raw, "type")
 	}
 
 	if v, ok := raw["title"]; ok {
 		if err := json.Unmarshal(v, &d.Title); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal (title): %w", err))
+			return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (title): %w", err))
 		}
 		delete(raw, "title")
 	}
@@ -127,11 +127,11 @@ func (d *Detail) UnmarshalJSON(data []byte) error {
 			// Try string then convert to int
 			var statusStr string
 			if errStr := json.Unmarshal(v, &statusStr); errStr != nil {
-				return motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal (status): %w", err))
+				return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (status): %w", err))
 			}
 			si, convErr := strconv.Atoi(statusStr)
 			if convErr != nil {
-				return motmedelErrors.NewWithTrace(fmt.Errorf("atoi (status): %w", convErr), statusStr)
+				return altshiftErrors.NewWithTrace(fmt.Errorf("atoi (status): %w", convErr), statusStr)
 			}
 			statusInt = si
 		}
@@ -141,14 +141,14 @@ func (d *Detail) UnmarshalJSON(data []byte) error {
 
 	if v, ok := raw["detail"]; ok {
 		if err := json.Unmarshal(v, &d.Detail); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal (detail): %w", err))
+			return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (detail): %w", err))
 		}
 		delete(raw, "detail")
 	}
 
 	if v, ok := raw["instance"]; ok {
 		if err := json.Unmarshal(v, &d.Instance); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal (instance): %w", err))
+			return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (instance): %w", err))
 		}
 		delete(raw, "instance")
 	}
@@ -162,7 +162,7 @@ func (d *Detail) UnmarshalJSON(data []byte) error {
 			}
 			var val any
 			if err := json.Unmarshal(v, &val); err != nil {
-				return motmedelErrors.NewWithTrace(fmt.Errorf("json unmarshal (extension value): %w", err), k)
+				return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (extension value): %w", err), k)
 			}
 			ext[k] = val
 		}
@@ -184,7 +184,7 @@ func encodeXmlValue(encoder *xml.Encoder, localName string, value any) error {
 	switch typedValue := value.(type) {
 	case map[string]any:
 		if err := encoder.EncodeToken(startElement); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("encode token (object start): %w", err), localName)
+			return altshiftErrors.NewWithTrace(fmt.Errorf("encode token (object start): %w", err), localName)
 		}
 
 		for _, key := range slices.Sorted(maps.Keys(typedValue)) {
@@ -194,11 +194,11 @@ func encodeXmlValue(encoder *xml.Encoder, localName string, value any) error {
 		}
 
 		if err := encoder.EncodeToken(xml.EndElement{Name: startElement.Name}); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("encode token (object end): %w", err), localName)
+			return altshiftErrors.NewWithTrace(fmt.Errorf("encode token (object end): %w", err), localName)
 		}
 	case []any:
 		if err := encoder.EncodeToken(startElement); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("encode token (array start): %w", err), localName)
+			return altshiftErrors.NewWithTrace(fmt.Errorf("encode token (array start): %w", err), localName)
 		}
 
 		for _, item := range typedValue {
@@ -208,19 +208,19 @@ func encodeXmlValue(encoder *xml.Encoder, localName string, value any) error {
 		}
 
 		if err := encoder.EncodeToken(xml.EndElement{Name: startElement.Name}); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("encode token (array end): %w", err), localName)
+			return altshiftErrors.NewWithTrace(fmt.Errorf("encode token (array end): %w", err), localName)
 		}
 	case nil:
 		if err := encoder.EncodeToken(startElement); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("encode token (null start): %w", err), localName)
+			return altshiftErrors.NewWithTrace(fmt.Errorf("encode token (null start): %w", err), localName)
 		}
 
 		if err := encoder.EncodeToken(xml.EndElement{Name: startElement.Name}); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("encode token (null end): %w", err), localName)
+			return altshiftErrors.NewWithTrace(fmt.Errorf("encode token (null end): %w", err), localName)
 		}
 	default:
 		if err := encoder.EncodeElement(typedValue, startElement); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("encode element: %w", err), localName, typedValue)
+			return altshiftErrors.NewWithTrace(fmt.Errorf("encode element: %w", err), localName, typedValue)
 		}
 	}
 
@@ -229,14 +229,14 @@ func encodeXmlValue(encoder *xml.Encoder, localName string, value any) error {
 
 func (d *Detail) MarshalXML(encoder *xml.Encoder, start xml.StartElement) error {
 	if encoder == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("xml encoder"))
+		return altshiftErrors.NewWithTrace(nil_error.New("xml encoder"))
 	}
 
 	start.Name.Local = "problem"
 	start.Name.Space = "urn:ietf:rfc:7807"
 
 	if err := encoder.EncodeToken(start); err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("encode token (start): %w", err), start)
+		return altshiftErrors.NewWithTrace(fmt.Errorf("encode token (start): %w", err), start)
 	}
 
 	encode := func(localName string, value any) error {
@@ -245,7 +245,7 @@ func (d *Detail) MarshalXML(encoder *xml.Encoder, start xml.StartElement) error 
 		}
 
 		if err := encoder.EncodeElement(value, xml.StartElement{Name: xml.Name{Local: localName}}); err != nil {
-			return motmedelErrors.NewWithTrace(fmt.Errorf("encode element: %w", err), localName, value)
+			return altshiftErrors.NewWithTrace(fmt.Errorf("encode element: %w", err), localName, value)
 		}
 
 		return nil
@@ -274,7 +274,7 @@ func (d *Detail) MarshalXML(encoder *xml.Encoder, start xml.StartElement) error 
 	if extension := d.Extension; extension != nil {
 		extensionBytes, err := json.Marshal(d.Extension)
 		if err != nil {
-			return motmedelErrors.NewWithTrace(
+			return altshiftErrors.NewWithTrace(
 				fmt.Errorf("json marshal (extension): %w", err),
 				extension,
 			)
@@ -282,7 +282,7 @@ func (d *Detail) MarshalXML(encoder *xml.Encoder, start xml.StartElement) error 
 
 		var extensionMap map[string]any
 		if err := json.Unmarshal(extensionBytes, &extensionMap); err != nil {
-			return motmedelErrors.NewWithTrace(
+			return altshiftErrors.NewWithTrace(
 				fmt.Errorf("json unmarshal (extension map): %w", err),
 				extensionMap,
 			)
@@ -300,7 +300,7 @@ func (d *Detail) MarshalXML(encoder *xml.Encoder, start xml.StartElement) error 
 	}
 
 	if err := encoder.EncodeToken(xml.EndElement{Name: start.Name}); err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("encode token (end): %w", err), start)
+		return altshiftErrors.NewWithTrace(fmt.Errorf("encode token (end): %w", err), start)
 	}
 
 	return nil

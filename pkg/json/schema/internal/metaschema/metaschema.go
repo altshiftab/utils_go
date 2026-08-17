@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/json/schema/internal/schemacache"
 	schema "github.com/altshiftab/utils_go/pkg/json/schema/types"
 )
@@ -41,12 +41,12 @@ func Load(schemaID, prefix string, metaFS *embed.FS, uri *url.URL, ropts *schema
 
 	data, err := metaFS.ReadFile("metaschema/" + path + ".json")
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("can't find meta-schema URI %q: %w", uri, err), path)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("can't find meta-schema URI %q: %w", uri, err), path)
 	}
 
 	var s schema.Schema
 	if err := s.UnmarshalJSON(data); err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("can't parse meta-schema URI %q: %w", uri, err), path)
+		return nil, altshiftErrors.New(fmt.Errorf("can't parse meta-schema URI %q: %w", uri, err), path)
 	}
 
 	r := metaCache.Store(schemaID, path, &s)

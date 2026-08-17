@@ -9,7 +9,7 @@ import (
 	"errors"
 	"testing"
 
-	motmedelCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
+	altshiftCryptoErrors "github.com/altshiftab/utils_go/pkg/crypto/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 )
 
@@ -112,7 +112,7 @@ func TestVerify_SignatureMismatch(t *testing.T) {
 
 	verifier := &Method{PublicKey: pubB}
 	err = verifier.Verify([]byte("hello"), sig)
-	if !errors.Is(err, motmedelCryptoErrors.ErrSignatureMismatch) {
+	if !errors.Is(err, altshiftCryptoErrors.ErrSignatureMismatch) {
 		t.Fatalf("expected ErrSignatureMismatch, got %v", err)
 	}
 }

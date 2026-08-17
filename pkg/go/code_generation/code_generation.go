@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	codeGenerationErrors "github.com/altshiftab/utils_go/pkg/go/code_generation/errors"
 )
 
@@ -64,7 +64,7 @@ func MakeFileContent(
 	)
 	formattedOutputData, err := format.Source(outputData)
 	if err != nil {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("format source: %w", err), outputData)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("format source: %w", err), outputData)
 	}
 
 	return formattedOutputData, nil
@@ -80,7 +80,7 @@ func GetGeneratedFileContents(
 	reflectValueOf := reflect.ValueOf(value)
 	literal, importSet, err := GenerateLiteral(reflectValueOf, importSet)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("generate literal: %w", err), reflectValueOf)
+		return nil, altshiftErrors.New(fmt.Errorf("generate literal: %w", err), reflectValueOf)
 	}
 
 	output, err := MakeFileContent(
@@ -90,7 +90,7 @@ func GetGeneratedFileContents(
 		importSet,
 	)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("make file content: %w", err), literal)
+		return nil, altshiftErrors.New(fmt.Errorf("make file content: %w", err), literal)
 	}
 
 	return output, nil
@@ -98,13 +98,13 @@ func GetGeneratedFileContents(
 
 func GenerateLiteral(value reflect.Value, importSet ImportSet) (string, ImportSet, error) {
 	if !value.IsValid() {
-		return "", nil, motmedelErrors.NewWithTrace(codeGenerationErrors.ErrInvalidValue, value)
+		return "", nil, altshiftErrors.NewWithTrace(codeGenerationErrors.ErrInvalidValue, value)
 	}
 
 	switch value.Kind() {
 	case reflect.Invalid:
 		// Redundant due to IsValid check, but explicit case for clarity
-		return "", nil, motmedelErrors.NewWithTrace(codeGenerationErrors.ErrInvalidValue, value)
+		return "", nil, altshiftErrors.NewWithTrace(codeGenerationErrors.ErrInvalidValue, value)
 	case reflect.Bool:
 		if value.Bool() {
 			return "true", importSet, nil
@@ -191,7 +191,7 @@ func GenerateLiteral(value reflect.Value, importSet ImportSet) (string, ImportSe
 		return processPointer(value, importSet)
 	case reflect.Func:
 		if !value.IsNil() {
-			return "", nil, motmedelErrors.NewWithTrace(codeGenerationErrors.ErrUnsupportedFunctionFields, value)
+			return "", nil, altshiftErrors.NewWithTrace(codeGenerationErrors.ErrUnsupportedFunctionFields, value)
 		}
 		return nilLiteral, importSet, nil
 	case reflect.Interface:
@@ -199,11 +199,11 @@ func GenerateLiteral(value reflect.Value, importSet ImportSet) (string, ImportSe
 		return strconv.Quote(fmt.Sprintf("%v", value.Interface())), importSet, nil
 	case reflect.Chan:
 		if !value.IsNil() {
-			return "", nil, motmedelErrors.NewWithTrace(codeGenerationErrors.ErrUnsupportedChanField, value)
+			return "", nil, altshiftErrors.NewWithTrace(codeGenerationErrors.ErrUnsupportedChanField, value)
 		}
 		return nilLiteral, importSet, nil
 	case reflect.UnsafePointer:
-		return "", nil, motmedelErrors.NewWithTrace(codeGenerationErrors.ErrUnsupportedUnsafePointerField, value)
+		return "", nil, altshiftErrors.NewWithTrace(codeGenerationErrors.ErrUnsupportedUnsafePointerField, value)
 	default:
 		// TODO: All possible cases are handled; this should error?
 		return fmt.Sprintf("%v", value.Interface()), importSet, nil

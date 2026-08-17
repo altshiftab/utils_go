@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func TestParseDmarcRecord(t *testing.T) {
@@ -55,21 +55,21 @@ func TestParseDmarcRecord(t *testing.T) {
 			args:    args{data: []byte("v=DMARC1; p=none; p=reject")},
 			want:    nil,
 			wantErr: true,
-			wantIs:  motmedelErrors.ErrSemanticError,
+			wantIs:  altshiftErrors.ErrSemanticError,
 		},
 		{
 			name:    "syntax error when version missing",
 			args:    args{data: []byte("p=none; rua=mailto:a@example.com")},
 			want:    nil,
 			wantErr: true,
-			wantIs:  motmedelErrors.ErrSyntaxError,
+			wantIs:  altshiftErrors.ErrSyntaxError,
 		},
 		{
 			name:    "syntax error when wrong version",
 			args:    args{data: []byte("v=DMARC2; p=none")},
 			want:    nil,
 			wantErr: true,
-			wantIs:  motmedelErrors.ErrSyntaxError,
+			wantIs:  altshiftErrors.ErrSyntaxError,
 		},
 		{
 			name: "quarantine with multiple rua/ruf, ri 86400, fo=0, rf=afrf, pct=0",
@@ -119,21 +119,21 @@ func TestParseDmarcRecord(t *testing.T) {
 			args:    args{data: []byte("v=DMARC1; p=none; x=abc")},
 			want:    nil,
 			wantErr: true,
-			wantIs:  motmedelErrors.ErrSyntaxError,
+			wantIs:  altshiftErrors.ErrSyntaxError,
 		},
 		{
 			name:    "pct above 100 should be syntax error",
 			args:    args{data: []byte("v=DMARC1; p=none; pct=101")},
 			want:    nil,
 			wantErr: true,
-			wantIs:  motmedelErrors.ErrSyntaxError,
+			wantIs:  altshiftErrors.ErrSyntaxError,
 		},
 		{
 			name:    "pct three digits should be syntax error",
 			args:    args{data: []byte("v=DMARC1; p=none; pct=999")},
 			want:    nil,
 			wantErr: true,
-			wantIs:  motmedelErrors.ErrSyntaxError,
+			wantIs:  altshiftErrors.ErrSyntaxError,
 		},
 		{
 			name: "pct 0 is valid",
@@ -181,7 +181,7 @@ func TestParseDmarcRecord_NilOrEmpty(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected error, got record=%v", got)
 			}
-			if !errors.Is(err, motmedelErrors.ErrSyntaxError) {
+			if !errors.Is(err, altshiftErrors.ErrSyntaxError) {
 				t.Fatalf("expected ErrSyntaxError, got %v", err)
 			}
 		})

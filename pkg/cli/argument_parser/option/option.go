@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
@@ -224,12 +224,12 @@ type IntOption struct {
 
 func (intOption *IntOption) Set(in string) error {
 	if intOption.Value == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("value"))
+		return altshiftErrors.NewWithTrace(nil_error.New("value"))
 	}
 
 	value, err := strconv.Atoi(in)
 	if err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("strconv atoi: %w", err), in)
+		return altshiftErrors.NewWithTrace(fmt.Errorf("strconv atoi: %w", err), in)
 	}
 
 	*intOption.Value = value
@@ -255,7 +255,7 @@ func NewIntOption(shortName rune, longName string, usage string, required bool, 
 func (intOption *IntOption) NormalizeChoice(in string) (string, error) {
 	value, err := strconv.Atoi(in)
 	if err != nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("strconv atoi: %w", err), in)
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("strconv atoi: %w", err), in)
 	}
 
 	return strconv.Itoa(value), nil
@@ -269,12 +269,12 @@ type IntsOption struct {
 
 func (intsOption *IntsOption) Set(in string) error {
 	if intsOption.Value == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("value"))
+		return altshiftErrors.NewWithTrace(nil_error.New("value"))
 	}
 
 	value, err := strconv.Atoi(in)
 	if err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("strconv atoi: %w", err), in)
+		return altshiftErrors.NewWithTrace(fmt.Errorf("strconv atoi: %w", err), in)
 	}
 
 	*intsOption.Value = append(*intsOption.Value, value)
@@ -300,7 +300,7 @@ func NewIntsOption(shortName rune, longName string, usage string, required bool,
 func (intsOption *IntsOption) NormalizeChoice(in string) (string, error) {
 	value, err := strconv.Atoi(in)
 	if err != nil {
-		return "", motmedelErrors.NewWithTrace(fmt.Errorf("strconv atoi: %w", err), in)
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("strconv atoi: %w", err), in)
 	}
 
 	return strconv.Itoa(value), nil
@@ -314,7 +314,7 @@ type StringOption struct {
 
 func (stringOption *StringOption) Set(in string) error {
 	if stringOption.Value == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("value"))
+		return altshiftErrors.NewWithTrace(nil_error.New("value"))
 	}
 
 	*stringOption.Value = in
@@ -344,7 +344,7 @@ type StringsOption struct {
 
 func (stringsOption *StringsOption) Set(in string) error {
 	if stringsOption.Value == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("value"))
+		return altshiftErrors.NewWithTrace(nil_error.New("value"))
 	}
 
 	*stringsOption.Value = append(*stringsOption.Value, in)
@@ -374,7 +374,7 @@ type BoolOption struct {
 
 func (boolOption *BoolOption) Set(_ string) error {
 	if boolOption.Value == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("value"))
+		return altshiftErrors.NewWithTrace(nil_error.New("value"))
 	}
 
 	*boolOption.Value = true
@@ -403,7 +403,7 @@ type CountedOption struct {
 
 func (countedOption *CountedOption) Set(_ string) error {
 	if countedOption.Count == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("count"))
+		return altshiftErrors.NewWithTrace(nil_error.New("count"))
 	}
 
 	*countedOption.Count++
@@ -434,12 +434,12 @@ type FileOption struct {
 
 func (fileOption *FileOption) Set(in string) error {
 	if fileOption.File == nil {
-		return motmedelErrors.NewWithTrace(nil_error.New("file"))
+		return altshiftErrors.NewWithTrace(nil_error.New("file"))
 	}
 
 	value, err := os.OpenFile(in, fileOption.Flag, fileOption.Mode)
 	if err != nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("os open file: %w", err), in)
+		return altshiftErrors.NewWithTrace(fmt.Errorf("os open file: %w", err), in)
 	}
 
 	*fileOption.File = *value

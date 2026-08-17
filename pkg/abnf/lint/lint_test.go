@@ -10,7 +10,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	"github.com/altshiftab/utils_go/pkg/abnf/minify"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // ruleIds returns the checks the findings answer to, in order.
@@ -298,7 +298,7 @@ func TestLintErrors(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := Lint([]byte(testCase.input), nil); !errors.Is(err, motmedelErrors.ErrParseError) {
+			if _, err := Lint([]byte(testCase.input), nil); !errors.Is(err, altshiftErrors.ErrParseError) {
 				t.Fatalf("expected a parse error, got: %v", err)
 			}
 		})

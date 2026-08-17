@@ -14,7 +14,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cbor"
 	"github.com/altshiftab/utils_go/pkg/cose"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	webauthnErrors "github.com/altshiftab/utils_go/pkg/webauthn/errors"
 )
 
@@ -179,7 +179,7 @@ func TestValidateAttestationPublicKeyCredential(t *testing.T) {
 			if !errors.Is(err, testCase.expectedErr) {
 				t.Errorf("expected %v, got %v", testCase.expectedErr, err)
 			}
-			if !errors.Is(err, motmedelErrors.ErrValidationError) {
+			if !errors.Is(err, altshiftErrors.ErrValidationError) {
 				t.Errorf("expected validation error classification, got %v", err)
 			}
 		})

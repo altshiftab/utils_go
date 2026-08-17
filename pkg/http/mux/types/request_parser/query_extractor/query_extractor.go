@@ -13,15 +13,15 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/query_extractor/query_extractor_config"
 	queryTag "github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/query_extractor/tag"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
-	motmedelJsonTag "github.com/altshiftab/utils_go/pkg/json/types/tag"
-	motmedelReflect "github.com/altshiftab/utils_go/pkg/reflect"
-	motmedelReflectErrors "github.com/altshiftab/utils_go/pkg/reflect/errors"
+	altshiftJsonTag "github.com/altshiftab/utils_go/pkg/json/types/tag"
+	altshiftReflect "github.com/altshiftab/utils_go/pkg/reflect"
+	altshiftReflectErrors "github.com/altshiftab/utils_go/pkg/reflect/errors"
 )
 
 var uuidRegexp = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
@@ -29,7 +29,7 @@ var urlSchemeRegexp = regexp.MustCompile(`^https?://`)
 
 // Static errors for unsupported struct definitions/field types. These represent
 // programming errors (not client input), so they are kept distinct from
-// motmedelErrors.ErrValidationError.
+// altshiftErrors.ErrValidationError.
 var (
 	errUnsupportedFormat        = errors.New("unsupported format")
 	errUnsupportedScalarKind    = errors.New("unsupported scalar kind")
@@ -41,18 +41,18 @@ func validateFormat(value string, format string) error {
 	case "email":
 		_, err := mail.ParseAddress(value)
 		if err != nil {
-			return fmt.Errorf("%w: invalid email format: %q", motmedelErrors.ErrValidationError, value)
+			return fmt.Errorf("%w: invalid email format: %q", altshiftErrors.ErrValidationError, value)
 		}
 		return nil
 	case "uuid":
 		if !uuidRegexp.MatchString(value) {
-			return fmt.Errorf("%w: invalid uuid format: %q", motmedelErrors.ErrValidationError, value)
+			return fmt.Errorf("%w: invalid uuid format: %q", altshiftErrors.ErrValidationError, value)
 		}
 		return nil
 	case "url":
 		_, err := url.ParseRequestURI(value)
 		if err != nil || !urlSchemeRegexp.MatchString(value) {
-			return fmt.Errorf("%w: invalid url format: %q", motmedelErrors.ErrValidationError, value)
+			return fmt.Errorf("%w: invalid url format: %q", altshiftErrors.ErrValidationError, value)
 		}
 		return nil
 	default:
@@ -68,23 +68,23 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 	var zero T
 
 	tType := reflect.TypeOf((*T)(nil)).Elem()
-	targetType := motmedelReflect.RemoveIndirection(tType)
+	targetType := altshiftReflect.RemoveIndirection(tType)
 	if targetType.Kind() != reflect.Struct {
 		return zero, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(motmedelReflectErrors.ErrNotStruct),
+			ServerError: altshiftErrors.NewWithTrace(altshiftReflectErrors.ErrNotStruct),
 		}
 	}
 
 	if request == nil {
 		return zero, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request")),
 		}
 	}
 
 	requestUrl := request.URL
 	if requestUrl == nil {
 		return zero, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("request url")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("request url")),
 		}
 	}
 
@@ -130,7 +130,7 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 			} else {
 				b, err := strconv.ParseBool(s)
 				if err != nil {
-					return fmt.Errorf("%w: invalid bool value: %q", motmedelErrors.ErrValidationError, s)
+					return fmt.Errorf("%w: invalid bool value: %q", altshiftErrors.ErrValidationError, s)
 				}
 				v.SetBool(b)
 			}
@@ -151,7 +151,7 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 			}
 			n, err := strconv.ParseInt(s, 10, bitSize)
 			if err != nil {
-				return fmt.Errorf("%w: invalid integer value: %q", motmedelErrors.ErrValidationError, s)
+				return fmt.Errorf("%w: invalid integer value: %q", altshiftErrors.ErrValidationError, s)
 			}
 			v.SetInt(n)
 			return nil
@@ -171,7 +171,7 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 			}
 			n, err := strconv.ParseUint(s, 10, bitSize)
 			if err != nil {
-				return fmt.Errorf("%w: invalid unsigned integer value: %q", motmedelErrors.ErrValidationError, s)
+				return fmt.Errorf("%w: invalid unsigned integer value: %q", altshiftErrors.ErrValidationError, s)
 			}
 			v.SetUint(n)
 			return nil
@@ -182,7 +182,7 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 			}
 			f, err := strconv.ParseFloat(s, bitSize)
 			if err != nil {
-				return fmt.Errorf("%w: invalid float value: %q", motmedelErrors.ErrValidationError, s)
+				return fmt.Errorf("%w: invalid float value: %q", altshiftErrors.ErrValidationError, s)
 			}
 			v.SetFloat(f)
 			return nil
@@ -202,7 +202,7 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 			// Special case: []byte from a single string
 			if fieldType.Elem().Kind() == reflect.Uint8 {
 				if len(values) != 1 {
-					return fmt.Errorf("%w: parameter %s expects a single value", motmedelErrors.ErrValidationError, identifier)
+					return fmt.Errorf("%w: parameter %s expects a single value", altshiftErrors.ErrValidationError, identifier)
 				}
 				fieldVal.SetBytes([]byte(values[0]))
 				return nil
@@ -219,7 +219,7 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 			return nil
 		case reflect.Array:
 			if len(values) != fieldType.Len() {
-				return fmt.Errorf("%w: parameter %s expects %d values", motmedelErrors.ErrValidationError, identifier, fieldType.Len())
+				return fmt.Errorf("%w: parameter %s expects %d values", altshiftErrors.ErrValidationError, identifier, fieldType.Len())
 			}
 			for i := range fieldType.Len() {
 				elem := fieldVal.Index(i)
@@ -231,7 +231,7 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 		default:
 			// Scalar
 			if len(values) != 1 {
-				return fmt.Errorf("%w: parameter %s expects a single value", motmedelErrors.ErrValidationError, identifier)
+				return fmt.Errorf("%w: parameter %s expects a single value", altshiftErrors.ErrValidationError, identifier)
 			}
 			if err := setScalar(fieldVal, values[0]); err != nil {
 				return fmt.Errorf("parameter %s: %w", identifier, err)
@@ -254,7 +254,7 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 
 		if fieldTypeKind == reflect.Pointer {
 			return zero, &response_error.ResponseError{
-				ServerError: motmedelErrors.NewWithTrace(fmt.Errorf("%w: %s", errPointerFieldNotSupported, identifier)),
+				ServerError: altshiftErrors.NewWithTrace(fmt.Errorf("%w: %s", errPointerFieldNotSupported, identifier)),
 			}
 		}
 
@@ -272,7 +272,7 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 			optional = qt.OmitEmpty || qt.OmitZero
 			format = qt.Format
 		} else {
-			jsonTag := motmedelJsonTag.New(field.Tag.Get("json"))
+			jsonTag := altshiftJsonTag.New(field.Tag.Get("json"))
 			if jsonTag != nil {
 				if jsonTag.Skip {
 					continue
@@ -291,12 +291,12 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 			if optional {
 				continue
 			}
-			parseErrs = append(parseErrs, fmt.Errorf("%w: missing parameter: %s", motmedelErrors.ErrValidationError, identifier))
+			parseErrs = append(parseErrs, fmt.Errorf("%w: missing parameter: %s", altshiftErrors.ErrValidationError, identifier))
 			continue
 		}
 
 		if len(values) > 1 && fieldTypeKind != reflect.Slice && fieldTypeKind != reflect.Array {
-			parseErrs = append(parseErrs, fmt.Errorf("%w: multiple values for parameter: %s", motmedelErrors.ErrValidationError, identifier))
+			parseErrs = append(parseErrs, fmt.Errorf("%w: multiple values for parameter: %s", altshiftErrors.ErrValidationError, identifier))
 			continue
 		}
 
@@ -318,7 +318,7 @@ func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseErr
 	if !p.config.AllowAdditionalParameters {
 		for key := range query {
 			if _, ok := known[key]; !ok {
-				parseErrs = append(parseErrs, fmt.Errorf("%w: unknown parameter: %s", motmedelErrors.ErrValidationError, key))
+				parseErrs = append(parseErrs, fmt.Errorf("%w: unknown parameter: %s", altshiftErrors.ErrValidationError, key))
 			}
 		}
 	}

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	motmedelCryptoHmac "github.com/altshiftab/utils_go/pkg/crypto/hmac"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftCryptoHmac "github.com/altshiftab/utils_go/pkg/crypto/hmac"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 // signedJws builds a compact HS256 JWS over the given header/payload JSON with the
@@ -16,7 +16,7 @@ import (
 func signedJws(t *testing.T, secret []byte, headerJson, payloadJson string) (string, []byte) {
 	t.Helper()
 
-	method, err := motmedelCryptoHmac.New("HS256", secret)
+	method, err := altshiftCryptoHmac.New("HS256", secret)
 	if err != nil {
 		t.Fatalf("hmac new: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestNew(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error but got nil")
 				}
-				if !errors.Is(err, motmedelErrors.ErrParseError) {
+				if !errors.Is(err, altshiftErrors.ErrParseError) {
 					t.Fatalf("errors.Is(ErrParseError) = false, got %v", err)
 				}
 				return
@@ -111,7 +111,7 @@ func TestObject_Verify_Valid(t *testing.T) {
 		t.Fatalf("new: %v", err)
 	}
 
-	verifier, err := motmedelCryptoHmac.New("HS256", secret)
+	verifier, err := altshiftCryptoHmac.New("HS256", secret)
 	if err != nil {
 		t.Fatalf("hmac new: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestObject_Verify_WrongSecret(t *testing.T) {
 		t.Fatalf("new: %v", err)
 	}
 
-	verifier, err := motmedelCryptoHmac.New("HS256", []byte("wrong"))
+	verifier, err := altshiftCryptoHmac.New("HS256", []byte("wrong"))
 	if err != nil {
 		t.Fatalf("hmac new: %v", err)
 	}
@@ -140,7 +140,7 @@ func TestObject_Verify_WrongSecret(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected verification error but got nil")
 	}
-	if !errors.Is(err, motmedelErrors.ErrVerificationError) {
+	if !errors.Is(err, altshiftErrors.ErrVerificationError) {
 		t.Fatalf("errors.Is(ErrVerificationError) = false, got %v", err)
 	}
 }
@@ -161,12 +161,12 @@ func TestObject_Verify_TamperedPayload(t *testing.T) {
 	parts[1] = base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"evil"}`))
 	object.Raw = strings.Join(parts, ".")
 
-	verifier, err := motmedelCryptoHmac.New("HS256", secret)
+	verifier, err := altshiftCryptoHmac.New("HS256", secret)
 	if err != nil {
 		t.Fatalf("hmac new: %v", err)
 	}
 
-	if err := object.Verify(verifier); !errors.Is(err, motmedelErrors.ErrVerificationError) {
+	if err := object.Verify(verifier); !errors.Is(err, altshiftErrors.ErrVerificationError) {
 		t.Fatalf("errors.Is(ErrVerificationError) = false, got %v", err)
 	}
 }
@@ -174,7 +174,7 @@ func TestObject_Verify_TamperedPayload(t *testing.T) {
 func TestObject_Verify_BadRaw(t *testing.T) {
 	t.Parallel()
 
-	verifier, err := motmedelCryptoHmac.New("HS256", []byte("secret"))
+	verifier, err := altshiftCryptoHmac.New("HS256", []byte("secret"))
 	if err != nil {
 		t.Fatalf("hmac new: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestObject_Verify_BadRaw(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
-	if !errors.Is(err, motmedelErrors.ErrBadSplit) {
+	if !errors.Is(err, altshiftErrors.ErrBadSplit) {
 		t.Fatalf("errors.Is(ErrBadSplit) = false, got %v", err)
 	}
 }

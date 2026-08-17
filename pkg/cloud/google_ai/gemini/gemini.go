@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"net/url"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
-	motmedelHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/gemini_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/generate_content_request"
@@ -73,7 +73,7 @@ func (c *Client) GenerateContent(
 	options ...fetch_config.Option,
 ) (*generate_content_response.GenerateContentResponse, error) {
 	if model == "" {
-		return nil, motmedelErrors.NewWithTrace(empty_error.New("model"))
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("model"))
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -81,7 +81,7 @@ func (c *Client) GenerateContent(
 	}
 
 	if request == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("request"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("request"))
 	}
 
 	urlString := c.generateContentUrl(model)
@@ -90,14 +90,14 @@ func (c *Client) GenerateContent(
 		fetch_config.WithMethod(http.MethodPost),
 		c.apiKeyFetchOption(),
 	)
-	_, response, err := motmedelHttpUtils.FetchJsonWithBody[*generate_content_response.GenerateContentResponse](
+	_, response, err := altshiftHttpUtils.FetchJsonWithBody[*generate_content_response.GenerateContentResponse](
 		ctx,
 		urlString,
 		request,
 		options...,
 	)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
 	}
 
 	return response, nil

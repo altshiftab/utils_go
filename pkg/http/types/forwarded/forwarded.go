@@ -9,7 +9,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/http/types"
 )
 
@@ -25,10 +25,10 @@ var (
 func Parse(data []byte) (*types.Forwarded, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(Grammar, data, "Forwarded")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
 	var forwarded types.Forwarded
@@ -67,10 +67,10 @@ func Parse(data []byte) (*types.Forwarded, error) {
 				quotedString := string(abnfUtils.ExtractPathValue(data, quotedStringPath))
 				unquotedValue, err := strconv.Unquote(quotedString)
 				if err != nil {
-					return nil, motmedelErrors.NewWithTrace(
+					return nil, altshiftErrors.NewWithTrace(
 						fmt.Errorf(
 							"%w: %w: strconv unquote: %w",
-							motmedelErrors.ErrSemanticError,
+							altshiftErrors.ErrSemanticError,
 							ErrInvalidQuotedValue,
 							err,
 						),

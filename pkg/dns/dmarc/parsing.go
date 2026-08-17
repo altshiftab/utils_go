@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 var (
@@ -42,10 +42,10 @@ var caseInsensitiveTags = map[string]bool{
 func ParseDmarcRecord(data []byte) (*Record, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(DmarcGrammar, data, "dmarc-record")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err))
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err))
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError)
 	}
 
 	record := &Record{Raw: string(data)}
@@ -69,15 +69,15 @@ func ParseDmarcRecord(data []byte) (*Record, error) {
 
 		field, ok := fields[key]
 		if !ok {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: %w: %s", motmedelErrors.ErrSemanticError, ErrUnexpectedKey, key),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: %w: %s", altshiftErrors.ErrSemanticError, ErrUnexpectedKey, key),
 				key,
 			)
 		}
 
 		if *field != "" {
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: %w: %s", motmedelErrors.ErrSemanticError, ErrMultipleSameKey, key),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: %w: %s", altshiftErrors.ErrSemanticError, ErrMultipleSameKey, key),
 				key,
 			)
 		}

@@ -4,46 +4,46 @@ import (
 	"fmt"
 	"net/http"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
-	motmedelHttpHeadersParsingAccept "github.com/altshiftab/utils_go/pkg/http/types/accept"
-	motmedelHttpHeadersParsingAcceptEncoding "github.com/altshiftab/utils_go/pkg/http/types/accept_encoding"
-	motmedelHttpHeadersParsingAcceptLanguage "github.com/altshiftab/utils_go/pkg/http/types/accept_language"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpHeadersParsingAccept "github.com/altshiftab/utils_go/pkg/http/types/accept"
+	altshiftHttpHeadersParsingAcceptEncoding "github.com/altshiftab/utils_go/pkg/http/types/accept_encoding"
+	altshiftHttpHeadersParsingAcceptLanguage "github.com/altshiftab/utils_go/pkg/http/types/accept_language"
 )
 
 // TODO: Log warnings in non-strict cases?
 // TODO: Maybe this should be a request parser instead. `strict` and `logErrors` can be initialized.
 
-func GetContentNegotiation(requestHeader http.Header, strict bool) (*motmedelHttpTypes.ContentNegotiation, error) {
+func GetContentNegotiation(requestHeader http.Header, strict bool) (*altshiftHttpTypes.ContentNegotiation, error) {
 	if len(requestHeader) == 0 {
 		return nil, nil
 	}
 
-	var contentNegotiation motmedelHttpTypes.ContentNegotiation
+	var contentNegotiation altshiftHttpTypes.ContentNegotiation
 
 	if acceptValue := requestHeader.Get("Accept"); acceptValue != "" {
 		acceptData := []byte(acceptValue)
-		accept, err := motmedelHttpHeadersParsingAccept.Parse(acceptData)
+		accept, err := altshiftHttpHeadersParsingAccept.Parse(acceptData)
 		if err != nil && strict {
-			return nil, motmedelErrors.New(fmt.Errorf("parse accept: %w", err), acceptData)
+			return nil, altshiftErrors.New(fmt.Errorf("parse accept: %w", err), acceptData)
 		}
 		contentNegotiation.Accept = accept
 	}
 
 	if acceptEncodingValue := requestHeader.Get("Accept-Encoding"); acceptEncodingValue != "" {
 		acceptEncodingData := []byte(acceptEncodingValue)
-		acceptEncoding, err := motmedelHttpHeadersParsingAcceptEncoding.Parse(acceptEncodingData)
+		acceptEncoding, err := altshiftHttpHeadersParsingAcceptEncoding.Parse(acceptEncodingData)
 		if err != nil && strict {
-			return nil, motmedelErrors.New(fmt.Errorf("parse accept encoding: %w", err), acceptEncodingData)
+			return nil, altshiftErrors.New(fmt.Errorf("parse accept encoding: %w", err), acceptEncodingData)
 		}
 		contentNegotiation.AcceptEncoding = acceptEncoding
 	}
 
 	if acceptLanguageValue := requestHeader.Get("Accept-Language"); acceptLanguageValue != "" {
 		acceptLanguageData := []byte(acceptLanguageValue)
-		acceptLanguage, err := motmedelHttpHeadersParsingAcceptLanguage.Parse(acceptLanguageData)
+		acceptLanguage, err := altshiftHttpHeadersParsingAcceptLanguage.Parse(acceptLanguageData)
 		if err != nil && strict {
-			return nil, motmedelErrors.New(fmt.Errorf("parse accept language: %w", err), acceptLanguageData)
+			return nil, altshiftErrors.New(fmt.Errorf("parse accept language: %w", err), acceptLanguageData)
 		}
 		contentNegotiation.AcceptLanguage = acceptLanguage
 	}

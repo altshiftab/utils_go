@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
@@ -115,7 +115,7 @@ func TestParse(t *testing.T) {
 
 	t.Run("validation error is 401", func(t *testing.T) {
 		t.Parallel()
-		parser, err := New(tokenExtractor("tok", nil), authenticatorReturning(nil, fmt.Errorf("%w: bad", motmedelErrors.ErrValidationError)))
+		parser, err := New(tokenExtractor("tok", nil), authenticatorReturning(nil, fmt.Errorf("%w: bad", altshiftErrors.ErrValidationError)))
 		if err != nil {
 			t.Fatalf("new: %v", err)
 		}

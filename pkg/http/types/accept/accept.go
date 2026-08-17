@@ -11,8 +11,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/abnf"
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 )
 
 //go:embed grammar.abnf
@@ -26,16 +26,16 @@ var (
 	ErrCouldNotSplitParameter = errors.New("could not split parameter")
 )
 
-func Parse(data []byte) (*motmedelHttpTypes.Accept, error) {
+func Parse(data []byte) (*altshiftHttpTypes.Accept, error) {
 	paths, err := abnfUtils.GetParsedDataPaths(Grammar, data, "Accept")
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
+		return nil, altshiftErrors.New(fmt.Errorf("get parsed data paths: %w", err), data)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError, data)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError, data)
 	}
 
-	accept := &motmedelHttpTypes.Accept{Raw: string(data)}
+	accept := &altshiftHttpTypes.Accept{Raw: string(data)}
 
 	interestingPaths := abnfUtils.SearchPath(
 		paths[0],
@@ -49,7 +49,7 @@ func Parse(data []byte) (*motmedelHttpTypes.Accept, error) {
 			continue
 		}
 
-		mediaRange := &motmedelHttpTypes.MediaRange{Weight: 1.0}
+		mediaRange := &altshiftHttpTypes.MediaRange{Weight: 1.0}
 
 		mediaRangeType := "*"
 		mediaRangeSubtype := "*"
@@ -69,15 +69,15 @@ func Parse(data []byte) (*motmedelHttpTypes.Accept, error) {
 		for i, parameterPath := range parameterPaths {
 			if parameterPath.MatchRule == "weight" {
 				if i != len(parameterPaths)-1 {
-					return nil, motmedelErrors.NewWithTrace(
-						fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, ErrParameterNamedQ),
+					return nil, altshiftErrors.NewWithTrace(
+						fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, ErrParameterNamedQ),
 					)
 				}
 
 				qValuePath := abnfUtils.SearchPathSingle(interestingPath, []string{"qvalue"}, 1, false)
 				if qValuePath == nil {
-					return nil, motmedelErrors.NewWithTrace(
-						fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, nil_error.New("qvalue path")),
+					return nil, altshiftErrors.NewWithTrace(
+						fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, nil_error.New("qvalue path")),
 					)
 				}
 
@@ -85,10 +85,10 @@ func Parse(data []byte) (*motmedelHttpTypes.Accept, error) {
 				bitSize := 32
 				parsedWeight, err := strconv.ParseFloat(qValueString, bitSize)
 				if err != nil {
-					return nil, motmedelErrors.NewWithTrace(
+					return nil, altshiftErrors.NewWithTrace(
 						fmt.Errorf(
 							"%w: %w: strvconv parse float: %w",
-							motmedelErrors.ErrSemanticError, ErrInvalidQvalue, err,
+							altshiftErrors.ErrSemanticError, ErrInvalidQvalue, err,
 						),
 						qValueString, bitSize,
 					)
@@ -100,8 +100,8 @@ func Parse(data []byte) (*motmedelHttpTypes.Accept, error) {
 				separator := "='"
 				key, value, found := strings.Cut(parameterString, "=")
 				if !found {
-					return nil, motmedelErrors.NewWithTrace(
-						fmt.Errorf("%w: %w", motmedelErrors.ErrSemanticError, ErrCouldNotSplitParameter),
+					return nil, altshiftErrors.NewWithTrace(
+						fmt.Errorf("%w: %w", altshiftErrors.ErrSemanticError, ErrCouldNotSplitParameter),
 						parameterString,
 						separator,
 					)

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	motmedelHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
-	motmedelHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
-	motmedelSchemaTypes "github.com/altshiftab/utils_go/pkg/schema"
+	altshiftSchemaTypes "github.com/altshiftab/utils_go/pkg/schema"
 )
 
 func TestMaskJws(t *testing.T) {
@@ -294,7 +294,7 @@ func TestExtractor_Handle_NilRecord(t *testing.T) {
 func TestExtractor_Handle_RequestId(t *testing.T) {
 	t.Parallel()
 	e := &Extractor{}
-	ctx := context.WithValue(context.Background(), motmedelHttpContext.RequestIdContextKey, "test-request-id")
+	ctx := context.WithValue(context.Background(), altshiftHttpContext.RequestIdContextKey, "test-request-id")
 	record := &slog.Record{}
 
 	err := e.Handle(ctx, record)
@@ -354,12 +354,12 @@ func TestExtractor_Handle_HttpContext(t *testing.T) {
 		Header:     http.Header{"Content-Type": {"text/plain"}},
 	}
 
-	httpContext := &motmedelHttpTypes.HttpContext{
+	httpContext := &altshiftHttpTypes.HttpContext{
 		Request:  req,
 		Response: resp,
 	}
 
-	ctx := context.WithValue(context.Background(), motmedelHttpContext.HttpContextContextKey, httpContext)
+	ctx := context.WithValue(context.Background(), altshiftHttpContext.HttpContextContextKey, httpContext)
 	record := &slog.Record{}
 
 	e := &Extractor{}
@@ -397,12 +397,12 @@ func TestExtractor_Handle_HttpContextWithHeaders(t *testing.T) {
 		Header:     http.Header{"Set-Cookie": {"token=x.y.z; Path=/"}},
 	}
 
-	httpContext := &motmedelHttpTypes.HttpContext{
+	httpContext := &altshiftHttpTypes.HttpContext{
 		Request:  req,
 		Response: resp,
 	}
 
-	ctx := context.WithValue(context.Background(), motmedelHttpContext.HttpContextContextKey, httpContext)
+	ctx := context.WithValue(context.Background(), altshiftHttpContext.HttpContextContextKey, httpContext)
 	record := &slog.Record{}
 
 	e := &Extractor{}
@@ -415,12 +415,12 @@ func TestExtractor_Handle_HttpContextWithHeaders(t *testing.T) {
 func TestExtractor_Handle_HttpContextNilRequest(t *testing.T) {
 	t.Parallel()
 
-	httpContext := &motmedelHttpTypes.HttpContext{
+	httpContext := &altshiftHttpTypes.HttpContext{
 		Request:  nil,
 		Response: nil,
 	}
 
-	ctx := context.WithValue(context.Background(), motmedelHttpContext.HttpContextContextKey, httpContext)
+	ctx := context.WithValue(context.Background(), altshiftHttpContext.HttpContextContextKey, httpContext)
 	record := &slog.Record{}
 
 	e := &Extractor{}
@@ -440,11 +440,11 @@ func TestExtractor_Handle_HttpContextRequestNoHeaders(t *testing.T) {
 		t.Fatalf("read request: %v", err)
 	}
 
-	httpContext := &motmedelHttpTypes.HttpContext{
+	httpContext := &altshiftHttpTypes.HttpContext{
 		Request: req,
 	}
 
-	ctx := context.WithValue(context.Background(), motmedelHttpContext.HttpContextContextKey, httpContext)
+	ctx := context.WithValue(context.Background(), altshiftHttpContext.HttpContextContextKey, httpContext)
 	record := &slog.Record{}
 
 	e := &Extractor{}
@@ -616,13 +616,13 @@ func TestExtractor_Handle_UserNotOverwritten(t *testing.T) {
 		t.Fatalf("read request: %v", err)
 	}
 
-	existingUser := &motmedelSchemaTypes.User{Name: "existing"}
-	httpContext := &motmedelHttpTypes.HttpContext{
+	existingUser := &altshiftSchemaTypes.User{Name: "existing"}
+	httpContext := &altshiftHttpTypes.HttpContext{
 		Request: req,
 		User:    existingUser,
 	}
 
-	ctx := context.WithValue(context.Background(), motmedelHttpContext.HttpContextContextKey, httpContext)
+	ctx := context.WithValue(context.Background(), altshiftHttpContext.HttpContextContextKey, httpContext)
 	record := &slog.Record{}
 
 	e := &Extractor{}
@@ -646,11 +646,11 @@ func TestExtractor_Handle_HttpContextResponseNoHeaders(t *testing.T) {
 		Header:     nil,
 	}
 
-	httpContext := &motmedelHttpTypes.HttpContext{
+	httpContext := &altshiftHttpTypes.HttpContext{
 		Response: resp,
 	}
 
-	ctx := context.WithValue(context.Background(), motmedelHttpContext.HttpContextContextKey, httpContext)
+	ctx := context.WithValue(context.Background(), altshiftHttpContext.HttpContextContextKey, httpContext)
 	record := &slog.Record{}
 
 	e := &Extractor{}
@@ -665,19 +665,19 @@ func TestExtractor_MaskUrl(t *testing.T) {
 
 	testCases := []struct {
 		name            string
-		maskedUrlParams []*motmedelSchemaTypes.Url
-		inputUrl        *motmedelSchemaTypes.Url
-		expectedUrl     *motmedelSchemaTypes.Url
+		maskedUrlParams []*altshiftSchemaTypes.Url
+		inputUrl        *altshiftSchemaTypes.Url
+		expectedUrl     *altshiftSchemaTypes.Url
 	}{
 		{
 			name:            "mask single query parameter, query-only pattern",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Query: "apikey"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Query: "apikey"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Full:     "https://example.com/api?apikey=secret123&user=john",
 				Original: "https://example.com/api?apikey=secret123&user=john",
 				Query:    "apikey=secret123&user=john",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Full:     "https://example.com/api?apikey=%28MASKED%29&user=john",
 				Original: "https://example.com/api?apikey=%28MASKED%29&user=john",
 				Query:    "apikey=%28MASKED%29&user=john",
@@ -685,13 +685,13 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name:            "mask multiple query parameters from one pattern",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Query: "apikey&token&password"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Query: "apikey&token&password"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Full:     "https://example.com/api?apikey=secret123&token=abc456&user=john&password=pass123",
 				Original: "https://example.com/api?apikey=secret123&token=abc456&user=john&password=pass123",
 				Query:    "apikey=secret123&token=abc456&user=john&password=pass123",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Full:     "https://example.com/api?apikey=%28MASKED%29&password=%28MASKED%29&token=%28MASKED%29&user=john",
 				Original: "https://example.com/api?apikey=%28MASKED%29&password=%28MASKED%29&token=%28MASKED%29&user=john",
 				Query:    "apikey=%28MASKED%29&password=%28MASKED%29&token=%28MASKED%29&user=john",
@@ -699,13 +699,13 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name:            "no parameters to mask, param not in incoming URL",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Query: "notfound"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Query: "notfound"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Full:     "https://example.com/api?user=john&page=1",
 				Original: "https://example.com/api?user=john&page=1",
 				Query:    "user=john&page=1",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Full:     "https://example.com/api?user=john&page=1",
 				Original: "https://example.com/api?user=john&page=1",
 				Query:    "user=john&page=1",
@@ -713,13 +713,13 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name:            "empty URL fields",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Query: "apikey"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Query: "apikey"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Full:     "",
 				Original: "",
 				Query:    "",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Full:     "",
 				Original: "",
 				Query:    "",
@@ -728,12 +728,12 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		{
 			name:            "nil maskedUrlParams",
 			maskedUrlParams: nil,
-			inputUrl: &motmedelSchemaTypes.Url{
+			inputUrl: &altshiftSchemaTypes.Url{
 				Full:     "https://example.com/api?apikey=secret123",
 				Original: "https://example.com/api?apikey=secret123",
 				Query:    "apikey=secret123",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Full:     "https://example.com/api?apikey=secret123",
 				Original: "https://example.com/api?apikey=secret123",
 				Query:    "apikey=secret123",
@@ -741,13 +741,13 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name:            "invalid URL format",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Query: "apikey"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Query: "apikey"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Full:     "not-a-valid-url",
 				Original: "not-a-valid-url",
 				Query:    "apikey=secret123",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Full:     "not-a-valid-url",
 				Original: "not-a-valid-url",
 				Query:    "apikey=%28MASKED%29",
@@ -755,13 +755,13 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name:            "query string only",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Query: "token&auth"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Query: "token&auth"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Full:     "",
 				Original: "",
 				Query:    "token=abc123&auth=xyz789&public=data",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Full:     "",
 				Original: "",
 				Query:    "auth=%28MASKED%29&public=data&token=%28MASKED%29",
@@ -769,14 +769,14 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name:            "pattern with path match",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Path: "/api", Query: "apikey"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Path: "/api", Query: "apikey"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Path:     "/api",
 				Full:     "https://example.com/api?apikey=secret123&user=john",
 				Original: "/api?apikey=secret123&user=john",
 				Query:    "apikey=secret123&user=john",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Path:     "/api",
 				Full:     "https://example.com/api?apikey=%28MASKED%29&user=john",
 				Original: "/api?apikey=%28MASKED%29&user=john",
@@ -785,14 +785,14 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name:            "pattern with path mismatch",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Path: "/other", Query: "apikey"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Path: "/other", Query: "apikey"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Path:     "/api",
 				Full:     "https://example.com/api?apikey=secret123&user=john",
 				Original: "/api?apikey=secret123&user=john",
 				Query:    "apikey=secret123&user=john",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Path:     "/api",
 				Full:     "https://example.com/api?apikey=secret123&user=john",
 				Original: "/api?apikey=secret123&user=john",
@@ -801,14 +801,14 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name:            "pattern with domain match",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Domain: "example.com", Query: "token"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Domain: "example.com", Query: "token"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Domain:   "example.com",
 				Full:     "https://example.com/api?token=secret",
 				Original: "/api?token=secret",
 				Query:    "token=secret",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Domain:   "example.com",
 				Full:     "https://example.com/api?token=%28MASKED%29",
 				Original: "/api?token=%28MASKED%29",
@@ -817,14 +817,14 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name:            "pattern with domain mismatch",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Domain: "other.com", Query: "token"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Domain: "other.com", Query: "token"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Domain:   "example.com",
 				Full:     "https://example.com/api?token=secret",
 				Original: "/api?token=secret",
 				Query:    "token=secret",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Domain:   "example.com",
 				Full:     "https://example.com/api?token=secret",
 				Original: "/api?token=secret",
@@ -833,17 +833,17 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name: "multiple patterns, both matching",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{
 				{Query: "apikey"},
 				{Path: "/api", Query: "token"},
 			},
-			inputUrl: &motmedelSchemaTypes.Url{
+			inputUrl: &altshiftSchemaTypes.Url{
 				Path:     "/api",
 				Full:     "https://example.com/api?apikey=secret&token=abc",
 				Original: "/api?apikey=secret&token=abc",
 				Query:    "apikey=secret&token=abc",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Path:     "/api",
 				Full:     "https://example.com/api?apikey=%28MASKED%29&token=%28MASKED%29",
 				Original: "/api?apikey=%28MASKED%29&token=%28MASKED%29",
@@ -852,17 +852,17 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name: "multiple patterns, only one matching",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{
 				{Path: "/other", Query: "apikey"},
 				{Query: "token"},
 			},
-			inputUrl: &motmedelSchemaTypes.Url{
+			inputUrl: &altshiftSchemaTypes.Url{
 				Path:     "/api",
 				Full:     "https://example.com/api?apikey=secret&token=abc",
 				Original: "/api?apikey=secret&token=abc",
 				Query:    "apikey=secret&token=abc",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Path:     "/api",
 				Full:     "https://example.com/api?apikey=secret&token=%28MASKED%29",
 				Original: "/api?apikey=secret&token=%28MASKED%29",
@@ -871,15 +871,15 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name:            "pattern with scheme and port match",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Scheme: "https", Port: 443, Query: "secret"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Scheme: "https", Port: 443, Query: "secret"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Scheme:   "https",
 				Port:     443,
 				Full:     "https://example.com:443/api?secret=val",
 				Original: "/api?secret=val",
 				Query:    "secret=val",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Scheme:   "https",
 				Port:     443,
 				Full:     "https://example.com:443/api?secret=%28MASKED%29",
@@ -889,14 +889,14 @@ func TestExtractor_MaskUrl(t *testing.T) {
 		},
 		{
 			name:            "pattern with no query is a no-op",
-			maskedUrlParams: []*motmedelSchemaTypes.Url{{Path: "/api"}},
-			inputUrl: &motmedelSchemaTypes.Url{
+			maskedUrlParams: []*altshiftSchemaTypes.Url{{Path: "/api"}},
+			inputUrl: &altshiftSchemaTypes.Url{
 				Path:     "/api",
 				Full:     "https://example.com/api?apikey=secret",
 				Original: "/api?apikey=secret",
 				Query:    "apikey=secret",
 			},
-			expectedUrl: &motmedelSchemaTypes.Url{
+			expectedUrl: &altshiftSchemaTypes.Url{
 				Path:     "/api",
 				Full:     "https://example.com/api?apikey=secret",
 				Original: "/api?apikey=secret",
@@ -934,7 +934,7 @@ func TestExtractor_MaskUrl_NilUrl(t *testing.T) {
 	t.Parallel()
 
 	e := &Extractor{
-		MaskedUrlParams: []*motmedelSchemaTypes.Url{{Query: "apikey"}},
+		MaskedUrlParams: []*altshiftSchemaTypes.Url{{Query: "apikey"}},
 	}
 
 	// Should not panic with nil URL
@@ -976,7 +976,7 @@ func TestUrlMatchesPattern_PathPrefix(t *testing.T) {
 
 	// A pattern with /* matches incoming requests under that segment prefix
 	// and surfaces the masked query parameters as usual.
-	pattern := &motmedelSchemaTypes.Url{
+	pattern := &altshiftSchemaTypes.Url{
 		Domain: "example.com",
 		Path:   "/api/v1/profiles/*",
 		Query:  "secret",
@@ -984,13 +984,13 @@ func TestUrlMatchesPattern_PathPrefix(t *testing.T) {
 
 	cases := []struct {
 		name         string
-		incoming     *motmedelSchemaTypes.Url
+		incoming     *altshiftSchemaTypes.Url
 		wantMatch    bool
 		wantParamLen int
 	}{
 		{
 			name: "child path with query",
-			incoming: &motmedelSchemaTypes.Url{
+			incoming: &altshiftSchemaTypes.Url{
 				Domain: "example.com",
 				Path:   "/api/v1/profiles/123",
 				Query:  "secret=abc&other=ok",
@@ -1000,7 +1000,7 @@ func TestUrlMatchesPattern_PathPrefix(t *testing.T) {
 		},
 		{
 			name: "exact prefix without slash does not match",
-			incoming: &motmedelSchemaTypes.Url{
+			incoming: &altshiftSchemaTypes.Url{
 				Domain: "example.com",
 				Path:   "/api/v1/profiles",
 				Query:  "secret=abc",
@@ -1010,7 +1010,7 @@ func TestUrlMatchesPattern_PathPrefix(t *testing.T) {
 		},
 		{
 			name: "sibling path does not match",
-			incoming: &motmedelSchemaTypes.Url{
+			incoming: &altshiftSchemaTypes.Url{
 				Domain: "example.com",
 				Path:   "/api/v1/profiles-v2/123",
 				Query:  "secret=abc",
@@ -1080,26 +1080,26 @@ func TestExtractor_Handle_MaskedRequestBody(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read request: %v", err)
 		}
-		httpContext := &motmedelHttpTypes.HttpContext{
+		httpContext := &altshiftHttpTypes.HttpContext{
 			Request:     req,
 			RequestBody: []byte(secret),
 		}
-		return context.WithValue(context.Background(), motmedelHttpContext.HttpContextContextKey, httpContext)
+		return context.WithValue(context.Background(), altshiftHttpContext.HttpContextContextKey, httpContext)
 	}
 
 	testCases := []struct {
 		name     string
-		patterns []*motmedelSchemaTypes.Url
+		patterns []*altshiftSchemaTypes.Url
 		want     string
 	}{
 		{
 			name:     "masked when path matches",
-			patterns: []*motmedelSchemaTypes.Url{{Path: "/token"}},
+			patterns: []*altshiftSchemaTypes.Url{{Path: "/token"}},
 			want:     maskedValue,
 		},
 		{
 			name:     "masked when domain and path match",
-			patterns: []*motmedelSchemaTypes.Url{{Domain: "oauth2.example.com", Path: "/token"}},
+			patterns: []*altshiftSchemaTypes.Url{{Domain: "oauth2.example.com", Path: "/token"}},
 			want:     maskedValue,
 		},
 		{
@@ -1109,7 +1109,7 @@ func TestExtractor_Handle_MaskedRequestBody(t *testing.T) {
 		},
 		{
 			name:     "unmasked when path does not match",
-			patterns: []*motmedelSchemaTypes.Url{{Path: "/other"}},
+			patterns: []*altshiftSchemaTypes.Url{{Path: "/other"}},
 			want:     secret,
 		},
 	}
@@ -1139,7 +1139,7 @@ func TestExtractor_Handle_RequestIdWrongType(t *testing.T) {
 	t.Parallel()
 
 	e := &Extractor{}
-	ctx := context.WithValue(context.Background(), motmedelHttpContext.RequestIdContextKey, 42)
+	ctx := context.WithValue(context.Background(), altshiftHttpContext.RequestIdContextKey, 42)
 	record := &slog.Record{}
 
 	if err := e.Handle(ctx, record); err != nil {

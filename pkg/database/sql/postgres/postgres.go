@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 var ErrMalformedTextArray = errors.New("malformed text array")
@@ -41,7 +41,7 @@ type TextArrayScanner struct {
 
 func (s TextArrayScanner) Scan(value any) error {
 	if s.Target == nil {
-		return motmedelErrors.NewWithTrace(fmt.Errorf("%w: nil target", ErrMalformedTextArray))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("%w: nil target", ErrMalformedTextArray))
 	}
 
 	var data string
@@ -54,14 +54,14 @@ func (s TextArrayScanner) Scan(value any) error {
 	case string:
 		data = typedValue
 	default:
-		return motmedelErrors.NewWithTrace(
+		return altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: unsupported source type %T", ErrMalformedTextArray, value),
 		)
 	}
 
 	elements, err := ParseTextArray(data)
 	if err != nil {
-		return motmedelErrors.New(fmt.Errorf("parse text array: %w", err), data)
+		return altshiftErrors.New(fmt.Errorf("parse text array: %w", err), data)
 	}
 
 	*s.Target = elements
@@ -78,7 +78,7 @@ func ParseTextArray(data string) ([]string, error) {
 	}
 
 	if len(data) < 2 || data[0] != '{' || data[len(data)-1] != '}' {
-		return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: missing braces", ErrMalformedTextArray))
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: missing braces", ErrMalformedTextArray))
 	}
 	data = data[1 : len(data)-1]
 
@@ -89,7 +89,7 @@ func ParseTextArray(data string) ([]string, error) {
 	var elements []string
 	for {
 		if data == "" {
-			return nil, motmedelErrors.NewWithTrace(fmt.Errorf("%w: empty element", ErrMalformedTextArray))
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: empty element", ErrMalformedTextArray))
 		}
 
 		if data[0] == '"' {
@@ -100,7 +100,7 @@ func ParseTextArray(data string) ([]string, error) {
 				switch data[i] {
 				case '\\':
 					if i+1 >= len(data) {
-						return nil, motmedelErrors.NewWithTrace(
+						return nil, altshiftErrors.NewWithTrace(
 							fmt.Errorf("%w: trailing escape", ErrMalformedTextArray),
 						)
 					}
@@ -117,7 +117,7 @@ func ParseTextArray(data string) ([]string, error) {
 				}
 			}
 			if !closed {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf("%w: unterminated quoted element", ErrMalformedTextArray),
 				)
 			}
@@ -132,12 +132,12 @@ func ParseTextArray(data string) ([]string, error) {
 			data = data[len(element):]
 
 			if element == "" || strings.ContainsAny(element, "{}\"\\") {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf("%w: malformed unquoted element", ErrMalformedTextArray),
 				)
 			}
 			if element == "NULL" {
-				return nil, motmedelErrors.NewWithTrace(
+				return nil, altshiftErrors.NewWithTrace(
 					fmt.Errorf("%w: null element", ErrMalformedTextArray),
 				)
 			}
@@ -149,7 +149,7 @@ func ParseTextArray(data string) ([]string, error) {
 			return elements, nil
 		}
 		if data[0] != ',' {
-			return nil, motmedelErrors.NewWithTrace(
+			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf("%w: missing element separator", ErrMalformedTextArray),
 			)
 		}

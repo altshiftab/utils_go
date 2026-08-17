@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"testing"
 
-	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
 )
 
 func dropTime(groups []string, attr slog.Attr) slog.Attr {
@@ -36,7 +36,7 @@ func TestNewRunsExtractorWithContext(t *testing.T) {
 	buf := &bytes.Buffer{}
 	handler := slog.NewJSONHandler(buf, &slog.HandlerOptions{ReplaceAttr: dropTime})
 
-	extractor := motmedelLog.ContextExtractorFunction(func(ctx context.Context, record *slog.Record) error {
+	extractor := altshiftLog.ContextExtractorFunction(func(ctx context.Context, record *slog.Record) error {
 		if v, ok := ctx.Value(ctxKey).(string); ok {
 			record.Add("from_context", v)
 		}
@@ -86,11 +86,11 @@ func TestNewMergesDuplicateGroups(t *testing.T) {
 	buf := &bytes.Buffer{}
 	handler := slog.NewJSONHandler(buf, &slog.HandlerOptions{ReplaceAttr: dropTime})
 
-	first := motmedelLog.ContextExtractorFunction(func(_ context.Context, record *slog.Record) error {
+	first := altshiftLog.ContextExtractorFunction(func(_ context.Context, record *slog.Record) error {
 		record.Add(slog.Group("meta", slog.String("a", "1")))
 		return nil
 	})
-	second := motmedelLog.ContextExtractorFunction(func(_ context.Context, record *slog.Record) error {
+	second := altshiftLog.ContextExtractorFunction(func(_ context.Context, record *slog.Record) error {
 		record.Add(slog.Group("meta", slog.String("b", "2")))
 		return nil
 	})

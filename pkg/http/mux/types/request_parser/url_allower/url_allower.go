@@ -8,7 +8,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/url_allower/url_allower_config"
@@ -16,7 +16,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
 	"github.com/altshiftab/utils_go/pkg/interfaces/urler"
-	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
+	altshiftNet "github.com/altshiftab/utils_go/pkg/net"
 	"github.com/altshiftab/utils_go/pkg/net/types/domain_parts"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
@@ -29,7 +29,7 @@ type Parser[T urler.StringURLer] struct {
 func (p *Parser[T]) Parse(request *http.Request) (*url.URL, *response_error.ResponseError) {
 	requestParser := p.RequestParser
 	if utils.IsNil(requestParser) {
-		return nil, &response_error.ResponseError{ServerError: motmedelErrors.NewWithTrace(nil_error.New("request parser"))}
+		return nil, &response_error.ResponseError{ServerError: altshiftErrors.NewWithTrace(nil_error.New("request parser"))}
 	}
 
 	result, responseError := requestParser.Parse(request)
@@ -37,7 +37,7 @@ func (p *Parser[T]) Parse(request *http.Request) (*url.URL, *response_error.Resp
 		return nil, responseError
 	}
 	if utils.IsNil(result) {
-		return nil, &response_error.ResponseError{ServerError: motmedelErrors.NewWithTrace(nil_error.New("string urler"))}
+		return nil, &response_error.ResponseError{ServerError: altshiftErrors.NewWithTrace(nil_error.New("string urler"))}
 	}
 
 	urlString := result.URL()
@@ -51,14 +51,14 @@ func (p *Parser[T]) Parse(request *http.Request) (*url.URL, *response_error.Resp
 	if err != nil {
 		return nil, &response_error.ResponseError{
 			ProblemDetail: problem_detail.New(http.StatusBadRequest, problem_detail_config.WithDetail("Malformed url.")),
-			ClientError:   motmedelErrors.NewWithTrace(fmt.Errorf("url parse: %w", err), urlString),
+			ClientError:   altshiftErrors.NewWithTrace(fmt.Errorf("url parse: %w", err), urlString),
 		}
 	}
 
 	config := p.Config
 	if config == nil {
 		return nil, &response_error.ResponseError{
-			ServerError: motmedelErrors.NewWithTrace(nil_error.New("url processor config")),
+			ServerError: altshiftErrors.NewWithTrace(nil_error.New("url processor config")),
 		}
 	}
 
@@ -67,7 +67,7 @@ func (p *Parser[T]) Parse(request *http.Request) (*url.URL, *response_error.Resp
 
 	// localhost and any *.localhost subdomain (RFC 6761) resolve to loopback; when
 	// configured to allow localhost, let them through without domain validation.
-	isAllowedLocalhost := config.AllowLocalhost && motmedelNet.IsLocalhost(parsedUrlHostname)
+	isAllowedLocalhost := config.AllowLocalhost && altshiftNet.IsLocalhost(parsedUrlHostname)
 
 	if !isAllowedLocalhost {
 		domainParts := domain_parts.New(parsedUrlHostname)
@@ -77,7 +77,7 @@ func (p *Parser[T]) Parse(request *http.Request) (*url.URL, *response_error.Resp
 					http.StatusBadRequest,
 					problem_detail_config.WithDetail("Malformed url hostname; not a domain."),
 				),
-				ClientError: motmedelErrors.NewWithTrace(nil_error.New("domain breakdown")),
+				ClientError: altshiftErrors.NewWithTrace(nil_error.New("domain breakdown")),
 			}
 		}
 

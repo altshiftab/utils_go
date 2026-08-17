@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_response"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	"github.com/altshiftab/utils_go/pkg/http/utils"
@@ -43,10 +43,10 @@ func (s *TokenSource) Token() (*token.Token, error) {
 
 	_, tokenResponse, err := utils.FetchJson[*token_response.Response](s.ctx, urlString, options...)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
 	}
 	if tokenResponse == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("token response"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("token response"))
 	}
 
 	return tokenResponse.Token(), nil
@@ -59,7 +59,7 @@ func New(
 	options ...fetch_config.Option,
 ) (*TokenSource, error) {
 	if metadataBaseUrl == nil {
-		return nil, motmedelErrors.NewWithTrace(nil_error.New("metadata base url"))
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("metadata base url"))
 	}
 
 	return &TokenSource{

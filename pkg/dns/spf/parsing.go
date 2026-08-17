@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	abnfUtils "github.com/altshiftab/utils_go/pkg/abnf/utils"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
-	motmedelNet "github.com/altshiftab/utils_go/pkg/net"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftNet "github.com/altshiftab/utils_go/pkg/net"
 )
 
 var ErrUnexpectedMatchRule = errors.New("unexpected matching rule")
@@ -66,7 +66,7 @@ func ExtractNetworks(record *Record, passOnly bool) []*net.IPNet {
 	var networks []*net.IPNet
 
 	for _, networkString := range extractLabelValues[*Directive](record, passOnly, "ip4", "ip6") {
-		if network, _ := motmedelNet.ParseAddressNet(networkString); network != nil {
+		if network, _ := altshiftNet.ParseAddressNet(networkString); network != nil {
 			networks = append(networks, network)
 		}
 	}
@@ -80,7 +80,7 @@ func ParseSpfRecord(data []byte) (*Record, error) {
 		return nil, fmt.Errorf("get parsed data paths: %w", err)
 	}
 	if len(paths) == 0 {
-		return nil, motmedelErrors.NewWithTrace(motmedelErrors.ErrSyntaxError)
+		return nil, altshiftErrors.NewWithTrace(altshiftErrors.ErrSyntaxError)
 	}
 
 	var record Record
@@ -111,8 +111,8 @@ func ParseSpfRecord(data []byte) (*Record, error) {
 			// NOTE: According to the grammar there should always be two elements.
 			terms = append(terms, &Modifier{Index: i, Label: modifierPair[0], Value: modifierPair[1]})
 		default:
-			return nil, motmedelErrors.NewWithTrace(
-				fmt.Errorf("%w: %w: %s", motmedelErrors.ErrSemanticError, ErrUnexpectedMatchRule, matchRule),
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: %w: %s", altshiftErrors.ErrSemanticError, ErrUnexpectedMatchRule, matchRule),
 			)
 		}
 	}

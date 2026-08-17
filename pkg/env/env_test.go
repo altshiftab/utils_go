@@ -7,7 +7,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 
-	motmedelEnvErrors "github.com/altshiftab/utils_go/pkg/env/errors"
+	altshiftEnvErrors "github.com/altshiftab/utils_go/pkg/env/errors"
 )
 
 func TestGetEnvWithDefault_Set(t *testing.T) {
@@ -52,7 +52,7 @@ func TestReadEnv_NotPresent(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !errors.Is(err, motmedelEnvErrors.ErrNotPresent) {
+	if !errors.Is(err, altshiftEnvErrors.ErrNotPresent) {
 		t.Fatalf("expected ErrNotPresent, got %v", err)
 	}
 }
@@ -90,7 +90,7 @@ func TestPopEnv_NotPresent(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !errors.Is(err, motmedelEnvErrors.ErrNotPresent) {
+	if !errors.Is(err, altshiftEnvErrors.ErrNotPresent) {
 		t.Fatalf("expected ErrNotPresent, got %v", err)
 	}
 }

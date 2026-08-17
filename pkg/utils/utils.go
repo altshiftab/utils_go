@@ -9,15 +9,15 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
-	motmedelContext "github.com/altshiftab/utils_go/pkg/context"
-	motmedelErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 )
 
 func Convert[T any](value any) (T, error) {
 	convertedValue, ok := value.(T)
 	if !ok {
-		return convertedValue, motmedelErrors.NewWithTrace(
-			fmt.Errorf("%w: %T", motmedelErrors.ErrConversionNotOk, value),
+		return convertedValue, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %T", altshiftErrors.ErrConversionNotOk, value),
 			value,
 		)
 	}
@@ -37,8 +37,8 @@ func ConvertSlice[T any](value any) ([]T, error) {
 		for i, sliceValue := range anySlice {
 			typedSliceValue, ok := sliceValue.(T)
 			if !ok {
-				return nil, motmedelErrors.NewWithTrace(
-					fmt.Errorf("%w: %T (slice value)", motmedelErrors.ErrConversionNotOk, value),
+				return nil, altshiftErrors.NewWithTrace(
+					fmt.Errorf("%w: %T (slice value)", altshiftErrors.ErrConversionNotOk, value),
 					value,
 				)
 			}
@@ -47,8 +47,8 @@ func ConvertSlice[T any](value any) ([]T, error) {
 		return typedSlice, nil
 	}
 
-	return zero, motmedelErrors.NewWithTrace(
-		fmt.Errorf("%w: %T", motmedelErrors.ErrConversionNotOk, value),
+	return zero, altshiftErrors.NewWithTrace(
+		fmt.Errorf("%w: %T", altshiftErrors.ErrConversionNotOk, value),
 		value,
 	)
 }
@@ -62,7 +62,7 @@ func ConvertToNonZero[T comparable](value any) (T, error) {
 	}
 
 	if convertedValue == zero {
-		return zero, motmedelErrors.NewWithTrace(motmedelErrors.ErrZeroValue)
+		return zero, altshiftErrors.NewWithTrace(altshiftErrors.ErrZeroValue)
 	}
 
 	return convertedValue, nil
@@ -75,7 +75,7 @@ func IsNil(value any) bool {
 func Must(err error, label string) {
 	if err != nil {
 		slog.ErrorContext(
-			motmedelContext.WithError(context.Background(), err),
+			altshiftContext.WithError(context.Background(), err),
 			fmt.Sprintf("fatal: %s", label),
 		)
 		os.Exit(1)
@@ -94,12 +94,12 @@ func MapGet[T comparable, U any](m map[T]U, key T) (U, error) {
 	var zero U
 
 	if m == nil {
-		return zero, motmedelErrors.NewWithTrace(nil_error.New("map"))
+		return zero, altshiftErrors.NewWithTrace(nil_error.New("map"))
 	}
 
 	v, ok := m[key]
 	if !ok {
-		return zero, motmedelErrors.NewWithTrace(motmedelErrors.ErrNotInMap)
+		return zero, altshiftErrors.NewWithTrace(altshiftErrors.ErrNotInMap)
 	}
 
 	return v, nil
@@ -113,7 +113,7 @@ func MapGetNonZero[T comparable, U comparable](m map[T]U, key T) (U, error) {
 		return v, fmt.Errorf("map get: %w", err)
 	}
 	if v == zero || IsNil(v) {
-		return zero, motmedelErrors.NewWithTrace(motmedelErrors.ErrMapZeroValue)
+		return zero, altshiftErrors.NewWithTrace(altshiftErrors.ErrMapZeroValue)
 	}
 
 	return v, nil
@@ -129,7 +129,7 @@ func MapGetConvert[U any, T comparable](m map[T]any, key T) (U, error) {
 
 	cv, err := Convert[U](v)
 	if err != nil {
-		return zero, motmedelErrors.New(fmt.Errorf("convert: %w", err), v)
+		return zero, altshiftErrors.New(fmt.Errorf("convert: %w", err), v)
 	}
 
 	return cv, nil
@@ -143,7 +143,7 @@ func MapGetConvertSlice[U any, T comparable](m map[T]any, key T) ([]U, error) {
 
 	cv, err := ConvertSlice[U](v)
 	if err != nil {
-		return nil, motmedelErrors.New(fmt.Errorf("convert slice: %w", err), v)
+		return nil, altshiftErrors.New(fmt.Errorf("convert slice: %w", err), v)
 	}
 
 	return cv, nil
@@ -157,7 +157,7 @@ func MapGetConvertNonZero[U comparable, T comparable](m map[T]any, key T) (U, er
 		return zero, fmt.Errorf("map get convert: %w", err)
 	}
 	if v == zero || IsNil(v) {
-		return zero, motmedelErrors.NewWithTrace(motmedelErrors.ErrMapZeroValue)
+		return zero, altshiftErrors.NewWithTrace(altshiftErrors.ErrMapZeroValue)
 	}
 
 	return v, nil

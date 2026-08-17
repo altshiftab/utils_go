@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"testing"
 
-	motmedelLog "github.com/altshiftab/utils_go/pkg/log"
+	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
 )
 
 var (
@@ -109,7 +109,7 @@ func TestNewWithErrorContextExtractorSkipInput(t *testing.T) {
 	buf := &bytes.Buffer{}
 	logger := NewWithErrorContextExtractor(
 		slog.NewJSONHandler(buf, &slog.HandlerOptions{ReplaceAttr: dropTime}),
-		&motmedelLog.ErrorContextExtractor{SkipInput: true},
+		&altshiftLog.ErrorContextExtractor{SkipInput: true},
 	)
 
 	logger.Error("a message", errOrig, "the-input")
