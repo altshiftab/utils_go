@@ -516,8 +516,16 @@ func TestSetIsDeterministic(t *testing.T) {
 	input := []string{"alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta"}
 
 	first := Set(input)
+	if len(first) != len(input) {
+		t.Fatalf("Set() = %v, want %d elements", first, len(input))
+	}
+
 	for range 200 {
 		again := Set(input)
+		if len(again) != len(first) {
+			t.Fatalf("Set() returned %d elements, then %d", len(first), len(again))
+		}
+
 		for i := range first {
 			if again[i] != first[i] {
 				t.Fatalf("Set() varied between calls: %v then %v", first, again)
