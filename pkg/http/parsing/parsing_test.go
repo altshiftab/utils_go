@@ -16,9 +16,9 @@ func TestParseHttpRequestData(t *testing.T) {
 		expectedPath   string
 	}{
 		{
-			name:    "empty input",
+			name:    "empty input is a parse error, not a nil result",
 			input:   nil,
-			wantNil: true,
+			wantErr: true,
 		},
 		{
 			name:           "valid request",
@@ -84,9 +84,9 @@ func TestParseHttpResponseData(t *testing.T) {
 		expectedStatusCode int
 	}{
 		{
-			name:    "empty input",
+			name:    "empty input is a parse error, not a nil result",
 			input:   nil,
-			wantNil: true,
+			wantErr: true,
 		},
 		{
 			name:               "valid response",
