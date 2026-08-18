@@ -2,6 +2,7 @@ package sbom
 
 import (
 	"encoding/json/v2"
+	"errors"
 	"slices"
 	"testing"
 
@@ -718,35 +719,10 @@ func TestParseDockerfileNamespaced(t *testing.T) {
 	}
 }
 
-func TestDeduplicateComponents(t *testing.T) {
-	t.Parallel()
-
-	components := []altshiftSbomTypes.Component{
-		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
-		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
-		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "bar", Version: "2.0"},
-	}
-
-	result := deduplicateComponents(components)
-
-	if len(result) != 2 {
-		t.Fatalf("expected 2 components, got %d", len(result))
-	}
-}
-
-func TestDeduplicateComponentsEmpty(t *testing.T) {
-	t.Parallel()
-
-	result := deduplicateComponents(nil)
-	if result != nil {
-		t.Errorf("expected nil, got %v", result)
-	}
-}
-
 func TestGenerateBom(t *testing.T) {
 	t.Parallel()
 
-	components := []altshiftSbomTypes.Component{
+	components := []*altshiftSbomTypes.Component{
 		{
 			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    "github.com/foo/bar",
@@ -756,7 +732,10 @@ func TestGenerateBom(t *testing.T) {
 		},
 	}
 
-	bom := GenerateBom(components)
+	bom, err := GenerateBom(nil, components)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if bom.BomFormat != altshiftSbomTypes.BomFormatCycloneDX {
 		t.Errorf("expected bomFormat %q, got %q", altshiftSbomTypes.BomFormatCycloneDX, bom.BomFormat)
@@ -783,25 +762,55 @@ func TestGenerateBom(t *testing.T) {
 	}
 }
 
-func TestGenerateBomDeduplicates(t *testing.T) {
+func TestGenerateBomMergesAndSorts(t *testing.T) {
 	t.Parallel()
 
-	components := []altshiftSbomTypes.Component{
-		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
-		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "foo", Version: "1.0"},
+	components := []*altshiftSbomTypes.Component{
+		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "zlib", Version: "1.0", Purl: "pkg:apk/alpine/zlib@1.0", BomRef: "pkg:apk/alpine/zlib@1.0"},
+		{
+			Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "stdlib", Version: "1.26.6", Purl: "pkg:golang/stdlib@1.26.6", BomRef: "pkg:golang/stdlib@1.26.6",
+			Properties: []*altshiftSbomTypes.Property{{Name: altshiftSbomTypes.PropertyPath, Value: "/usr/local/go/bin/go"}},
+		},
+		{
+			Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "stdlib", Version: "1.26.6", Purl: "pkg:golang/stdlib@1.26.6", BomRef: "pkg:golang/stdlib@1.26.6",
+			Properties: []*altshiftSbomTypes.Property{{Name: altshiftSbomTypes.PropertyPath, Value: "/usr/local/go/bin/gofmt"}, {Name: altshiftSbomTypes.PropertyPath, Value: "/usr/local/go/bin/go"}},
+		},
+		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "no-ref", Version: "1"},
 	}
 
-	bom := GenerateBom(components)
+	bom, err := GenerateBom(nil, components)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	if len(bom.Components) != 1 {
-		t.Fatalf("expected 1 component after deduplication, got %d", len(bom.Components))
+	if len(bom.Components) != 3 {
+		t.Fatalf("expected 3 components after merging, got %d", len(bom.Components))
+	}
+	if bom.Components[0].BomRef != "pkg:apk/alpine/zlib@1.0" || bom.Components[1].BomRef != "pkg:golang/stdlib@1.26.6" || bom.Components[2].Name != "no-ref" {
+		t.Errorf("expected bom-ref order with unreferenced last, got %v %v %v", bom.Components[0].BomRef, bom.Components[1].BomRef, bom.Components[2].Name)
+	}
+	if paths := bom.Components[1].Properties; len(paths) != 2 || paths[0].Value != "/usr/local/go/bin/go" || paths[1].Value != "/usr/local/go/bin/gofmt" {
+		t.Errorf("expected the two paths merged, got %+v", paths)
+	}
+}
+
+func TestGenerateBomRejectsConflictingBomRefs(t *testing.T) {
+	t.Parallel()
+
+	components := []*altshiftSbomTypes.Component{
+		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "a", Version: "1", BomRef: "same"},
+		{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "b", Version: "2", BomRef: "same"},
+	}
+
+	if _, err := GenerateBom(nil, components); !errors.Is(err, ErrBomRefConflict) {
+		t.Fatalf("expected a bom-ref conflict, got %v", err)
 	}
 }
 
 func TestGenerateBomJson(t *testing.T) {
 	t.Parallel()
 
-	components := []altshiftSbomTypes.Component{
+	components := []*altshiftSbomTypes.Component{
 		{
 			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    "express",
@@ -811,7 +820,7 @@ func TestGenerateBomJson(t *testing.T) {
 		},
 	}
 
-	data, err := GenerateBomJson(components)
+	data, err := GenerateBomJson(nil, components)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -837,7 +846,7 @@ func TestGenerateBomJson(t *testing.T) {
 func TestCycloneDxJsonStructure(t *testing.T) {
 	t.Parallel()
 
-	components := []altshiftSbomTypes.Component{
+	components := []*altshiftSbomTypes.Component{
 		{
 			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    "github.com/foo/bar",
@@ -847,7 +856,7 @@ func TestCycloneDxJsonStructure(t *testing.T) {
 		},
 	}
 
-	data, err := GenerateBomJson(components)
+	data, err := GenerateBomJson(nil, components)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -893,5 +902,147 @@ func TestCycloneDxJsonStructure(t *testing.T) {
 
 	if comp["bom-ref"] != "pkg:golang/github.com/foo/bar@v1.0.0" {
 		t.Errorf("expected bom-ref %q, got %v", "pkg:golang/github.com/foo/bar@v1.0.0", comp["bom-ref"])
+	}
+}
+
+func TestNodePackageScope(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		detail   *nodePackageDetail
+		expected altshiftSbomTypes.Scope
+	}{
+		{name: "runtime dependency", detail: &nodePackageDetail{}, expected: altshiftSbomTypes.ScopeRequired},
+		{name: "dev dependency", detail: &nodePackageDetail{Dev: true}, expected: altshiftSbomTypes.ScopeExcluded},
+		{name: "dev optional dependency", detail: &nodePackageDetail{DevOptional: true}, expected: altshiftSbomTypes.ScopeExcluded},
+		{name: "optional dependency", detail: &nodePackageDetail{Optional: true}, expected: altshiftSbomTypes.ScopeOptional},
+		{name: "dev wins over optional", detail: &nodePackageDetail{Dev: true, Optional: true}, expected: altshiftSbomTypes.ScopeExcluded},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := nodePackageScope(testCase.detail); got != testCase.expected {
+				t.Errorf("expected %q, got %q", testCase.expected, got)
+			}
+		})
+	}
+}
+
+func TestParseNodePackageLockScopes(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{
+		"name": "app", "version": "1.0.0", "lockfileVersion": 3,
+		"packages": {
+			"": {"name": "app", "version": "1.0.0"},
+			"node_modules/lit": {"version": "3.3.0"},
+			"node_modules/typescript": {"version": "5.9.2", "dev": true},
+			"node_modules/fsevents": {"version": "2.3.3", "optional": true},
+			"node_modules/postcss": {"version": "8.5.16", "devOptional": true}
+		}
+	}`)
+
+	components, err := ParseNodePackageLock(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	scopes := make(map[string]altshiftSbomTypes.Scope)
+	for _, component := range components {
+		scopes[component.Name] = component.Scope
+	}
+	expected := map[string]altshiftSbomTypes.Scope{
+		"lit":        altshiftSbomTypes.ScopeRequired,
+		"typescript": altshiftSbomTypes.ScopeExcluded,
+		"fsevents":   altshiftSbomTypes.ScopeOptional,
+		"postcss":    altshiftSbomTypes.ScopeExcluded,
+	}
+	if len(scopes) != len(expected) {
+		t.Fatalf("expected %d components, got %d: %v", len(expected), len(scopes), scopes)
+	}
+	for name, scope := range expected {
+		if scopes[name] != scope {
+			t.Errorf("%s: expected scope %q, got %q", name, scope, scopes[name])
+		}
+	}
+}
+
+func TestGenerateBomJsonNestedStructure(t *testing.T) {
+	t.Parallel()
+
+	subject := &altshiftSbomTypes.Component{
+		Type:   altshiftSbomTypes.ComponentTypeContainer,
+		Name:   "app",
+		Purl:   "pkg:docker/app",
+		BomRef: "pkg:docker/app",
+		Properties: []*altshiftSbomTypes.Property{
+			{Name: altshiftSbomTypes.PropertyImage, Value: "localhost/app:latest"},
+		},
+	}
+	components := []*altshiftSbomTypes.Component{
+		{
+			Type:    altshiftSbomTypes.ComponentTypeContainer,
+			Name:    "golang",
+			Version: "1.26-alpine",
+			Scope:   altshiftSbomTypes.ScopeExcluded,
+			Purl:    "pkg:docker/golang@1.26-alpine",
+			BomRef:  "pkg:docker/golang@1.26-alpine",
+			Components: []*altshiftSbomTypes.Component{
+				{
+					Type:    altshiftSbomTypes.ComponentTypeLibrary,
+					Name:    "musl",
+					Version: "1.2.6-r2",
+					Scope:   altshiftSbomTypes.ScopeExcluded,
+					Purl:    "pkg:apk/alpine/musl@1.2.6-r2?arch=x86_64&distro=alpine-3.24.1",
+					BomRef:  "pkg:docker/golang@1.26-alpine/pkg:apk/alpine/musl@1.2.6-r2?arch=x86_64&distro=alpine-3.24.1",
+					Properties: []*altshiftSbomTypes.Property{
+						{Name: altshiftSbomTypes.PropertyPath, Value: "/lib/apk/db/installed"},
+					},
+				},
+			},
+		},
+	}
+
+	data, err := GenerateBomJson(subject, components)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("output is not valid JSON: %v", err)
+	}
+
+	metadata, _ := raw["metadata"].(map[string]any)
+	metadataComponent, _ := metadata["component"].(map[string]any)
+	if metadataComponent["bom-ref"] != "pkg:docker/app" {
+		t.Errorf("expected the subject as metadata.component, got %v", metadata["component"])
+	}
+	properties, _ := metadataComponent["properties"].([]any)
+	if len(properties) != 1 {
+		t.Errorf("expected the subject's properties to be written, got %v", metadataComponent["properties"])
+	}
+
+	componentsRaw, _ := raw["components"].([]any)
+	if len(componentsRaw) != 1 {
+		t.Fatalf("expected 1 top-level component, got %v", raw["components"])
+	}
+	container, _ := componentsRaw[0].(map[string]any)
+	if container["scope"] != "excluded" {
+		t.Errorf("expected scope excluded, got %v", container["scope"])
+	}
+	nested, _ := container["components"].([]any)
+	if len(nested) != 1 {
+		t.Fatalf("expected 1 nested component, got %v", container["components"])
+	}
+	musl, _ := nested[0].(map[string]any)
+	if musl["scope"] != "excluded" || musl["purl"] != "pkg:apk/alpine/musl@1.2.6-r2?arch=x86_64&distro=alpine-3.24.1" {
+		t.Errorf("unexpected nested component: %v", musl)
+	}
+	if _, present := musl["hashes"]; present {
+		t.Errorf("expected empty optional fields to be omitted, got %v", musl)
 	}
 }

@@ -1,121 +1,182 @@
+// Command sbom writes a CycloneDX SBOM of a container image and what it was built with: the packages inside the built
+// image (OS packages, the modules linked into Go executables, shipped node packages), the contents of the images the
+// Dockerfile's build stages start from (excluded from the delivered artifact, but part of how it was produced), Go
+// executables given directly, and the packages of a package-lock.json.
 package main
 
 import (
-	"flag"
+	"context"
+	"debug/buildinfo"
+	"errors"
 	"fmt"
+	"io"
 	"os"
+	"os/signal"
+	"syscall"
 
+	argumentParser "github.com/altshiftab/utils_go/pkg/cli/argument_parser"
+	argumentParserErrors "github.com/altshiftab/utils_go/pkg/cli/argument_parser/errors"
+	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	altshiftSbom "github.com/altshiftab/utils_go/pkg/sbom"
+	altshiftSbomImage "github.com/altshiftab/utils_go/pkg/sbom/image"
 	altshiftSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
 )
 
-func run() error {
-	var goSumPath string
-	var nodeLockPath string
-	var dockerfilePath string
-	var outputPath string
+const (
+	exitClean = 0
+	exitError = 1
+	exitUsage = 2
+)
 
-	flag.StringVar(&goSumPath, "go", "", "path to go.sum file")
-	flag.StringVar(&nodeLockPath, "node", "", "path to package-lock.json file")
-	flag.StringVar(&dockerfilePath, "docker", "", "path to Dockerfile")
-	flag.StringVar(&outputPath, "output", "", "output file path (default: stdout)")
-	flag.Parse()
+// errNothingToDescribe is the usage error for a command line that names no input.
+var errNothingToDescribe = errors.New("nothing to describe: give at least one of --image, --dockerfile, --go-binary, --node")
 
-	var allComponents []altshiftSbomTypes.Component
+const description = "Write a CycloneDX SBOM of a container image and what it was built with. " +
+	"The built image (--image) is read from the local podman store; its OS packages, the modules linked into its Go " +
+	"executables and its node packages are listed as required components. The images the Dockerfile's build stages " +
+	"start from (--dockerfile) are read the same way and listed as excluded container components holding their " +
+	"packages; what RUN instructions installed on top of them is not seen. The final stage's base image is only " +
+	"named, its content being the built image's."
 
-	if goSumPath != "" {
-		data, err := os.ReadFile(goSumPath)
-		if err != nil {
-			return &altshiftErrors.Error{
-				Message: "An error occurred when reading the go.sum file.",
-				Cause:   err,
-				Input:   goSumPath,
-			}
+type arguments struct {
+	image      string
+	dockerfile string
+	goBinaries []string
+	nodeLock   string
+	output     string
+	podman     string
+}
+
+func newParser(args *arguments) *argumentParser.Parser {
+	return &argumentParser.Parser{
+		ProgramName: "sbom",
+		Description: description,
+		Options: []option.Option{
+			option.WithMetavar(option.NewStringOption(0, "image", "the built image to describe, as podman knows it (e.g. localhost/app:latest); it becomes the SBOM's subject", false, &args.image), "REFERENCE"),
+			option.WithMetavar(option.NewStringOption(0, "dockerfile", "the Dockerfile the image was built from; its build-stage images are analyzed as excluded components", false, &args.dockerfile), "PATH"),
+			option.WithMetavar(option.NewStringsOption(0, "go-binary", "a Go executable whose linked modules to list (may be repeated)", false, &args.goBinaries), "PATH"),
+			option.WithMetavar(option.NewStringOption(0, "node", "a package-lock.json whose packages to list; development dependencies are excluded components", false, &args.nodeLock), "PATH"),
+			option.WithMetavar(option.NewStringOption(0, "output", "the file to write the SBOM to (default: standard output)", false, &args.output), "PATH"),
+			option.WithMetavar(option.WithDefault(option.NewStringOption(0, "podman", "the podman executable to read images with", false, &args.podman), "podman"), "PATH"),
+		},
+		// The accepted spellings stay exactly the names as written, so that a Makefile that spells one keeps
+		// working when an option is added later.
+		DisableAbbrev: true,
+	}
+}
+
+// run does what the command line asks and returns the exit code and, for a failure, the error to report.
+func run(ctx context.Context, argv []string, stdout, stderr io.Writer) (int, error) {
+	args := &arguments{}
+	parser := newParser(args)
+	if err := parser.Validate(); err != nil {
+		return exitError, altshiftErrors.New(fmt.Errorf("parser validate: %w", err))
+	}
+	if err := parser.ParseArgs(argv); err != nil {
+		if errors.Is(err, argumentParserErrors.ErrHelp) {
+			return exitClean, nil
 		}
-
-		components, err := altshiftSbom.ParseGoSum(data)
-		if err != nil {
-			return &altshiftErrors.Error{
-				Message: "An error occurred when parsing the go.sum file.",
-				Cause:   err,
-				Input:   goSumPath,
-			}
-		}
-
-		allComponents = append(allComponents, components...)
+		fmt.Fprint(stderr, parser.FormatError(err))
+		return exitUsage, nil
 	}
 
-	if nodeLockPath != "" {
-		data, err := os.ReadFile(nodeLockPath)
-		if err != nil {
-			return &altshiftErrors.Error{
-				Message: "An error occurred when reading the package-lock.json file.",
-				Cause:   err,
-				Input:   nodeLockPath,
-			}
-		}
-
-		components, err := altshiftSbom.ParseNodePackageLock(data)
-		if err != nil {
-			return &altshiftErrors.Error{
-				Message: "An error occurred when parsing the package-lock.json file.",
-				Cause:   err,
-				Input:   nodeLockPath,
-			}
-		}
-
-		allComponents = append(allComponents, components...)
+	if args.image == "" && args.dockerfile == "" && len(args.goBinaries) == 0 && args.nodeLock == "" {
+		fmt.Fprint(stderr, parser.FormatError(errNothingToDescribe))
+		return exitUsage, nil
 	}
 
-	if dockerfilePath != "" {
-		data, err := os.ReadFile(dockerfilePath)
-		if err != nil {
-			return &altshiftErrors.Error{
-				Message: "An error occurred when reading the Dockerfile.",
-				Cause:   err,
-				Input:   dockerfilePath,
-			}
-		}
+	store := &altshiftSbomImage.Store{Podman: args.podman}
 
-		components, err := altshiftSbom.ParseDockerfile(data)
-		if err != nil {
-			return &altshiftErrors.Error{
-				Message: "An error occurred when parsing the Dockerfile.",
-				Cause:   err,
-				Input:   dockerfilePath,
-			}
+	var subject *altshiftSbomTypes.Component
+	var components []*altshiftSbomTypes.Component
+	warn := func(reference string, warnings []string) {
+		for _, warning := range warnings {
+			fmt.Fprintf(stderr, "sbom: warning: %s: %s\n", reference, warning)
 		}
-
-		allComponents = append(allComponents, components...)
 	}
 
-	output, err := altshiftSbom.GenerateBomJson(allComponents)
+	if args.image != "" {
+		analysis, err := store.Analyze(ctx, args.image)
+		if err != nil {
+			return exitError, altshiftErrors.New(fmt.Errorf("analyze image %q: %w", args.image, err), args.image)
+		}
+		warn(args.image, analysis.Warnings)
+		subject = altshiftSbom.ContainerComponent(args.image, analysis, "")
+		components = append(components, altshiftSbom.ImageComponents(analysis, altshiftSbomTypes.ScopeRequired)...)
+	}
+
+	for _, goBinary := range args.goBinaries {
+		info, err := buildinfo.ReadFile(goBinary)
+		if err != nil {
+			return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("read build info of %q: %w", goBinary, err), goBinary)
+		}
+		components = append(components, altshiftSbom.BuildInfoComponents(info, goBinary, altshiftSbomTypes.ScopeRequired)...)
+	}
+
+	if args.nodeLock != "" {
+		data, err := os.ReadFile(args.nodeLock)
+		if err != nil {
+			return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("read %q: %w", args.nodeLock, err), args.nodeLock)
+		}
+		nodeComponents, err := altshiftSbom.ParseNodePackageLock(data)
+		if err != nil {
+			return exitError, altshiftErrors.New(fmt.Errorf("parse package-lock %q: %w", args.nodeLock, err), args.nodeLock)
+		}
+		components = append(components, nodeComponents...)
+	}
+
+	if args.dockerfile != "" {
+		data, err := os.ReadFile(args.dockerfile)
+		if err != nil {
+			return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("read %q: %w", args.dockerfile, err), args.dockerfile)
+		}
+		stages, err := altshiftSbom.ParseDockerfileStages(data)
+		if err != nil {
+			return exitError, altshiftErrors.New(fmt.Errorf("parse dockerfile %q: %w", args.dockerfile, err), args.dockerfile)
+		}
+		buildImages, finalBase := altshiftSbom.DockerfileImages(stages)
+
+		for _, buildImage := range buildImages {
+			analysis, err := store.Analyze(ctx, buildImage)
+			if err != nil {
+				return exitError, altshiftErrors.New(fmt.Errorf("analyze build image %q: %w", buildImage, err), buildImage)
+			}
+			warn(buildImage, analysis.Warnings)
+			container := altshiftSbom.ContainerComponent(buildImage, analysis, altshiftSbomTypes.ScopeExcluded)
+			components = append(components, altshiftSbom.Nest(container, altshiftSbom.ImageComponents(analysis, altshiftSbomTypes.ScopeExcluded)))
+		}
+		if finalBase != "" {
+			components = append(components, altshiftSbom.ContainerComponent(finalBase, nil, altshiftSbomTypes.ScopeRequired))
+		}
+	}
+
+	output, err := altshiftSbom.GenerateBomJson(subject, components)
 	if err != nil {
-		return &altshiftErrors.Error{
-			Message: "An error occurred when generating the SBOM JSON.",
-			Cause:   err,
-		}
+		return exitError, fmt.Errorf("generate bom json: %w", err)
 	}
 
-	if outputPath != "" {
-		if err := os.WriteFile(outputPath, output, 0600); err != nil { //nolint:gosec // G703: writing to the user-chosen output path is the CLI's purpose.
-			return &altshiftErrors.Error{
-				Message: "An error occurred when writing the output file.",
-				Cause:   err,
-				Input:   outputPath,
-			}
+	if args.output != "" {
+		if err := os.WriteFile(args.output, output, 0o600); err != nil { //nolint:gosec // G703: writing to the user-chosen output path is the CLI's purpose.
+			return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("write %q: %w", args.output, err), args.output)
 		}
-	} else {
-		fmt.Print(string(output))
+		return exitClean, nil
 	}
 
-	return nil
+	if _, err := stdout.Write(output); err != nil {
+		return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("write stdout: %w", err))
+	}
+	return exitClean, nil
 }
 
 func main() {
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	// Interrupting the command interrupts the podman it is reading from.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	code, err := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sbom: error: %v\n", err)
 	}
+	os.Exit(code)
 }

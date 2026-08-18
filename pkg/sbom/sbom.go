@@ -19,7 +19,7 @@ const (
 	specVersion = "1.6"
 	bomVersion  = 1
 	toolName    = "altshift-sbom-generator"
-	toolVersion = "0.1.0"
+	toolVersion = "0.2.0"
 )
 
 type goModuleInfo struct {
@@ -38,9 +38,25 @@ type nodePackageLock struct {
 }
 
 type nodePackageDetail struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-	License string `json:"license"`
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	License     string `json:"license"`
+	Dev         bool   `json:"dev"`
+	DevOptional bool   `json:"devOptional"`
+	Optional    bool   `json:"optional"`
+}
+
+// nodePackageScope tells development-only packages (build tooling that does not ship) apart from the ones the
+// application depends on, from the flags package-lock.json v2/v3 record per package.
+func nodePackageScope(detail *nodePackageDetail) altshiftSbomTypes.Scope {
+	switch {
+	case detail.Dev || detail.DevOptional:
+		return altshiftSbomTypes.ScopeExcluded
+	case detail.Optional:
+		return altshiftSbomTypes.ScopeOptional
+	default:
+		return altshiftSbomTypes.ScopeRequired
+	}
 }
 
 type nodeDependency struct {
@@ -49,7 +65,19 @@ type nodeDependency struct {
 	Dependencies map[string]*nodeDependency `json:"dependencies"`
 }
 
-var dockerfileFromRegexp = regexp.MustCompile(`(?im)^\s*FROM\s+(?:--platform=\S+\s+)?(\S+?)(?:\s+AS\s+\S+)?\s*$`)
+var dockerfileFromRegexp = regexp.MustCompile(`(?im)^\s*FROM\s+(?:--platform=(\S+)\s+)?(\S+?)(?:\s+AS\s+(\S+))?\s*$`)
+
+// escapePurlSegment percent-encodes a purl name, version or qualifier value: what url.PathEscape encodes plus the
+// characters that carry meaning in a purl ("+" in Go's "+incompatible" versions, "@" before a version, "&" and "="
+// in qualifiers), matching the canonical form packageurl-go writes.
+func escapePurlSegment(segment string) string {
+	segment = url.PathEscape(segment)
+	segment = strings.ReplaceAll(segment, "+", "%2B")
+	segment = strings.ReplaceAll(segment, "@", "%40")
+	segment = strings.ReplaceAll(segment, "&", "%26")
+	segment = strings.ReplaceAll(segment, "=", "%3D")
+	return segment
+}
 
 func goModulePurl(path string, version string) string {
 	escapedPath := url.PathEscape(path)
@@ -59,7 +87,7 @@ func goModulePurl(path string, version string) string {
 		return fmt.Sprintf("pkg:golang/%s", escapedPath)
 	}
 
-	return fmt.Sprintf("pkg:golang/%s@%s", escapedPath, version)
+	return fmt.Sprintf("pkg:golang/%s@%s", escapedPath, escapePurlSegment(version))
 }
 
 func npmPurl(name string, version string) string {
@@ -111,12 +139,12 @@ func dockerPurl(name string, version string) string {
 	return fmt.Sprintf("%s@%s", purlBase, version)
 }
 
-func ParseGoModules(goListOutput []byte) ([]altshiftSbomTypes.Component, error) {
+func ParseGoModules(goListOutput []byte) ([]*altshiftSbomTypes.Component, error) {
 	if len(goListOutput) == 0 {
 		return nil, nil
 	}
 
-	var components []altshiftSbomTypes.Component
+	var components []*altshiftSbomTypes.Component
 
 	decoder := jsontext.NewDecoder(bytes.NewReader(goListOutput))
 	for {
@@ -143,7 +171,7 @@ func ParseGoModules(goListOutput []byte) ([]altshiftSbomTypes.Component, error) 
 		version := module.Version
 		purl := goModulePurl(module.Path, version)
 
-		components = append(components, altshiftSbomTypes.Component{
+		components = append(components, &altshiftSbomTypes.Component{
 			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    module.Path,
 			Version: version,
@@ -155,7 +183,7 @@ func ParseGoModules(goListOutput []byte) ([]altshiftSbomTypes.Component, error) 
 	return components, nil
 }
 
-func ParseNodePackageLock(data []byte) ([]altshiftSbomTypes.Component, error) {
+func ParseNodePackageLock(data []byte) ([]*altshiftSbomTypes.Component, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
@@ -165,7 +193,7 @@ func ParseNodePackageLock(data []byte) ([]altshiftSbomTypes.Component, error) {
 		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), data)
 	}
 
-	var components []altshiftSbomTypes.Component
+	var components []*altshiftSbomTypes.Component
 	seen := make(map[string]bool)
 
 	for path, detail := range packageLock.Packages {
@@ -196,16 +224,17 @@ func ParseNodePackageLock(data []byte) ([]altshiftSbomTypes.Component, error) {
 
 		purl := npmPurl(name, version)
 
-		component := altshiftSbomTypes.Component{
+		component := &altshiftSbomTypes.Component{
 			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    name,
 			Version: version,
+			Scope:   nodePackageScope(detail),
 			Purl:    purl,
 			BomRef:  purl,
 		}
 
 		if detail.License != "" {
-			component.Licenses = []altshiftSbomTypes.LicenseChoice{
+			component.Licenses = []*altshiftSbomTypes.LicenseChoice{
 				{License: &altshiftSbomTypes.License{Id: detail.License}},
 			}
 		}
@@ -226,7 +255,7 @@ func ParseNodePackageLock(data []byte) ([]altshiftSbomTypes.Component, error) {
 	return components, nil
 }
 
-func collectNodeDependencies(name string, dep *nodeDependency, seen map[string]bool, components *[]altshiftSbomTypes.Component) {
+func collectNodeDependencies(name string, dep *nodeDependency, seen map[string]bool, components *[]*altshiftSbomTypes.Component) {
 	if dep == nil {
 		return
 	}
@@ -241,7 +270,7 @@ func collectNodeDependencies(name string, dep *nodeDependency, seen map[string]b
 
 	purl := npmPurl(name, version)
 
-	*components = append(*components, altshiftSbomTypes.Component{
+	*components = append(*components, &altshiftSbomTypes.Component{
 		Type:    altshiftSbomTypes.ComponentTypeLibrary,
 		Name:    name,
 		Version: version,
@@ -265,12 +294,12 @@ func extractNodeModuleName(path string) string {
 	return path[idx+len(nodeModulesPrefix):]
 }
 
-func ParseGoSum(data []byte) ([]altshiftSbomTypes.Component, error) {
+func ParseGoSum(data []byte) ([]*altshiftSbomTypes.Component, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
 
-	var components []altshiftSbomTypes.Component
+	var components []*altshiftSbomTypes.Component
 	seen := make(map[string]bool)
 
 	for line := range strings.SplitSeq(string(data), "\n") {
@@ -302,7 +331,7 @@ func ParseGoSum(data []byte) ([]altshiftSbomTypes.Component, error) {
 
 		purl := goModulePurl(name, version)
 
-		components = append(components, altshiftSbomTypes.Component{
+		components = append(components, &altshiftSbomTypes.Component{
 			Type:    altshiftSbomTypes.ComponentTypeLibrary,
 			Name:    name,
 			Version: version,
@@ -314,92 +343,136 @@ func ParseGoSum(data []byte) ([]altshiftSbomTypes.Component, error) {
 	return components, nil
 }
 
-func ParseDockerfile(data []byte) ([]altshiftSbomTypes.Component, error) {
+// Stage is one FROM instruction of a Dockerfile.
+type Stage struct {
+	// Image is the image the stage starts from, as written; the name of an earlier stage when the stage builds on
+	// that stage instead.
+	Image    string
+	Alias    string
+	Platform string
+}
+
+// ParseDockerfileStages lists the FROM instructions of a Dockerfile in order.
+func ParseDockerfileStages(data []byte) ([]*Stage, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
 
-	matches := dockerfileFromRegexp.FindAllSubmatch(data, -1)
-	if len(matches) == 0 {
-		return nil, nil
+	var stages []*Stage
+	for _, match := range dockerfileFromRegexp.FindAllSubmatch(data, -1) {
+		stages = append(stages, &Stage{
+			Platform: string(match[1]),
+			Image:    string(match[2]),
+			Alias:    string(match[3]),
+		})
 	}
 
-	var components []altshiftSbomTypes.Component
-	seen := make(map[string]bool)
+	return stages, nil
+}
 
-	for _, match := range matches {
-		image := string(match[1])
-
-		if strings.EqualFold(image, "scratch") {
+// DockerfileImages tells the images a Dockerfile builds with: the ones its intermediate stages start from (build
+// images) and the one its final stage starts from (the base of the built image), with stage references resolved to
+// the image the referenced stage started from and "scratch" (an empty base) left out. The final base is not among the
+// build images.
+func DockerfileImages(stages []*Stage) ([]string, string) {
+	aliases := make(map[string]string)
+	resolved := make([]string, 0, len(stages))
+	for _, stage := range stages {
+		if stage == nil {
 			continue
 		}
+		image := stage.Image
+		if base, ok := aliases[strings.ToLower(image)]; ok {
+			image = base
+		}
+		if stage.Alias != "" {
+			aliases[strings.ToLower(stage.Alias)] = image
+		}
+		resolved = append(resolved, image)
+	}
+	if len(resolved) == 0 {
+		return nil, ""
+	}
 
-		if seen[image] {
+	finalBase := resolved[len(resolved)-1]
+	if strings.EqualFold(finalBase, "scratch") {
+		finalBase = ""
+	}
+
+	var buildImages []string
+	seen := make(map[string]bool)
+	for _, image := range resolved[:len(resolved)-1] {
+		if strings.EqualFold(image, "scratch") || image == finalBase || seen[image] {
 			continue
 		}
 		seen[image] = true
+		buildImages = append(buildImages, image)
+	}
 
-		name := image
-		var version string
+	return buildImages, finalBase
+}
 
-		if atIdx := strings.LastIndex(image, "@"); atIdx != -1 {
-			name = image[:atIdx]
-			version = image[atIdx+1:]
-		} else if colonIdx := strings.LastIndex(image, ":"); colonIdx != -1 {
-			name = image[:colonIdx]
-			version = image[colonIdx+1:]
-		}
+// ParseDockerfile lists the distinct images a Dockerfile's stages start from as container components, "scratch" and
+// references to earlier stages left out.
+func ParseDockerfile(data []byte) ([]*altshiftSbomTypes.Component, error) {
+	stages, err := ParseDockerfileStages(data)
+	if err != nil {
+		return nil, err
+	}
 
-		purl := dockerPurl(name, version)
+	buildImages, finalBase := DockerfileImages(stages)
+	images := buildImages
+	if finalBase != "" {
+		images = append(images, finalBase)
+	}
 
-		components = append(components, altshiftSbomTypes.Component{
-			Type:    altshiftSbomTypes.ComponentTypeContainer,
-			Name:    name,
-			Version: version,
-			Purl:    purl,
-			BomRef:  purl,
-		})
+	var components []*altshiftSbomTypes.Component
+	for _, image := range images {
+		components = append(components, ContainerComponent(image, nil, ""))
 	}
 
 	return components, nil
 }
 
-func deduplicateComponents(components []altshiftSbomTypes.Component) []altshiftSbomTypes.Component {
-	if len(components) == 0 {
-		return components
+// splitImageReference splits an image reference into its name and its tag or digest.
+func splitImageReference(image string) (string, string) {
+	if atIdx := strings.LastIndex(image, "@"); atIdx != -1 {
+		return image[:atIdx], image[atIdx+1:]
 	}
-
-	seen := make(map[string]bool)
-	result := make([]altshiftSbomTypes.Component, 0, len(components))
-
-	for _, c := range components {
-		key := fmt.Sprintf("%s|%s|%s", c.Type, c.Name, c.Version)
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		result = append(result, c)
+	if colonIdx := strings.LastIndex(image, ":"); colonIdx != -1 && !strings.Contains(image[colonIdx+1:], "/") {
+		return image[:colonIdx], image[colonIdx+1:]
 	}
-
-	return result
+	return image, ""
 }
 
-func GenerateBom(components []altshiftSbomTypes.Component) *altshiftSbomTypes.Bom {
+// GenerateBom assembles a CycloneDX BOM. The subject, when given, is what the components describe (e.g. the built
+// container image) and becomes the BOM's metadata component. Components sharing a bom-ref are merged when they agree
+// and rejected when they do not; the result is ordered by bom-ref.
+func GenerateBom(subject *altshiftSbomTypes.Component, components []*altshiftSbomTypes.Component) (*altshiftSbomTypes.Bom, error) {
+	merged, err := mergeComponents(components)
+	if err != nil {
+		return nil, fmt.Errorf("merge components: %w", err)
+	}
+
 	return &altshiftSbomTypes.Bom{
 		BomFormat:   altshiftSbomTypes.BomFormatCycloneDX,
 		SpecVersion: specVersion,
 		Version:     bomVersion,
 		Metadata: &altshiftSbomTypes.Metadata{
-			Tools: []altshiftSbomTypes.Tool{
+			Tools: []*altshiftSbomTypes.Tool{
 				{Name: toolName, Version: toolVersion},
 			},
+			Component: subject,
 		},
-		Components: deduplicateComponents(components),
-	}
+		Components: merged,
+	}, nil
 }
 
-func GenerateBomJson(components []altshiftSbomTypes.Component) ([]byte, error) {
-	bom := GenerateBom(components)
+func GenerateBomJson(subject *altshiftSbomTypes.Component, components []*altshiftSbomTypes.Component) ([]byte, error) {
+	bom, err := GenerateBom(subject, components)
+	if err != nil {
+		return nil, err
+	}
 
 	data, err := json.Marshal(bom, jsontext.WithIndent("  "))
 	if err != nil {
