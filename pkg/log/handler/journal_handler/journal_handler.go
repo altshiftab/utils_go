@@ -29,6 +29,8 @@ type Handler struct {
 	next            slog.Handler
 	writeLock       *sync.Mutex
 	currentPriority *journal.Priority
+	// fields are journal fields added to every entry, such as SYSLOG_IDENTIFIER.
+	fields map[string]string
 	// send is journal.Send unless a test replaces it.
 	send func(message string, priority journal.Priority, variables map[string]string) error
 }
@@ -59,6 +61,7 @@ func (handler *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 		next:            handler.next.WithAttrs(attrs),
 		writeLock:       handler.writeLock,
 		currentPriority: handler.currentPriority,
+		fields:          handler.fields,
 		send:            handler.send,
 	}
 }
@@ -68,6 +71,7 @@ func (handler *Handler) WithGroup(name string) slog.Handler {
 		next:            handler.next.WithGroup(name),
 		writeLock:       handler.writeLock,
 		currentPriority: handler.currentPriority,
+		fields:          handler.fields,
 		send:            handler.send,
 	}
 }
@@ -77,7 +81,7 @@ func (handler *Handler) WithGroup(name string) slog.Handler {
 func (handler *Handler) Write(data []byte) (int, error) {
 	message := string(data)
 
-	if err := handler.send(message, *handler.currentPriority, nil); err != nil {
+	if err := handler.send(message, *handler.currentPriority, handler.fields); err != nil {
 		return 0, altshiftErrors.New(fmt.Errorf("journal send: %w", err), message)
 	}
 
@@ -87,7 +91,20 @@ func (handler *Handler) Write(data []byte) (int, error) {
 // NewJsonHandler returns a handler recording each record as a JSON object in the
 // journal. handlerOptions may be nil.
 func NewJsonHandler(handlerOptions *slog.HandlerOptions) *Handler {
-	handler := &Handler{writeLock: &sync.Mutex{}, currentPriority: new(journal.Priority), send: journal.Send}
+	return NewJsonHandlerWithFields(handlerOptions, nil)
+}
+
+// NewJsonHandlerWithFields is NewJsonHandler with journal fields added to every
+// entry. SYSLOG_IDENTIFIER is worth setting: without it journald falls back to
+// the process name, which the kernel truncates to 15 characters, so a longer
+// name cannot be selected with "journalctl -t". fields may be nil.
+func NewJsonHandlerWithFields(handlerOptions *slog.HandlerOptions, fields map[string]string) *Handler {
+	handler := &Handler{
+		writeLock:       &sync.Mutex{},
+		currentPriority: new(journal.Priority),
+		fields:          fields,
+		send:            journal.Send,
+	}
 	handler.next = slog.NewJSONHandler(handler, handlerOptions)
 
 	return handler

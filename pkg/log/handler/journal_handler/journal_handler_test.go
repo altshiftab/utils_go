@@ -238,3 +238,60 @@ func TestConcurrentRecordsKeepTheirOwnPriority(t *testing.T) {
 		}
 	}
 }
+
+func TestFieldsAreSentWithEveryEntry(t *testing.T) {
+	t.Parallel()
+
+	var mutex sync.Mutex
+	var seen []map[string]string
+
+	handler := NewJsonHandlerWithFields(nil, map[string]string{"SYSLOG_IDENTIFIER": "test_identifier"})
+	handler.send = func(_ string, _ journal.Priority, fields map[string]string) error {
+		mutex.Lock()
+		defer mutex.Unlock()
+		seen = append(seen, fields)
+		return nil
+	}
+
+	logger := slog.New(handler).With(slog.String("carried", "yes")).WithGroup("grouped")
+	logger.Info("first")
+	logger.Info("second")
+
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if len(seen) != 2 {
+		t.Fatalf("expected two entries, got %d", len(seen))
+	}
+
+	// WithAttrs and WithGroup return new handlers; the fields must survive both.
+	for index, fields := range seen {
+		if fields["SYSLOG_IDENTIFIER"] != "test_identifier" {
+			t.Errorf("entry %d: expected the identifier to be carried, got %v", index, fields)
+		}
+	}
+}
+
+func TestNewJsonHandlerSendsNoFields(t *testing.T) {
+	t.Parallel()
+
+	var seen map[string]string
+	sent := false
+
+	handler := NewJsonHandler(nil)
+	handler.send = func(_ string, _ journal.Priority, fields map[string]string) error {
+		seen = fields
+		sent = true
+		return nil
+	}
+
+	slog.New(handler).Info("a message")
+
+	if !sent {
+		t.Fatal("expected an entry to be sent")
+	}
+
+	if seen != nil {
+		t.Errorf("expected no fields, got %v", seen)
+	}
+}
