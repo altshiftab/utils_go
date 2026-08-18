@@ -70,12 +70,21 @@ func ImageComponents(analysis *image.Analysis, scope altshiftSbomTypes.Scope) []
 		}
 		return &altshiftSbomTypes.Property{Name: altshiftSbomTypes.PropertyPath, Value: "/" + strings.TrimPrefix(filePath, "/")}
 	}
-	withProperties := func(component *altshiftSbomTypes.Component, filePath string) *altshiftSbomTypes.Component {
+	layerProperty := func(layer string) *altshiftSbomTypes.Property {
+		if layer == "" {
+			return nil
+		}
+		return &altshiftSbomTypes.Property{Name: altshiftSbomTypes.PropertyLayer, Value: layer}
+	}
+	withProperties := func(component *altshiftSbomTypes.Component, filePath, layer string) *altshiftSbomTypes.Component {
 		var properties []*altshiftSbomTypes.Property
 		if property := imageProperty(); property != nil {
 			properties = append(properties, property)
 		}
 		if property := pathProperty(filePath); property != nil {
+			properties = append(properties, property)
+		}
+		if property := layerProperty(layer); property != nil {
 			properties = append(properties, property)
 		}
 		component.Properties = append(properties, component.Properties...)
@@ -101,25 +110,26 @@ func ImageComponents(analysis *image.Analysis, scope altshiftSbomTypes.Scope) []
 			Version: osRelease.VersionId,
 			Scope:   scope,
 			BomRef:  bomRef,
-		}, analysis.OsReleasePath))
+		}, analysis.OsReleasePath, analysis.OsReleaseLayer))
 	}
 
 	for _, pkg := range analysis.ApkPackages {
 		if pkg == nil || pkg.Name == "" {
 			continue
 		}
-		components = append(components, withProperties(apkComponent(pkg, osId, distro, scope), analysis.ApkDatabasePath))
+		components = append(components, withProperties(apkComponent(pkg, osId, distro, scope), analysis.ApkDatabasePath, analysis.ApkDatabaseLayer))
 	}
 
-	dpkgPath := strings.Join(analysis.DpkgStatusPaths, ",")
-	if len(analysis.DpkgStatusPaths) == 1 {
-		dpkgPath = analysis.DpkgStatusPaths[0]
-	}
-	for _, pkg := range analysis.DpkgPackages {
-		if pkg == nil || pkg.Name == "" {
+	for _, status := range analysis.DpkgStatuses {
+		if status == nil {
 			continue
 		}
-		components = append(components, withProperties(dpkgComponent(pkg, osId, distro, scope), dpkgPath))
+		for _, pkg := range status.Packages {
+			if pkg == nil || pkg.Name == "" {
+				continue
+			}
+			components = append(components, withProperties(dpkgComponent(pkg, osId, distro, scope), status.Path, status.Layer))
+		}
 	}
 
 	for _, binary := range analysis.GoBinaries {
@@ -127,7 +137,7 @@ func ImageComponents(analysis *image.Analysis, scope altshiftSbomTypes.Scope) []
 			continue
 		}
 		for _, component := range BuildInfoComponents(binary.Info, "", scope) {
-			components = append(components, withProperties(component, binary.Path))
+			components = append(components, withProperties(component, binary.Path, binary.Layer))
 		}
 	}
 
@@ -147,7 +157,7 @@ func ImageComponents(analysis *image.Analysis, scope altshiftSbomTypes.Scope) []
 		if pkg.License != "" {
 			component.Licenses = []*altshiftSbomTypes.LicenseChoice{{License: &altshiftSbomTypes.License{Id: pkg.License}}}
 		}
-		components = append(components, withProperties(component, pkg.Path))
+		components = append(components, withProperties(component, pkg.Path, pkg.Layer))
 	}
 
 	merged, err := mergeComponents(components)

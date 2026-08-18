@@ -228,6 +228,13 @@ func TestBuildInfoComponents(t *testing.T) {
 			},
 		},
 		{
+			name: "experiments recorded with a dash",
+			info: &debug.BuildInfo{GoVersion: "go1.26.6-X:jsonv2", Path: "cmd/go"},
+			expected: []string{
+				"library stdlib 1.26.6 pkg:golang/stdlib@1.26.6",
+			},
+		},
+		{
 			name: "development toolchain has no stdlib version",
 			info: &debug.BuildInfo{GoVersion: "devel go1.27-abcdef Mon Jan 1", Path: "cmd/go", Main: debug.Module{Path: "example.com/app", Version: "v1.0.0"}},
 			expected: []string{
@@ -271,20 +278,26 @@ func TestImageComponents(t *testing.T) {
 	t.Parallel()
 
 	analysis := &image.Analysis{
-		Reference:       "golang:1.26-alpine",
-		Id:              "sha256:0fe4",
-		RepoTags:        []string{"docker.io/library/golang:1.26-alpine"},
-		OsRelease:       &ospkg.OsRelease{Id: "alpine", VersionId: "3.24.1"},
-		OsReleasePath:   "usr/lib/os-release",
-		ApkPackages:     []*ospkg.ApkPackage{{Name: "musl", Version: "1.2.6-r2", Arch: "x86_64", Origin: "musl", License: "MIT"}, {Name: "ssl_client", Version: "1.37.0-r31", Arch: "x86_64", Origin: "busybox"}},
-		ApkDatabasePath: "lib/apk/db/installed",
-		DpkgPackages:    []*ospkg.DpkgPackage{{Name: "bsdutils", Version: "1:2.41-5", Architecture: "amd64", SourceName: "util-linux", SourceVersion: "2.41-5"}, {Name: "bash", Version: "5.2.37-2", Architecture: "amd64", SourceName: "bash"}},
-		DpkgStatusPaths: []string{"var/lib/dpkg/status"},
+		Reference:        "golang:1.26-alpine",
+		Id:               "sha256:0fe4",
+		RepoTags:         []string{"docker.io/library/golang:1.26-alpine"},
+		Layers:           []string{"sha256:base", "sha256:top"},
+		OsRelease:        &ospkg.OsRelease{Id: "alpine", VersionId: "3.24.1"},
+		OsReleasePath:    "usr/lib/os-release",
+		OsReleaseLayer:   "sha256:base",
+		ApkPackages:      []*ospkg.ApkPackage{{Name: "musl", Version: "1.2.6-r2", Arch: "x86_64", Origin: "musl", License: "MIT"}, {Name: "ssl_client", Version: "1.37.0-r31", Arch: "x86_64", Origin: "busybox"}},
+		ApkDatabasePath:  "lib/apk/db/installed",
+		ApkDatabaseLayer: "sha256:top",
+		DpkgStatuses: []*image.DpkgStatus{{
+			Path:     "var/lib/dpkg/status",
+			Layer:    "sha256:base",
+			Packages: []*ospkg.DpkgPackage{{Name: "bsdutils", Version: "1:2.41-5", Architecture: "amd64", SourceName: "util-linux", SourceVersion: "2.41-5"}, {Name: "bash", Version: "5.2.37-2", Architecture: "amd64", SourceName: "bash"}},
+		}},
 		GoBinaries: []*image.GoBinary{
-			{Path: "usr/local/go/bin/go", Info: &debug.BuildInfo{GoVersion: "go1.26.6", Path: "cmd/go"}},
-			{Path: "usr/local/go/bin/gofmt", Info: &debug.BuildInfo{GoVersion: "go1.26.6", Path: "cmd/gofmt"}},
+			{Path: "usr/local/go/bin/go", Layer: "sha256:top", Info: &debug.BuildInfo{GoVersion: "go1.26.6", Path: "cmd/go"}},
+			{Path: "usr/local/go/bin/gofmt", Layer: "sha256:top", Info: &debug.BuildInfo{GoVersion: "go1.26.6", Path: "cmd/gofmt"}},
 		},
-		NodePackages: []*image.NodePackage{{Path: "app/node_modules/lit/package.json", Name: "lit", Version: "3.3.0", License: "BSD-3-Clause"}},
+		NodePackages: []*image.NodePackage{{Path: "app/node_modules/lit/package.json", Layer: "sha256:top", Name: "lit", Version: "3.3.0", License: "BSD-3-Clause"}},
 	}
 
 	components := ImageComponents(analysis, altshiftSbomTypes.ScopeExcluded)
@@ -325,8 +338,13 @@ func TestImageComponents(t *testing.T) {
 
 	// Every expected component was found above, so these lookups cannot be nil.
 	stdlib := byRef["pkg:golang/stdlib@1.26.6"]
-	if stdlib != nil && (len(stdlib.Properties) != 3 || stdlib.Properties[2].Value != "/usr/local/go/bin/gofmt") {
-		t.Errorf("expected the two toolchain binaries merged into one stdlib component with both paths, got %+v", stdlib.Properties)
+	// Two toolchain binaries in the same layer merge into one stdlib component with both paths and one layer.
+	if stdlib != nil && (len(stdlib.Properties) != 4 || stdlib.Properties[3].Name != altshiftSbomTypes.PropertyPath || stdlib.Properties[3].Value != "/usr/local/go/bin/gofmt") {
+		var props []string
+		for _, property := range stdlib.Properties {
+			props = append(props, property.Name+"="+property.Value)
+		}
+		t.Errorf("expected the two toolchain binaries merged into one stdlib component with both paths, got %v", props)
 	}
 	if osComponent := byRef["os:alpine@3.24.1"]; osComponent != nil && (osComponent.Type != altshiftSbomTypes.ComponentTypeOperatingSystem || osComponent.Purl != "" || osComponent.Name != "alpine" || osComponent.Version != "3.24.1") {
 		t.Errorf("unexpected os component: %+v", osComponent)

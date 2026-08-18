@@ -57,14 +57,32 @@ type Image struct {
 	RepoTags []string
 	// Layers are the layer archive names in the manifest's order (lowest first).
 	Layers []string
+	// LayerDigests are the layers' diff IDs ("sha256:..."), in the same order, from the image config; when the
+	// config does not carry them, they are derived from the archive names.
+	LayerDigests []string
 	// Files maps each captured path to the file as the top-most layer left it.
 	Files map[string]*File
+}
+
+// LayerDigest is the diff ID of the layer at the given index, or "" when there is none.
+func (image *Image) LayerDigest(index int) string {
+	if image == nil || index < 0 || index >= len(image.LayerDigests) {
+		return ""
+	}
+	return image.LayerDigests[index]
 }
 
 type manifestEntry struct {
 	Config   string   `json:"Config"`
 	RepoTags []string `json:"RepoTags"`
 	Layers   []string `json:"Layers"`
+}
+
+// imageConfig is the part of the image config that names the layers.
+type imageConfig struct {
+	RootFs struct {
+		DiffIds []string `json:"diff_ids"`
+	} `json:"rootfs"`
 }
 
 // layerRecord is what one layer contributes: the captured files and the deletions it applies to the layers below.
@@ -150,10 +168,11 @@ func Read(reader io.Reader, reference string, capture Capture) (*Image, error) {
 	}
 
 	image := &Image{
-		Id:       "sha256:" + strings.TrimSuffix(path.Base(entry.Config), ".json"),
-		RepoTags: entry.RepoTags,
-		Layers:   entry.Layers,
-		Files:    make(map[string]*File),
+		Id:           "sha256:" + strings.TrimSuffix(path.Base(entry.Config), ".json"),
+		RepoTags:     entry.RepoTags,
+		Layers:       entry.Layers,
+		LayerDigests: layerDigests(jsons[normalizePath(entry.Config)], entry.Layers, links),
+		Files:        make(map[string]*File),
 	}
 
 	for i, layerName := range entry.Layers {
@@ -170,6 +189,29 @@ func Read(reader io.Reader, reference string, capture Capture) (*Image, error) {
 	}
 
 	return image, nil
+}
+
+// layerDigests names the layers by their diff IDs: the config's rootfs.diff_ids when it lists exactly the manifest's
+// layers, else the digests the archive names carry ("<hex>.tar", possibly behind a "<id>/layer.tar" symlink).
+func layerDigests(configData []byte, layers []string, links map[string]string) []string {
+	if len(configData) != 0 {
+		var config imageConfig
+		if err := json.Unmarshal(configData, &config); err == nil && len(config.RootFs.DiffIds) == len(layers) {
+			return config.RootFs.DiffIds
+		}
+	}
+
+	digests := make([]string, len(layers))
+	for i, layerName := range layers {
+		name := normalizePath(layerName)
+		if target, ok := links[name]; ok {
+			name = target
+		}
+		if hex := strings.TrimSuffix(path.Base(name), ".tar"); hex != "" && hex != path.Base(name) {
+			digests[i] = "sha256:" + hex
+		}
+	}
+	return digests
 }
 
 // readLayer walks one layer archive, capturing files and recording deletions.

@@ -35,6 +35,10 @@ const (
 	// PropertyPath is the absolute path inside the image (or the local path given) a component was read from; a
 	// component found in several places carries one property per path.
 	PropertyPath = "altshift:sbom:path"
+	// PropertyLayer is the diff ID ("sha256:...") of the image layer that last wrote the file a component was read
+	// from — the layer that introduced (or last changed) it; a component found in several places carries one
+	// property per layer.
+	PropertyLayer = "altshift:sbom:layer"
 )
 
 type Property struct {

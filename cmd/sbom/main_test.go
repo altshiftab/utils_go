@@ -152,7 +152,8 @@ func TestRunGoBinary(t *testing.T) {
 		t.Errorf("expected no subject without --image, got %+v", bom.Metadata)
 	}
 	byRef := componentRefs(bom.Components)
-	stdlib, ok := byRef["pkg:golang/stdlib@"+strings.TrimPrefix(strings.Fields(info.GoVersion)[0], "go")]
+	goVersion, _, _ := strings.Cut(strings.Fields(info.GoVersion)[0], "-")
+	stdlib, ok := byRef["pkg:golang/stdlib@"+strings.TrimPrefix(goVersion, "go")]
 	if !ok || stdlib == nil {
 		t.Fatalf("expected the stdlib component, got %v", refsOf(bom.Components))
 	}
@@ -249,7 +250,7 @@ func TestRunImageAndDockerfile(t *testing.T) {
 			runtimeStdlib = component
 		}
 	}
-	if runtimeStdlib == nil || runtimeStdlib.Scope != altshiftSbomTypes.ScopeRequired || len(runtimeStdlib.Properties) != 2 || runtimeStdlib.Properties[1].Value != "/app" {
+	if runtimeStdlib == nil || runtimeStdlib.Scope != altshiftSbomTypes.ScopeRequired || len(runtimeStdlib.Properties) != 3 || runtimeStdlib.Properties[1].Value != "/app" || runtimeStdlib.Properties[2].Name != altshiftSbomTypes.PropertyLayer || !strings.HasPrefix(runtimeStdlib.Properties[2].Value, "sha256:") {
 		t.Errorf("unexpected runtime stdlib component: %+v", runtimeStdlib)
 	}
 	// The builder image is an excluded container holding its packages, nested with prefixed bom-refs.

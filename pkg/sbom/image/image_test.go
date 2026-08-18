@@ -66,13 +66,14 @@ func writeArchive(t *testing.T, layers ...[]entry) []byte {
 			t.Fatalf("write %s: %v", name, err)
 		}
 	}
-	var layerNames []string
+	var layerNames, diffIds []string
 	for i, layer := range layers {
 		name := "layer" + string(rune('0'+i)) + ".tar"
 		write(name, writeTar(t, layer))
 		layerNames = append(layerNames, `"`+name+`"`)
+		diffIds = append(diffIds, `"sha256:layer`+string(rune('0'+i))+`"`)
 	}
-	write("cfg0123.json", []byte(`{"architecture":"amd64"}`))
+	write("cfg0123.json", []byte(`{"architecture":"amd64","rootfs":{"type":"layers","diff_ids":[`+strings.Join(diffIds, ",")+`]}}`))
 	write("manifest.json", []byte(`[{"Config":"cfg0123.json","RepoTags":["localhost/app:latest"],"Layers":[`+strings.Join(layerNames, ",")+`]}]`))
 	if err := writer.Close(); err != nil {
 		t.Fatalf("close archive: %v", err)
@@ -131,8 +132,11 @@ func TestAnalyzeArchive(t *testing.T) {
 				if len(analysis.ApkPackages) != 2 || analysis.ApkPackages[1].Origin != "busybox" || analysis.ApkDatabasePath != "lib/apk/db/installed" {
 					t.Errorf("unexpected apk packages: %+v at %q", analysis.ApkPackages, analysis.ApkDatabasePath)
 				}
-				if len(analysis.GoBinaries) != 1 || analysis.GoBinaries[0].Path != "usr/local/bin/app" {
-					t.Fatalf("expected the Go binary, got %+v", analysis.GoBinaries)
+				if len(analysis.GoBinaries) != 1 || analysis.GoBinaries[0].Path != "usr/local/bin/app" || analysis.GoBinaries[0].Layer != "sha256:layer0" {
+					t.Fatalf("expected the Go binary from layer 0, got %+v", analysis.GoBinaries)
+				}
+				if analysis.OsReleaseLayer != "sha256:layer0" || analysis.ApkDatabaseLayer != "sha256:layer0" || !slices.Equal(analysis.Layers, []string{"sha256:layer0"}) {
+					t.Errorf("unexpected layers: os-release %q apk %q layers %v", analysis.OsReleaseLayer, analysis.ApkDatabaseLayer, analysis.Layers)
 				}
 				if got := analysis.GoBinaries[0].Info; got.GoVersion != binaryInfo.GoVersion || got.Path != binaryInfo.Path || len(got.Deps) != len(binaryInfo.Deps) {
 					t.Errorf("build info differs: got %s %s %d deps, want %s %s %d deps", got.GoVersion, got.Path, len(got.Deps), binaryInfo.GoVersion, binaryInfo.Path, len(binaryInfo.Deps))
@@ -181,8 +185,8 @@ func TestAnalyzeArchive(t *testing.T) {
 				for _, p := range analysis.ApkPackages {
 					names = append(names, p.Name)
 				}
-				if !slices.Equal(names, []string{"new", "clamav"}) {
-					t.Errorf("unexpected apk packages: %v", names)
+				if !slices.Equal(names, []string{"new", "clamav"}) || analysis.ApkDatabaseLayer != "sha256:layer1" || analysis.OsReleaseLayer != "sha256:layer0" {
+					t.Errorf("unexpected apk packages or layers: %v (apk layer %q, os-release layer %q)", names, analysis.ApkDatabaseLayer, analysis.OsReleaseLayer)
 				}
 				if len(analysis.GoBinaries) != 0 {
 					t.Errorf("expected the whited-out binary to be gone, got %+v", analysis.GoBinaries)
@@ -208,15 +212,24 @@ func TestAnalyzeArchive(t *testing.T) {
 			},
 			check: func(t *testing.T, analysis *Analysis) {
 				t.Helper()
-				if len(analysis.DpkgPackages) != 2 || analysis.DpkgPackages[0].Name != "bsdutils" || analysis.DpkgPackages[0].SourceName != "util-linux" || analysis.DpkgPackages[1].Name != "base-files" {
-					t.Errorf("unexpected dpkg packages: %+v", analysis.DpkgPackages)
+				packages := analysis.DpkgPackages()
+				if len(packages) != 2 || packages[0].Name != "bsdutils" || packages[0].SourceName != "util-linux" || packages[1].Name != "base-files" {
+					t.Errorf("unexpected dpkg packages: %+v", packages)
 				}
-				if !slices.Equal(analysis.DpkgStatusPaths, []string{"var/lib/dpkg/status", "var/lib/dpkg/status.d/base-files"}) {
-					t.Errorf("unexpected dpkg paths: %v", analysis.DpkgStatusPaths)
+				var paths, layers []string
+				for _, status := range analysis.DpkgStatuses {
+					paths = append(paths, status.Path)
+					layers = append(layers, status.Layer)
+				}
+				if !slices.Equal(paths, []string{"var/lib/dpkg/status", "var/lib/dpkg/status.d/base-files"}) || !slices.Equal(layers, []string{"sha256:layer0", "sha256:layer0"}) {
+					t.Errorf("unexpected dpkg status files: %v %v", paths, layers)
 				}
 				var names []string
 				for _, p := range analysis.NodePackages {
 					names = append(names, p.Name+"@"+p.Version+"/"+p.License)
+					if p.Layer != "sha256:layer0" {
+						t.Errorf("expected node package %s from layer 0, got %q", p.Name, p.Layer)
+					}
 				}
 				if !slices.Equal(names, []string{"@lit/reactive-element@2.1.0/MIT", "nested@0.1.0/", "lit@3.3.0/BSD-3-Clause"}) {
 					t.Errorf("unexpected node packages: %v", names)
@@ -243,7 +256,7 @@ func TestAnalyzeArchive(t *testing.T) {
 			layers: [][]entry{{regular("etc/ssl/certs/ca-certificates.crt", "PEM")}},
 			check: func(t *testing.T, analysis *Analysis) {
 				t.Helper()
-				if analysis.OsRelease != nil || len(analysis.ApkPackages) != 0 || len(analysis.DpkgPackages) != 0 || len(analysis.GoBinaries) != 0 || len(analysis.NodePackages) != 0 || len(analysis.Warnings) != 0 {
+				if analysis.OsRelease != nil || len(analysis.ApkPackages) != 0 || len(analysis.DpkgStatuses) != 0 || len(analysis.GoBinaries) != 0 || len(analysis.NodePackages) != 0 || len(analysis.Warnings) != 0 {
 					t.Errorf("expected an empty analysis, got %+v", analysis)
 				}
 			},

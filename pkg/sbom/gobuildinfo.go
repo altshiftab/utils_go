@@ -98,13 +98,16 @@ func goModuleVersion(version string) string {
 	return version
 }
 
-// goStdlibVersion turns build info's Go version ("go1.26.6", "go1.26.6 X:nodwarf5", "devel go1.27-abc") into the
-// standard library's version ("1.26.6"); a development toolchain has none.
+// goStdlibVersion turns build info's Go version ("go1.26.6", "go1.26.6 X:nodwarf5", "go1.26.6-X:jsonv2" as
+// toolchains with experiments record it, "devel go1.27-abc") into the standard library's version ("1.26.6"); a
+// development toolchain has none.
 func goStdlibVersion(goVersion string) string {
 	goVersion, _, _ = strings.Cut(strings.TrimSpace(goVersion), " ")
 	if goVersion == "" || strings.HasPrefix(goVersion, "devel") {
 		return ""
 	}
+	// Enabled experiments follow the version after "-X:" (or " X:", already cut).
+	goVersion, _, _ = strings.Cut(goVersion, "-")
 	return strings.TrimPrefix(goVersion, "go")
 }
 

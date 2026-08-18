@@ -63,12 +63,16 @@ var (
 type GoBinary struct {
 	// Path is the path inside the image, without a leading slash.
 	Path string
-	Info *buildinfo.BuildInfo
+	// Layer is the diff ID of the layer that last wrote the executable.
+	Layer string
+	Info  *buildinfo.BuildInfo
 }
 
 // NodePackage is a package.json found under a node_modules directory.
 type NodePackage struct {
-	Path    string
+	Path string
+	// Layer is the diff ID of the layer that last wrote the manifest.
+	Layer   string
 	Name    string
 	Version string
 	License string
