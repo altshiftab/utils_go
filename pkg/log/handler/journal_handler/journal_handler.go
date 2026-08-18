@@ -5,6 +5,7 @@ package journal_handler
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"sync"
 
@@ -88,24 +89,27 @@ func (handler *Handler) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-// NewJsonHandler returns a handler recording each record as a JSON object in the
-// journal. handlerOptions may be nil.
-func NewJsonHandler(handlerOptions *slog.HandlerOptions) *Handler {
-	return NewJsonHandlerWithFields(handlerOptions, nil)
-}
+// New returns a handler recording each slog record as one journal entry, encoded
+// by the handler newEncoder builds. The encoder is built around the returned
+// handler, because the handler is the io.Writer the encoder writes through: that
+// detour is what lets a record's level become the entry's priority.
+//
+// fields are journal fields added to every entry. SYSLOG_IDENTIFIER is worth
+// setting: without it journald falls back to the process name, which the kernel
+// truncates to 15 characters, so a service with a longer name cannot be selected
+// with "journalctl -t" at all. fields may be nil.
+func New(newEncoder func(writer io.Writer) slog.Handler, fields map[string]string) *Handler {
+	if newEncoder == nil {
+		newEncoder = func(writer io.Writer) slog.Handler { return slog.NewJSONHandler(writer, nil) }
+	}
 
-// NewJsonHandlerWithFields is NewJsonHandler with journal fields added to every
-// entry. SYSLOG_IDENTIFIER is worth setting: without it journald falls back to
-// the process name, which the kernel truncates to 15 characters, so a longer
-// name cannot be selected with "journalctl -t". fields may be nil.
-func NewJsonHandlerWithFields(handlerOptions *slog.HandlerOptions, fields map[string]string) *Handler {
 	handler := &Handler{
 		writeLock:       &sync.Mutex{},
 		currentPriority: new(journal.Priority),
 		fields:          fields,
 		send:            journal.Send,
 	}
-	handler.next = slog.NewJSONHandler(handler, handlerOptions)
+	handler.next = newEncoder(handler)
 
 	return handler
 }

@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json/v2"
 	"errors"
+	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -13,6 +15,12 @@ import (
 )
 
 var errSendFailed = errors.New("journal unavailable")
+
+func jsonEncoder(handlerOptions *slog.HandlerOptions) func(io.Writer) slog.Handler {
+	return func(writer io.Writer) slog.Handler {
+		return slog.NewJSONHandler(writer, handlerOptions)
+	}
+}
 
 type sentEntry struct {
 	message  string
@@ -25,7 +33,7 @@ func newRecordingHandler(handlerOptions *slog.HandlerOptions) (*Handler, func() 
 	var mutex sync.Mutex
 	var entries []sentEntry
 
-	handler := NewJsonHandler(handlerOptions)
+	handler := New(jsonEncoder(handlerOptions), nil)
 	handler.send = func(message string, priority journal.Priority, _ map[string]string) error {
 		mutex.Lock()
 		defer mutex.Unlock()
@@ -186,7 +194,7 @@ func TestEnabledFollowsTheLevel(t *testing.T) {
 func TestSendFailureIsReported(t *testing.T) {
 	t.Parallel()
 
-	handler := NewJsonHandler(nil)
+	handler := New(jsonEncoder(nil), nil)
 	handler.send = func(string, journal.Priority, map[string]string) error {
 		return errSendFailed
 	}
@@ -245,7 +253,7 @@ func TestFieldsAreSentWithEveryEntry(t *testing.T) {
 	var mutex sync.Mutex
 	var seen []map[string]string
 
-	handler := NewJsonHandlerWithFields(nil, map[string]string{"SYSLOG_IDENTIFIER": "test_identifier"})
+	handler := New(jsonEncoder(nil), map[string]string{"SYSLOG_IDENTIFIER": "test_identifier"})
 	handler.send = func(_ string, _ journal.Priority, fields map[string]string) error {
 		mutex.Lock()
 		defer mutex.Unlock()
@@ -272,13 +280,13 @@ func TestFieldsAreSentWithEveryEntry(t *testing.T) {
 	}
 }
 
-func TestNewJsonHandlerSendsNoFields(t *testing.T) {
+func TestNilFieldsSendsNoFields(t *testing.T) {
 	t.Parallel()
 
 	var seen map[string]string
 	sent := false
 
-	handler := NewJsonHandler(nil)
+	handler := New(jsonEncoder(nil), nil)
 	handler.send = func(_ string, _ journal.Priority, fields map[string]string) error {
 		seen = fields
 		sent = true
@@ -293,5 +301,50 @@ func TestNewJsonHandlerSendsNoFields(t *testing.T) {
 
 	if seen != nil {
 		t.Errorf("expected no fields, got %v", seen)
+	}
+}
+
+func TestNilEncoderFallsBackToJson(t *testing.T) {
+	t.Parallel()
+
+	handler := New(nil, nil)
+
+	var message string
+	handler.send = func(sent string, _ journal.Priority, _ map[string]string) error {
+		message = sent
+		return nil
+	}
+
+	slog.New(handler).Info("a message", slog.String("key", "value"))
+
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(message), &decoded); err != nil {
+		t.Fatalf("expected JSON, got %q (%v)", message, err)
+	}
+
+	if decoded["msg"] != "a message" {
+		t.Errorf("expected the message, got %v", decoded["msg"])
+	}
+}
+
+func TestEncoderChoiceIsTheCallers(t *testing.T) {
+	t.Parallel()
+
+	// A text encoder must be just as usable as a JSON one.
+	handler := New(
+		func(writer io.Writer) slog.Handler { return slog.NewTextHandler(writer, nil) },
+		nil,
+	)
+
+	var message string
+	handler.send = func(sent string, _ journal.Priority, _ map[string]string) error {
+		message = sent
+		return nil
+	}
+
+	slog.New(handler).Info("a message", slog.String("key", "value"))
+
+	if !strings.Contains(message, `msg="a message"`) || !strings.Contains(message, "key=value") {
+		t.Errorf("expected text output, got %q", message)
 	}
 }
