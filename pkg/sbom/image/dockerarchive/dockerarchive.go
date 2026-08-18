@@ -1,6 +1,6 @@
-// Package dockerarchive reads container images in the docker-archive format (what `podman save --format
-// docker-archive` and `docker save` write) as a stream, resolving the layers into the final root filesystem view of
-// the files a caller chose to capture. It knows nothing about what the files mean.
+// Package dockerarchive reads container images in the docker-archive format — what `podman save --format
+// docker-archive` writes, and `docker save` in its classic layout — as a stream, resolving the layers into the final
+// root filesystem view of the files a caller chose to capture. It knows nothing about what the files mean.
 package dockerarchive
 
 import (
@@ -85,9 +85,16 @@ type imageConfig struct {
 	} `json:"rootfs"`
 }
 
-// layerRecord is what one layer contributes: the captured files and the deletions it applies to the layers below.
+// layerEntry is one path a layer writes: the payload the capture kept for it (nil for anything not captured — a
+// file the capture declined, a symlink, a device) and whether it is a directory.
+type layerEntry struct {
+	payload any
+	dir     bool
+}
+
+// layerRecord is what one layer contributes: the paths it writes and the deletions it applies to the layers below.
 type layerRecord struct {
-	files     map[string]any
+	entries   map[string]*layerEntry
 	hardlinks map[string]string
 	// whiteouts are the paths (files or whole directories) the layer deletes.
 	whiteouts []string
@@ -129,24 +136,26 @@ func Read(reader io.Reader, reference string, capture Capture) (*Image, error) {
 
 		switch header.Typeflag {
 		case tar.TypeReg:
+			entryReader.Reset(tarReader)
 			switch {
-			case strings.HasSuffix(name, ".tar"):
-				entryReader.Reset(tarReader)
+			case isLayerArchive(entryReader):
+				// Layers are "<diffid>.tar" in podman's and classic docker's layout, "blobs/sha256/<hex>" in
+				// docker's containerd layout; the content, not the name, tells.
 				record, err := readLayer(entryReader, capture)
 				if err != nil {
 					return nil, altshiftErrors.New(fmt.Errorf("read layer (%s): %w", name, err), name)
 				}
 				records[name] = record
-			case strings.HasSuffix(name, ".json"):
-				if header.Size > maxJsonSize {
-					return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %s (%d bytes)", ErrEntryTooLarge, name, header.Size), name, header.Size)
-				}
-				// The archive is only ever read into memory, never extracted, so entry names cannot traverse anywhere.
-				data, err := io.ReadAll(io.LimitReader(tarReader, maxJsonSize+1)) //nolint:gosec // G305: read into memory, not written to a path
+			case header.Size <= maxJsonSize:
+				// Anything else small is metadata (the manifest, image configs, layer descriptors), kept until
+				// the manifest says which of it matters.
+				data, err := io.ReadAll(io.LimitReader(entryReader, maxJsonSize+1)) //nolint:gosec // G305: read into memory, not written to a path
 				if err != nil {
 					return nil, altshiftErrors.NewWithTrace(fmt.Errorf("read all (%s): %w", name, err), name)
 				}
 				jsons[name] = data
+			default:
+				return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %s (%d bytes)", ErrEntryTooLarge, name, header.Size), name, header.Size)
 			}
 		case tar.TypeSymlink:
 			// Only recorded to look layers up by their alias; nothing is written to disk.
@@ -233,7 +242,7 @@ func readLayer(reader *bufio.Reader, capture Capture) (*layerRecord, error) {
 		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: zstd", ErrUnsupportedLayer))
 	}
 
-	record := &layerRecord{files: make(map[string]any), hardlinks: make(map[string]string)}
+	record := &layerRecord{entries: make(map[string]*layerEntry), hardlinks: make(map[string]string)}
 	entryReader := bufio.NewReaderSize(nil, 64*1024)
 	tarReader := tar.NewReader(layerReader)
 	for {
@@ -261,6 +270,7 @@ func readLayer(reader *bufio.Reader, capture Capture) (*layerRecord, error) {
 			continue
 		}
 
+		// Every path a layer writes replaces what lower layers had there, captured or not.
 		switch header.Typeflag {
 		case tar.TypeReg:
 			entryReader.Reset(tarReader)
@@ -268,19 +278,22 @@ func readLayer(reader *bufio.Reader, capture Capture) (*layerRecord, error) {
 			if err != nil {
 				return nil, altshiftErrors.New(fmt.Errorf("capture (%s): %w", filePath, err), filePath)
 			}
-			if payload != nil {
-				record.files[filePath] = payload
-			}
+			record.entries[filePath] = &layerEntry{payload: payload}
 		case tar.TypeLink:
 			record.hardlinks[filePath] = normalizePath(header.Linkname)
+			record.entries[filePath] = &layerEntry{}
+		case tar.TypeDir:
+			record.entries[filePath] = &layerEntry{dir: true}
+		default:
+			record.entries[filePath] = &layerEntry{}
 		}
 	}
 
 	// A hard link to a captured file is the same file under another name.
 	for link, target := range record.hardlinks {
 		for range len(record.hardlinks) + 1 {
-			if payload, ok := record.files[target]; ok {
-				record.files[link] = payload
+			if entry, ok := record.entries[target]; ok && entry.payload != nil {
+				record.entries[link] = &layerEntry{payload: entry.payload}
 				break
 			}
 			next, ok := record.hardlinks[target]
@@ -292,6 +305,26 @@ func readLayer(reader *bufio.Reader, capture Capture) (*layerRecord, error) {
 	}
 
 	return record, nil
+}
+
+// isLayerArchive tells whether an entry's content is a tar (plain or gzip-compressed): a gzip magic, "ustar" at
+// offset 257 as POSIX and GNU tar write, or an all-zero first block, which is how an empty layer (only the
+// end-of-archive marker) begins. Peeking leaves the content in place.
+func isLayerArchive(reader *bufio.Reader) bool {
+	head, err := reader.Peek(512)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false
+	}
+	if len(head) >= 2 && head[0] == 0x1f && head[1] == 0x8b {
+		return true
+	}
+	if len(head) >= 4 && bytes.Equal(head[:4], []byte{0x28, 0xb5, 0x2f, 0xfd}) {
+		return true
+	}
+	if len(head) >= 262 && string(head[257:262]) == "ustar" {
+		return true
+	}
+	return len(head) == 512 && !bytes.ContainsFunc(head, func(r rune) bool { return r != 0 })
 }
 
 // applyLayer folds a layer into the resolved view: its deletions hide what lower layers put there, then its files
@@ -308,8 +341,19 @@ func applyLayer(files map[string]*File, record *layerRecord, layer int) {
 		}
 		deletePrefix(files, dir+"/")
 	}
-	for filePath, payload := range record.files {
-		files[filePath] = &File{Path: filePath, Layer: layer, Payload: payload}
+	for filePath, entry := range record.entries {
+		if entry == nil {
+			continue
+		}
+		// A file that was replaced by something not captured is gone; a directory replacing a file takes the
+		// file's place but says nothing about what is beneath it, a file replacing a directory removes what was.
+		delete(files, filePath)
+		if !entry.dir {
+			deletePrefix(files, filePath+"/")
+		}
+		if entry.payload != nil {
+			files[filePath] = &File{Path: filePath, Layer: layer, Payload: entry.payload}
+		}
 	}
 }
 

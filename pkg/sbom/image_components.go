@@ -46,12 +46,12 @@ func ContainerComponent(reference string, analysis *image.Analysis, scope altshi
 }
 
 // ImageComponents lists what an image analysis found as components: the operating system, its packages, the Go
-// executables' modules and the shipped node packages, each carrying the image and the path it was read from.
-// Components found several times in the image (the Go standard library in every Go binary) are one component with
-// several paths.
-func ImageComponents(analysis *image.Analysis, scope altshiftSbomTypes.Scope) []*altshiftSbomTypes.Component {
+// executables' modules and the shipped node packages, each carrying the image, the path and the layer it was read
+// from. Components found several times in the image (the Go standard library in every Go binary) are one component
+// with several paths.
+func ImageComponents(analysis *image.Analysis, scope altshiftSbomTypes.Scope) ([]*altshiftSbomTypes.Component, error) {
 	if analysis == nil {
-		return nil
+		return nil, nil
 	}
 
 	imageName := analysis.Reference
@@ -162,11 +162,9 @@ func ImageComponents(analysis *image.Analysis, scope altshiftSbomTypes.Scope) []
 
 	merged, err := mergeComponents(components)
 	if err != nil {
-		// Components of one image only collide on equal bom-refs with equal content, which merge; anything else is
-		// a bug in the mapping above and would surface in tests.
-		return components
+		return nil, altshiftErrors.New(fmt.Errorf("merge components (%s): %w", imageName, err), imageName)
 	}
-	return merged
+	return merged, nil
 }
 
 // apkComponent maps an Alpine package to "pkg:apk/<os>/<name>@<version>?arch=..&distro=..[&upstream=<origin>]".
@@ -274,10 +272,26 @@ func prefixBomRefs(component *altshiftSbomTypes.Component, prefix string) {
 	}
 }
 
+// scopeRank orders scopes by how much of the artifact they claim: a component that ships (required) outranks one
+// that only might (optional) or that only took part in producing it (excluded).
+func scopeRank(scope altshiftSbomTypes.Scope) int {
+	switch scope {
+	case altshiftSbomTypes.ScopeRequired:
+		return 3
+	case altshiftSbomTypes.ScopeOptional:
+		return 2
+	case altshiftSbomTypes.ScopeExcluded:
+		return 1
+	default:
+		return 0
+	}
+}
+
 // mergeComponents merges components that share a bom-ref, which must then agree on what they describe (their
-// properties — the paths a package was found at — and nested components are combined), and orders the result by
-// bom-ref, so that the output does not depend on the order things were found in. Components without a bom-ref are
-// kept as they are, after the others.
+// properties — the paths a package was found at — and nested components are combined; of differing scopes the one
+// claiming the most stands, since a package that ships in the image ships whatever a lockfile says about it), and
+// orders the result by bom-ref, so that the output does not depend on the order things were found in. Components
+// without a bom-ref are kept as they are, after the others.
 func mergeComponents(components []*altshiftSbomTypes.Component) ([]*altshiftSbomTypes.Component, error) {
 	byBomRef := make(map[string]*altshiftSbomTypes.Component)
 	var merged, unreferenced []*altshiftSbomTypes.Component
@@ -296,10 +310,14 @@ func mergeComponents(components []*altshiftSbomTypes.Component) ([]*altshiftSbom
 			merged = append(merged, component)
 			continue
 		}
-		if existing.Type != component.Type || existing.Name != component.Name || existing.Version != component.Version || existing.Purl != component.Purl || existing.Scope != component.Scope {
+		if existing.Type != component.Type || existing.Name != component.Name || existing.Version != component.Version || existing.Purl != component.Purl {
 			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %s", ErrBomRefConflict, component.BomRef), existing, component)
 		}
+		if scopeRank(component.Scope) > scopeRank(existing.Scope) {
+			existing.Scope = component.Scope
+		}
 		existing.Properties = mergeProperties(existing.Properties, component.Properties)
+		existing.Licenses = mergeLicenses(existing.Licenses, component.Licenses)
 		existing.Components = append(existing.Components, component.Components...)
 	}
 
@@ -317,6 +335,13 @@ func mergeComponents(components []*altshiftSbomTypes.Component) ([]*altshiftSbom
 		return cmp.Compare(a.BomRef, b.BomRef)
 	})
 	return append(merged, unreferenced...), nil
+}
+
+func mergeLicenses(a, b []*altshiftSbomTypes.LicenseChoice) []*altshiftSbomTypes.LicenseChoice {
+	if len(a) != 0 {
+		return a
+	}
+	return b
 }
 
 func mergeProperties(a, b []*altshiftSbomTypes.Property) []*altshiftSbomTypes.Property {

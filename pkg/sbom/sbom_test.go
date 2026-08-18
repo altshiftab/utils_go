@@ -794,6 +794,39 @@ func TestGenerateBomMergesAndSorts(t *testing.T) {
 	}
 }
 
+func TestGenerateBomMergesScopesByPrecedence(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		scopes   []altshiftSbomTypes.Scope
+		expected altshiftSbomTypes.Scope
+	}{
+		{name: "required wins over excluded", scopes: []altshiftSbomTypes.Scope{altshiftSbomTypes.ScopeExcluded, altshiftSbomTypes.ScopeRequired}, expected: altshiftSbomTypes.ScopeRequired},
+		{name: "required wins in either order", scopes: []altshiftSbomTypes.Scope{altshiftSbomTypes.ScopeRequired, altshiftSbomTypes.ScopeExcluded}, expected: altshiftSbomTypes.ScopeRequired},
+		{name: "optional wins over excluded", scopes: []altshiftSbomTypes.Scope{altshiftSbomTypes.ScopeExcluded, altshiftSbomTypes.ScopeOptional}, expected: altshiftSbomTypes.ScopeOptional},
+		{name: "a scope wins over none", scopes: []altshiftSbomTypes.Scope{"", altshiftSbomTypes.ScopeExcluded}, expected: altshiftSbomTypes.ScopeExcluded},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var components []*altshiftSbomTypes.Component
+			for _, scope := range testCase.scopes {
+				components = append(components, &altshiftSbomTypes.Component{Type: altshiftSbomTypes.ComponentTypeLibrary, Name: "typescript", Version: "5.9.2", Scope: scope, Purl: "pkg:npm/typescript@5.9.2", BomRef: "pkg:npm/typescript@5.9.2"})
+			}
+			bom, err := GenerateBom(nil, components)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(bom.Components) != 1 || bom.Components[0].Scope != testCase.expected {
+				t.Errorf("expected one component with scope %q, got %+v", testCase.expected, bom.Components)
+			}
+		})
+	}
+}
+
 func TestGenerateBomRejectsConflictingBomRefs(t *testing.T) {
 	t.Parallel()
 

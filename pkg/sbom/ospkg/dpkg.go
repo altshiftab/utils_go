@@ -81,14 +81,17 @@ func ParseDpkgStatus(data []byte) ([]*DpkgPackage, error) {
 	return packages, nil
 }
 
-// dpkgInstalled reads dpkg's three-word status ("install ok installed", "deinstall ok config-files"); the third word
-// is the package's state. No status at all means a status.d entry, which only lists installed packages.
+// dpkgInstalled reads dpkg's status ("install ok installed", "deinstall ok config-files"): a package selected for
+// removal or purge is not on the system, anything else (installed, unpacked, half-configured) has its files on disk
+// and counts, which is Trivy's rule as well. No status at all means a status.d entry, which only lists installed
+// packages.
 func dpkgInstalled(status string) bool {
-	if status == "" {
-		return true
+	for field := range strings.FieldsSeq(status) {
+		if field == "deinstall" || field == "purge" {
+			return false
+		}
 	}
-	fields := strings.Fields(status)
-	return len(fields) == 3 && fields[2] == "installed"
+	return true
 }
 
 // parseDpkgSource splits "name (version)" into its parts; the version is optional.

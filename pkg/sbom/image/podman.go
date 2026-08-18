@@ -64,8 +64,13 @@ func (store *Store) Analyze(ctx context.Context, reference string) (*Analysis, e
 	}
 
 	analysis, analyzeErr := AnalyzeArchive(reader, reference)
-	// Podman's failure explains a broken stream better than the parse error the stream caused.
-	if closeErr := reader.Close(); closeErr != nil {
+	closeErr := reader.Close()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return nil, fmt.Errorf("context: %w", ctxErr)
+	}
+	// Podman's own failure (an unknown image, say) explains a broken stream better than the parse error the stream
+	// caused; podman dying of the pipe we closed on a parse error explains nothing.
+	if closeErr != nil && !errors.Is(closeErr, errPodmanSignaled) {
 		if analyzeErr != nil {
 			return nil, altshiftErrors.New(fmt.Errorf("%w (analyze archive: %w)", closeErr, analyzeErr), reference)
 		}
@@ -74,9 +79,16 @@ func (store *Store) Analyze(ctx context.Context, reference string) (*Analysis, e
 	if analyzeErr != nil {
 		return nil, fmt.Errorf("analyze archive: %w", analyzeErr)
 	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("close: %w", closeErr)
+	}
 
 	return analysis, nil
 }
+
+// errPodmanSignaled marks a podman that ended by a signal rather than by its own decision, e.g. from the pipe being
+// closed under it.
+var errPodmanSignaled = errors.New("podman ended by signal")
 
 // saveReader is podman's stdout; closing it ends podman and reports how it exited.
 type saveReader struct {
@@ -95,6 +107,11 @@ func (reader *saveReader) Close() error {
 			message := strings.TrimSpace(reader.stderr.String())
 			if message == "" {
 				message = err.Error()
+			}
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) && exitErr.ExitCode() == -1 {
+				reader.err = fmt.Errorf("%w: %w: %s", ErrPodmanFailed, errPodmanSignaled, message)
+				return
 			}
 			reader.err = altshiftErrors.NewWithTrace(fmt.Errorf("%w: %s", ErrPodmanFailed, message), reader.command.Args)
 		}

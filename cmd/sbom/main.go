@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	argumentParser "github.com/altshiftab/utils_go/pkg/cli/argument_parser"
@@ -48,10 +49,11 @@ type arguments struct {
 	podman     string
 }
 
-func newParser(args *arguments) *argumentParser.Parser {
+func newParser(args *arguments, output io.Writer) *argumentParser.Parser {
 	return &argumentParser.Parser{
 		ProgramName: "sbom",
 		Description: description,
+		Output:      output,
 		Options: []option.Option{
 			option.WithMetavar(option.NewStringOption(0, "image", "the built image to describe, as podman knows it (e.g. localhost/app:latest); it becomes the SBOM's subject", false, &args.image), "REFERENCE"),
 			option.WithMetavar(option.NewStringOption(0, "dockerfile", "the Dockerfile the image was built from; its build-stage images are analyzed as excluded components", false, &args.dockerfile), "PATH"),
@@ -69,7 +71,7 @@ func newParser(args *arguments) *argumentParser.Parser {
 // run does what the command line asks and returns the exit code and, for a failure, the error to report.
 func run(ctx context.Context, argv []string, stdout, stderr io.Writer) (int, error) {
 	args := &arguments{}
-	parser := newParser(args)
+	parser := newParser(args, stdout)
 	if err := parser.Validate(); err != nil {
 		return exitError, altshiftErrors.New(fmt.Errorf("parser validate: %w", err))
 	}
@@ -103,7 +105,11 @@ func run(ctx context.Context, argv []string, stdout, stderr io.Writer) (int, err
 		}
 		warn(args.image, analysis.Warnings)
 		subject = altshiftSbom.ContainerComponent(args.image, analysis, "")
-		components = append(components, altshiftSbom.ImageComponents(analysis, altshiftSbomTypes.ScopeRequired)...)
+		imageComponents, err := altshiftSbom.ImageComponents(analysis, altshiftSbomTypes.ScopeRequired)
+		if err != nil {
+			return exitError, altshiftErrors.New(fmt.Errorf("image components (%s): %w", args.image, err), args.image)
+		}
+		components = append(components, imageComponents...)
 	}
 
 	for _, goBinary := range args.goBinaries {
@@ -138,13 +144,24 @@ func run(ctx context.Context, argv []string, stdout, stderr io.Writer) (int, err
 		buildImages, finalBase := altshiftSbom.DockerfileImages(stages)
 
 		for _, buildImage := range buildImages {
+			// A FROM naming a build argument ("${BASE_IMAGE}") cannot be resolved without the build's arguments;
+			// it is named as written and its contents left out, which the warning says.
+			if strings.Contains(buildImage, "$") {
+				warn(buildImage, []string{"image reference holds a build argument; its contents are not listed"})
+				components = append(components, altshiftSbom.ContainerComponent(buildImage, nil, altshiftSbomTypes.ScopeExcluded))
+				continue
+			}
 			analysis, err := store.Analyze(ctx, buildImage)
 			if err != nil {
 				return exitError, altshiftErrors.New(fmt.Errorf("analyze build image %q: %w", buildImage, err), buildImage)
 			}
 			warn(buildImage, analysis.Warnings)
 			container := altshiftSbom.ContainerComponent(buildImage, analysis, altshiftSbomTypes.ScopeExcluded)
-			components = append(components, altshiftSbom.Nest(container, altshiftSbom.ImageComponents(analysis, altshiftSbomTypes.ScopeExcluded)))
+			imageComponents, err := altshiftSbom.ImageComponents(analysis, altshiftSbomTypes.ScopeExcluded)
+			if err != nil {
+				return exitError, altshiftErrors.New(fmt.Errorf("image components (%s): %w", buildImage, err), buildImage)
+			}
+			components = append(components, altshiftSbom.Nest(container, imageComponents))
 		}
 		if finalBase != "" {
 			components = append(components, altshiftSbom.ContainerComponent(finalBase, nil, altshiftSbomTypes.ScopeRequired))

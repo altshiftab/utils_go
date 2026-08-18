@@ -80,7 +80,8 @@ func runCommand(t *testing.T, args ...string) (int, *altshiftSbomTypes.Bom, stri
 	var stdout, stderr bytes.Buffer
 	code, err := run(context.Background(), args, &stdout, &stderr)
 	bom := &altshiftSbomTypes.Bom{}
-	if stdout.Len() != 0 {
+	// Help is the one thing besides a BOM the command writes to stdout.
+	if stdout.Len() != 0 && !strings.HasPrefix(stdout.String(), "Usage:") {
 		if unmarshalErr := json.Unmarshal(stdout.Bytes(), bom); unmarshalErr != nil {
 			t.Fatalf("stdout is not a bom: %v: %s", unmarshalErr, stdout.String())
 		}
@@ -97,6 +98,19 @@ func componentRefs(components []*altshiftSbomTypes.Component) map[string]*altshi
 }
 
 const alpineOsRelease = "ID=alpine\nVERSION_ID=3.24.1\n"
+
+func TestRunHelpGoesToStdout(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	code, err := run(context.Background(), []string{"--help"}, &stdout, &stderr)
+	if err != nil || code != exitClean {
+		t.Fatalf("unexpected result: %d %v", code, err)
+	}
+	if !strings.Contains(stdout.String(), "Usage: sbom") || stderr.Len() != 0 {
+		t.Errorf("expected the help on stdout, got stdout %q stderr %q", stdout.String(), stderr.String())
+	}
+}
 
 func TestRunUsage(t *testing.T) {
 	t.Parallel()
@@ -271,6 +285,50 @@ func TestRunImageAndDockerfile(t *testing.T) {
 		if strings.Contains(ref, "scratch") {
 			t.Errorf("unexpected scratch component %s", ref)
 		}
+	}
+}
+
+func TestRunDockerfileWithBuildArgumentImage(t *testing.T) {
+	t.Parallel()
+
+	dockerfile := filepath.Join(t.TempDir(), "Dockerfile")
+	if err := os.WriteFile(dockerfile, []byte("ARG BASE_IMAGE=golang:1.26-alpine\nFROM ${BASE_IMAGE} AS builder\nFROM scratch\n"), 0o600); err != nil {
+		t.Fatalf("write dockerfile: %v", err)
+	}
+
+	code, bom, stderr, err := runCommand(t, "--podman", "/nonexistent/podman", "--dockerfile", dockerfile)
+	if err != nil || code != exitClean {
+		t.Fatalf("unexpected result: %d %v", code, err)
+	}
+	if !strings.Contains(stderr, "build argument") {
+		t.Errorf("expected a warning about the build argument, got %q", stderr)
+	}
+	if len(bom.Components) != 1 || bom.Components[0] == nil || bom.Components[0].Name != "${BASE_IMAGE}" || bom.Components[0].Scope != altshiftSbomTypes.ScopeExcluded || len(bom.Components[0].Components) != 0 {
+		t.Errorf("expected the unresolved image named without contents, got %+v", bom.Components)
+	}
+}
+
+func TestRunImageAndNodeAgreeOnScope(t *testing.T) {
+	t.Parallel()
+
+	// The image ships typescript although the lockfile calls it a development dependency: shipping wins.
+	podman := fakePodman(t, map[string][]byte{
+		"localhost/app:latest": dockerArchive(t, "localhost/app:latest", map[string][]byte{
+			"app/node_modules/typescript/package.json": []byte(`{"name": "typescript", "version": "5.9.2"}`),
+		}),
+	})
+	lock := filepath.Join(t.TempDir(), "package-lock.json")
+	if err := os.WriteFile(lock, []byte(`{"name":"app","version":"1.0.0","lockfileVersion":3,"packages":{"":{"name":"app","version":"1.0.0"},"node_modules/typescript":{"version":"5.9.2","dev":true}}}`), 0o600); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	code, bom, _, err := runCommand(t, "--podman", podman, "--image", "localhost/app:latest", "--node", lock)
+	if err != nil || code != exitClean {
+		t.Fatalf("unexpected result: %d %v", code, err)
+	}
+	typescript := componentRefs(bom.Components)["pkg:npm/typescript@5.9.2"]
+	if typescript == nil || typescript.Scope != altshiftSbomTypes.ScopeRequired || len(bom.Components) != 1 {
+		t.Errorf("expected one required typescript component, got %+v", bom.Components)
 	}
 }
 

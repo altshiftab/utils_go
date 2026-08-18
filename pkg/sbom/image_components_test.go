@@ -300,7 +300,10 @@ func TestImageComponents(t *testing.T) {
 		NodePackages: []*image.NodePackage{{Path: "app/node_modules/lit/package.json", Layer: "sha256:top", Name: "lit", Version: "3.3.0", License: "BSD-3-Clause"}},
 	}
 
-	components := ImageComponents(analysis, altshiftSbomTypes.ScopeExcluded)
+	components, err := ImageComponents(analysis, altshiftSbomTypes.ScopeExcluded)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	byRef := make(map[string]*altshiftSbomTypes.Component)
 	for _, component := range components {
@@ -364,7 +367,10 @@ func TestImageComponentsWithoutOsRelease(t *testing.T) {
 		Reference:   "app",
 		ApkPackages: []*ospkg.ApkPackage{{Name: "musl", Version: "1.2.6-r2", Arch: "x86_64"}},
 	}
-	components := ImageComponents(analysis, altshiftSbomTypes.ScopeRequired)
+	components, err := ImageComponents(analysis, altshiftSbomTypes.ScopeRequired)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if len(components) != 1 || components[0] == nil {
 		t.Fatalf("expected one component, got %v", refs(components))
 	}
@@ -374,8 +380,8 @@ func TestImageComponentsWithoutOsRelease(t *testing.T) {
 	if len(components[0].Properties) != 1 || components[0].Properties[0].Value != "app" {
 		t.Errorf("expected the reference as image property, got %+v", components[0].Properties)
 	}
-	if ImageComponents(nil, altshiftSbomTypes.ScopeRequired) != nil {
-		t.Errorf("expected nil for a nil analysis")
+	if components, err := ImageComponents(nil, altshiftSbomTypes.ScopeRequired); components != nil || err != nil {
+		t.Errorf("expected nil for a nil analysis, got %v %v", components, err)
 	}
 }
 

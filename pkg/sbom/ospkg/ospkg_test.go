@@ -226,6 +226,11 @@ Status: install ok half-configured
 Architecture: amd64
 Version: 2.0-1
 
+Package: purged
+Status: purge ok not-installed
+Architecture: amd64
+Version: 1.0
+
 Package: apt
 Status: install ok installed
 Architecture: amd64
@@ -247,6 +252,7 @@ func TestParseDpkgStatus(t *testing.T) {
 			expected: []*DpkgPackage{
 				{Name: "bsdutils", Version: "1:2.41-5", Architecture: "amd64", SourceName: "util-linux", SourceVersion: "2.41-5", Status: "install ok installed"},
 				{Name: "libgcc-s1", Version: "14.2.0-19", Architecture: "amd64", SourceName: "gcc-14", Status: "install ok installed"},
+				{Name: "half-installed", Version: "2.0-1", Architecture: "amd64", Status: "install ok half-configured"},
 				{Name: "apt", Version: "3.0.3", Architecture: "amd64", Status: "install ok installed"},
 			},
 		},

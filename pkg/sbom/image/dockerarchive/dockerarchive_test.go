@@ -12,26 +12,26 @@ import (
 	"testing"
 )
 
-// layerEntry describes one entry of a layer archive built in a test.
-type layerEntry struct {
+// tarEntry describes one entry of a layer archive built in a test.
+type tarEntry struct {
 	name     string
 	typeflag byte
 	content  string
 	linkname string
 }
 
-func file(name, content string) layerEntry {
-	return layerEntry{name: name, typeflag: tar.TypeReg, content: content}
+func file(name, content string) tarEntry {
+	return tarEntry{name: name, typeflag: tar.TypeReg, content: content}
 }
-func dir(name string) layerEntry { return layerEntry{name: name, typeflag: tar.TypeDir} }
-func symlink(name, target string) layerEntry {
-	return layerEntry{name: name, typeflag: tar.TypeSymlink, linkname: target}
+func dir(name string) tarEntry { return tarEntry{name: name, typeflag: tar.TypeDir} }
+func symlink(name, target string) tarEntry {
+	return tarEntry{name: name, typeflag: tar.TypeSymlink, linkname: target}
 }
-func hardlink(name, target string) layerEntry {
-	return layerEntry{name: name, typeflag: tar.TypeLink, linkname: target}
+func hardlink(name, target string) tarEntry {
+	return tarEntry{name: name, typeflag: tar.TypeLink, linkname: target}
 }
 
-func writeTar(t *testing.T, entries []layerEntry) []byte {
+func writeTar(t *testing.T, entries []tarEntry) []byte {
 	t.Helper()
 	var buffer bytes.Buffer
 	writer := tar.NewWriter(&buffer)
@@ -120,6 +120,18 @@ func captureText(_ string, _ *tar.Header, reader *bufio.Reader) (any, error) {
 	return string(data), nil
 }
 
+// captureNotScripts keeps every regular file except shell scripts, standing in for a capture that declines a file.
+func captureNotScripts(_ string, _ *tar.Header, reader *bufio.Reader) (any, error) {
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	if strings.HasPrefix(string(data), "#!/") {
+		return nil, nil
+	}
+	return string(data), nil
+}
+
 func resolvedContents(image *Image) map[string]string {
 	contents := make(map[string]string, len(image.Files))
 	for filePath, file := range image.Files {
@@ -135,10 +147,11 @@ func TestRead(t *testing.T) {
 
 	testCases := []struct {
 		name      string
-		layers    [][]layerEntry
+		layers    [][]tarEntry
 		gzipLast  bool
 		manifest  string
 		reference string
+		capture   Capture
 		expected  map[string]string
 		layer     map[string]int
 		id        string
@@ -146,7 +159,7 @@ func TestRead(t *testing.T) {
 	}{
 		{
 			name: "upper layer replaces and adds",
-			layers: [][]layerEntry{
+			layers: [][]tarEntry{
 				{dir("etc"), file("etc/os-release", "ID=alpine"), file("etc/keep", "keep")},
 				{file("etc/os-release", "ID=alpine\nVERSION_ID=3.24.1")},
 			},
@@ -156,7 +169,7 @@ func TestRead(t *testing.T) {
 		},
 		{
 			name: "file whiteout",
-			layers: [][]layerEntry{
+			layers: [][]tarEntry{
 				{file("usr/bin/app", "old"), file("usr/bin/other", "x")},
 				{file("usr/bin/.wh.app", "")},
 			},
@@ -164,7 +177,7 @@ func TestRead(t *testing.T) {
 		},
 		{
 			name: "directory whiteout removes the tree",
-			layers: [][]layerEntry{
+			layers: [][]tarEntry{
 				{file("var/lib/apk/db/installed", "P:a"), file("var/lib/apk/db/lock", ""), file("var/log/x", "x")},
 				{file("var/lib/.wh.apk", "")},
 			},
@@ -172,7 +185,7 @@ func TestRead(t *testing.T) {
 		},
 		{
 			name: "opaque directory hides lower contents but keeps its own",
-			layers: [][]layerEntry{
+			layers: [][]tarEntry{
 				{file("opt/a", "a"), file("opt/sub/b", "b"), file("etc/c", "c")},
 				{file("opt/.wh..wh..opq", ""), file("opt/new", "new")},
 			},
@@ -180,36 +193,53 @@ func TestRead(t *testing.T) {
 		},
 		{
 			name: "whiteout applies to lower layers only, then the same layer's file lands",
-			layers: [][]layerEntry{
+			layers: [][]tarEntry{
 				{file("etc/os-release", "old")},
 				{file("etc/.wh.os-release", ""), file("etc/os-release", "new")},
 			},
 			expected: map[string]string{"etc/os-release": "new"},
 		},
 		{
+			name: "upper layer replacing a captured file with a script, a symlink or a directory removes it",
+			layers: [][]tarEntry{
+				{file("usr/bin/app", "\x7fELF"), file("etc/os-release", "ID=old"), file("opt/tool", "\x7fELF"), file("var/keep", "k")},
+				{file("usr/bin/app", "#!/bin/sh"), symlink("etc/os-release", "../usr/lib/os-release"), dir("opt/tool")},
+			},
+			capture:  captureNotScripts,
+			expected: map[string]string{"var/keep": "k"},
+		},
+		{
+			name: "file replacing a directory removes what was beneath it",
+			layers: [][]tarEntry{
+				{dir("data"), file("data/a", "a"), file("data/b", "b")},
+				{file("data", "now a file")},
+			},
+			expected: map[string]string{"data": "now a file"},
+		},
+		{
 			name: "hard link aliases a captured file",
-			layers: [][]layerEntry{
+			layers: [][]tarEntry{
 				{file("bin/busybox", "ELF"), hardlink("bin/sh", "bin/busybox"), hardlink("bin/ash", "bin/sh")},
 			},
 			expected: map[string]string{"bin/busybox": "ELF", "bin/sh": "ELF", "bin/ash": "ELF"},
 		},
 		{
 			name: "symlinks and directories are not files",
-			layers: [][]layerEntry{
+			layers: [][]tarEntry{
 				{dir("etc"), symlink("etc/os-release", "../usr/lib/os-release"), file("usr/lib/os-release", "ID=x")},
 			},
 			expected: map[string]string{"usr/lib/os-release": "ID=x"},
 		},
 		{
 			name: "names with ./ prefix and leading slash are normalized",
-			layers: [][]layerEntry{
+			layers: [][]tarEntry{
 				{file("./etc/a", "a"), file("/etc/b", "b")},
 			},
 			expected: map[string]string{"etc/a": "a", "etc/b": "b"},
 		},
 		{
 			name: "gzip compressed layer is accepted",
-			layers: [][]layerEntry{
+			layers: [][]tarEntry{
 				{file("etc/a", "a")},
 			},
 			gzipLast: true,
@@ -217,13 +247,13 @@ func TestRead(t *testing.T) {
 		},
 		{
 			name:     "no manifest",
-			layers:   [][]layerEntry{{file("etc/a", "a")}},
+			layers:   [][]tarEntry{{file("etc/a", "a")}},
 			manifest: "-",
 			err:      ErrNoManifest,
 		},
 		{
 			name:     "layer missing",
-			layers:   [][]layerEntry{{file("etc/a", "a")}},
+			layers:   [][]tarEntry{{file("etc/a", "a")}},
 			manifest: `[{"Config":"abc123.json","RepoTags":["localhost/app:latest"],"Layers":["missing.tar"]}]`,
 			err:      ErrLayerMissing,
 		},
@@ -262,7 +292,11 @@ func TestRead(t *testing.T) {
 				manifest = ""
 			}
 
-			image, err := Read(bytes.NewReader(writeArchive(t, entries, manifest)), testCase.reference, captureText)
+			capture := testCase.capture
+			if capture == nil {
+				capture = captureText
+			}
+			image, err := Read(bytes.NewReader(writeArchive(t, entries, manifest)), testCase.reference, capture)
 			if testCase.err != nil {
 				if !errors.Is(err, testCase.err) {
 					t.Fatalf("expected error %v, got %v", testCase.err, err)
@@ -300,11 +334,48 @@ func TestRead(t *testing.T) {
 	}
 }
 
+func TestReadEmptyLayer(t *testing.T) {
+	t.Parallel()
+
+	// An empty layer is a tar holding only the end-of-archive marker: 1024 zero bytes.
+	layer := writeTar(t, []tarEntry{file("etc/a", "a")})
+	entries := []archiveEntry{
+		{name: "aaa.tar", data: layer},
+		{name: "empty.tar", data: make([]byte, 1024)},
+		{name: "cfg.json", data: []byte(`{}`)},
+	}
+	manifest := `[{"Config":"cfg.json","RepoTags":["x:y"],"Layers":["aaa.tar","empty.tar"]}]`
+
+	image, err := Read(bytes.NewReader(writeArchive(t, entries, manifest)), "", captureText)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolvedContents(image)["etc/a"] != "a" || len(image.Layers) != 2 || !slices.Equal(image.LayerDigests, []string{"sha256:aaa", "sha256:empty"}) {
+		t.Errorf("unexpected image: %+v", image)
+	}
+}
+
+func TestReadLayerNamedWithoutTarSuffix(t *testing.T) {
+	t.Parallel()
+
+	layer := writeTar(t, []tarEntry{file("etc/a", "a")})
+	entries := []archiveEntry{{name: "blobs/sha256/abcdef", data: layer}, {name: "blobs/sha256/cfg", data: []byte(`{"rootfs":{"diff_ids":["sha256:abcdef"]}}`)}}
+	manifest := `[{"Config":"blobs/sha256/cfg","RepoTags":["x:y"],"Layers":["blobs/sha256/abcdef"]}]`
+
+	image, err := Read(bytes.NewReader(writeArchive(t, entries, manifest)), "", captureText)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolvedContents(image)["etc/a"] != "a" || !slices.Equal(image.LayerDigests, []string{"sha256:abcdef"}) {
+		t.Errorf("unexpected image: %+v", image)
+	}
+}
+
 func TestReadSelectsImageByReference(t *testing.T) {
 	t.Parallel()
 
-	layerA := writeTar(t, []layerEntry{file("etc/name", "a")})
-	layerB := writeTar(t, []layerEntry{file("etc/name", "b")})
+	layerA := writeTar(t, []tarEntry{file("etc/name", "a")})
+	layerB := writeTar(t, []tarEntry{file("etc/name", "b")})
 	entries := []archiveEntry{
 		{name: "aaa.tar", data: layerA},
 		{name: "bbb.tar", data: layerB},
@@ -352,7 +423,7 @@ func TestReadSelectsImageByReference(t *testing.T) {
 func TestReadCaptureSeesHeaderAndPeekableReader(t *testing.T) {
 	t.Parallel()
 
-	layer := writeTar(t, []layerEntry{file("usr/bin/app", "\x7fELF-payload"), file("etc/skip", "nope")})
+	layer := writeTar(t, []tarEntry{file("usr/bin/app", "\x7fELF-payload"), file("etc/skip", "nope")})
 	entries := []archiveEntry{{name: "aaa.tar", data: layer}, {name: "cfg.json", data: []byte(`{}`)}}
 	manifest := `[{"Config":"cfg.json","RepoTags":["x:y"],"Layers":["aaa.tar"]}]`
 
@@ -386,7 +457,7 @@ var errCaptureFailed = errors.New("capture failed")
 func TestReadCaptureErrorPropagates(t *testing.T) {
 	t.Parallel()
 
-	layer := writeTar(t, []layerEntry{file("etc/a", "a")})
+	layer := writeTar(t, []tarEntry{file("etc/a", "a")})
 	entries := []archiveEntry{{name: "aaa.tar", data: layer}, {name: "cfg.json", data: []byte(`{}`)}}
 	manifest := `[{"Config":"cfg.json","RepoTags":["x:y"],"Layers":["aaa.tar"]}]`
 	captureErr := errCaptureFailed
