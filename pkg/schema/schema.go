@@ -80,6 +80,10 @@ type Base struct {
 }
 
 func (b *Base) MakeConnectionMessage() string {
+	if b == nil {
+		return ""
+	}
+
 	var sourceIpAddress string
 	var destinationIpAddress string
 	var sourcePort int

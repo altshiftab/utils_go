@@ -13,6 +13,11 @@ func TestBaseMakeConnectionMessage(t *testing.T) {
 		want string
 	}{
 		{
+			name: "nil base",
+			base: nil,
+			want: "",
+		},
+		{
 			name: "all nil",
 			base: &Base{},
 			want: unknownPlaceholder,
