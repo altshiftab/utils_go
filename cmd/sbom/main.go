@@ -6,13 +6,11 @@ package main
 
 import (
 	"context"
-	"debug/buildinfo"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	argumentParser "github.com/altshiftab/utils_go/pkg/cli/argument_parser"
@@ -21,7 +19,6 @@ import (
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	altshiftSbom "github.com/altshiftab/utils_go/pkg/sbom"
 	altshiftSbomImage "github.com/altshiftab/utils_go/pkg/sbom/image"
-	altshiftSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
 )
 
 const (
@@ -88,87 +85,31 @@ func run(ctx context.Context, argv []string, stdout, stderr io.Writer) (int, err
 		return exitUsage, nil
 	}
 
-	store := &altshiftSbomImage.Store{Podman: args.podman}
-
-	var subject *altshiftSbomTypes.Component
-	var components []*altshiftSbomTypes.Component
-	warn := func(reference string, warnings []string) {
-		for _, warning := range warnings {
-			fmt.Fprintf(stderr, "sbom: warning: %s: %s\n", reference, warning)
-		}
-	}
-
-	if args.image != "" {
-		analysis, err := store.Analyze(ctx, args.image)
-		if err != nil {
-			return exitError, altshiftErrors.New(fmt.Errorf("analyze image %q: %w", args.image, err), args.image)
-		}
-		warn(args.image, analysis.Warnings)
-		subject = altshiftSbom.ContainerComponent(args.image, analysis, "")
-		imageComponents, err := altshiftSbom.ImageComponents(analysis, altshiftSbomTypes.ScopeRequired)
-		if err != nil {
-			return exitError, altshiftErrors.New(fmt.Errorf("image components (%s): %w", args.image, err), args.image)
-		}
-		components = append(components, imageComponents...)
-	}
-
-	for _, goBinary := range args.goBinaries {
-		info, err := buildinfo.ReadFile(goBinary)
-		if err != nil {
-			return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("read build info of %q: %w", goBinary, err), goBinary)
-		}
-		components = append(components, altshiftSbom.BuildInfoComponents(info, goBinary, altshiftSbomTypes.ScopeRequired)...)
-	}
-
+	sources := &altshiftSbom.Sources{Image: args.image, GoBinaries: args.goBinaries}
 	if args.nodeLock != "" {
 		data, err := os.ReadFile(args.nodeLock)
 		if err != nil {
 			return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("read %q: %w", args.nodeLock, err), args.nodeLock)
 		}
-		nodeComponents, err := altshiftSbom.ParseNodePackageLock(data)
-		if err != nil {
-			return exitError, altshiftErrors.New(fmt.Errorf("parse package-lock %q: %w", args.nodeLock, err), args.nodeLock)
-		}
-		components = append(components, nodeComponents...)
+		sources.NodeLock = data
 	}
-
 	if args.dockerfile != "" {
 		data, err := os.ReadFile(args.dockerfile)
 		if err != nil {
 			return exitError, altshiftErrors.NewWithTrace(fmt.Errorf("read %q: %w", args.dockerfile, err), args.dockerfile)
 		}
-		stages, err := altshiftSbom.ParseDockerfileStages(data)
-		if err != nil {
-			return exitError, altshiftErrors.New(fmt.Errorf("parse dockerfile %q: %w", args.dockerfile, err), args.dockerfile)
-		}
-		buildImages, finalBase := altshiftSbom.DockerfileImages(stages)
-
-		for _, buildImage := range buildImages {
-			// A FROM naming a build argument ("${BASE_IMAGE}") cannot be resolved without the build's arguments;
-			// it is named as written and its contents left out, which the warning says.
-			if strings.Contains(buildImage, "$") {
-				warn(buildImage, []string{"image reference holds a build argument; its contents are not listed"})
-				components = append(components, altshiftSbom.ContainerComponent(buildImage, nil, altshiftSbomTypes.ScopeExcluded))
-				continue
-			}
-			analysis, err := store.Analyze(ctx, buildImage)
-			if err != nil {
-				return exitError, altshiftErrors.New(fmt.Errorf("analyze build image %q: %w", buildImage, err), buildImage)
-			}
-			warn(buildImage, analysis.Warnings)
-			container := altshiftSbom.ContainerComponent(buildImage, analysis, altshiftSbomTypes.ScopeExcluded)
-			imageComponents, err := altshiftSbom.ImageComponents(analysis, altshiftSbomTypes.ScopeExcluded)
-			if err != nil {
-				return exitError, altshiftErrors.New(fmt.Errorf("image components (%s): %w", buildImage, err), buildImage)
-			}
-			components = append(components, altshiftSbom.Nest(container, imageComponents))
-		}
-		if finalBase != "" {
-			components = append(components, altshiftSbom.ContainerComponent(finalBase, nil, altshiftSbomTypes.ScopeRequired))
-		}
+		sources.Dockerfile = data
 	}
 
-	output, err := altshiftSbom.GenerateBomJson(subject, components)
+	description, err := altshiftSbom.Describe(ctx, &altshiftSbomImage.Store{Podman: args.podman}, sources)
+	if err != nil {
+		return exitError, fmt.Errorf("describe: %w", err)
+	}
+	for _, warning := range description.Warnings {
+		fmt.Fprintf(stderr, "sbom: warning: %s\n", warning)
+	}
+
+	output, err := altshiftSbom.GenerateBomJson(description.Subject, description.Components)
 	if err != nil {
 		return exitError, fmt.Errorf("generate bom json: %w", err)
 	}
