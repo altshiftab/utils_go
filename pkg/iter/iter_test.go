@@ -452,3 +452,76 @@ func TestSet_Strings(t *testing.T) {
 		t.Fatalf("expected %v, got %v", want, got)
 	}
 }
+
+// Set's order is part of its contract: a caller that picks one element out of
+// the result, or renders it, must get the same answer for the same input every
+// run. Collecting map keys would not.
+func TestSetPreservesFirstSeenOrder(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name  string
+		input [][]string
+		want  []string
+	}{
+		{
+			name:  "no slices",
+			input: nil,
+			want:  nil,
+		},
+		{
+			name:  "duplicates collapse to the first occurrence",
+			input: [][]string{{"nginx", "NGINX", "Nginx", "NGINX"}},
+			want:  []string{"nginx", "NGINX", "Nginx"},
+		},
+		{
+			name:  "order is the order given, not sorted",
+			input: [][]string{{"c", "a", "b"}},
+			want:  []string{"c", "a", "b"},
+		},
+		{
+			name:  "several slices concatenate before deduplicating",
+			input: [][]string{{"a", "b"}, {"b", "c"}, {"a", "d"}},
+			want:  []string{"a", "b", "c", "d"},
+		},
+		{
+			name:  "an empty slice contributes nothing",
+			input: [][]string{{}, {"a"}, {}},
+			want:  []string{"a"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := Set(testCase.input...)
+			if len(got) != len(testCase.want) {
+				t.Fatalf("Set() = %v, want %v", got, testCase.want)
+			}
+			for i := range got {
+				if got[i] != testCase.want[i] {
+					t.Fatalf("Set() = %v, want %v", got, testCase.want)
+				}
+			}
+		})
+	}
+}
+
+// Repeating the same call must give the same answer; the previous
+// implementation did not, which made anything built on it non-reproducible.
+func TestSetIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	input := []string{"alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta"}
+
+	first := Set(input)
+	for range 200 {
+		again := Set(input)
+		for i := range first {
+			if again[i] != first[i] {
+				t.Fatalf("Set() varied between calls: %v then %v", first, again)
+			}
+		}
+	}
+}

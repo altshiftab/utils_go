@@ -2,9 +2,7 @@ package iter
 
 import (
 	"iter"
-	"maps"
 	"reflect"
-	"slices"
 )
 
 func SetDifference[T any, U comparable](set1 map[U]T, set2 map[U]T) map[U]T {
@@ -96,20 +94,30 @@ func MapFilter[InputType any, OutputType any](inputSlice []InputType, f func(Inp
 	return outputSlice
 }
 
+// Set returns the elements of the slices with duplicates removed, in the order
+// they were first seen.
+//
+// The order is part of what it returns, not an accident of how it is
+// implemented: collecting the keys of a map would hand back a different order on
+// every run, and a caller that picks one element out of the result - or renders
+// it - would then answer differently each time for the same input.
 func Set[T comparable](elementSlices ...[]T) []T {
 	if len(elementSlices) == 0 {
 		return nil
 	}
 
 	setMap := make(map[T]struct{})
+	var elements []T
 
 	for _, elementSlice := range elementSlices {
 		for _, element := range elementSlice {
-			if _, ok := setMap[element]; !ok {
-				setMap[element] = struct{}{}
+			if _, ok := setMap[element]; ok {
+				continue
 			}
+			setMap[element] = struct{}{}
+			elements = append(elements, element)
 		}
 	}
 
-	return slices.Collect(maps.Keys(setMap))
+	return elements
 }
