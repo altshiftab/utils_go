@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/forwarded_headers"
 )
 
 func vhostRequest(t *testing.T, host string) *http.Request {
@@ -182,6 +184,141 @@ func TestVhostMux_PatchHttpServer(t *testing.T) {
 		(&VhostMux{}).PatchHttpServer(server)
 		if _, err := server.TLSConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: "x"}); err == nil {
 			t.Fatal("expected an error for a nil host map")
+		}
+	})
+}
+
+func TestVhostMuxHandleRequest_TrustForwardedHost(t *testing.T) {
+	t.Parallel()
+
+	// The shape Firebase Hosting produces: Host is the address it dialled, and
+	// the name the client asked for survives only in the forwarded headers.
+	const servedHost = "wiki.vvvp.se"
+	const proxyHost = "vvvp-wiki-abcdef.run.app"
+
+	testCases := []struct {
+		name           string
+		headers        map[string]string
+		trustForwarded bool
+		expectServed   bool
+	}{
+		{
+			name:           "untrusted refuses the proxy's host",
+			headers:        map[string]string{"X-Forwarded-Host": servedHost},
+			trustForwarded: false,
+			expectServed:   false,
+		},
+		{
+			name:           "trusted serves on X-Forwarded-Host",
+			headers:        map[string]string{"X-Forwarded-Host": servedHost},
+			trustForwarded: true,
+			expectServed:   true,
+		},
+		{
+			name:           "trusted serves on Forwarded",
+			headers:        map[string]string{"Forwarded": "host=" + servedHost},
+			trustForwarded: true,
+			expectServed:   true,
+		},
+		{
+			name:           "trusted still refuses a host it does not answer for",
+			headers:        map[string]string{"X-Forwarded-Host": "elsewhere.example.com"},
+			trustForwarded: true,
+			expectServed:   false,
+		},
+		{
+			name:           "trusted with no forwarded headers refuses the proxy's host",
+			headers:        map[string]string{},
+			trustForwarded: true,
+			expectServed:   false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var served bool
+			vhostMux := &VhostMux{
+				HostToSpecification: map[string]*VhostMuxSpecification{
+					servedHost: {Mux: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+						served = true
+					})},
+				},
+				TrustForwardedHost: testCase.trustForwarded,
+			}
+
+			request := vhostRequest(t, proxyHost)
+			for name, value := range testCase.headers {
+				request.Header.Set(name, value)
+			}
+
+			_, responseError := vhostMuxHandleRequest(vhostMux, request, httptest.NewRecorder())
+
+			if testCase.expectServed {
+				if !served {
+					t.Fatalf("expected the request to be served, got %#v", responseError)
+				}
+				return
+			}
+
+			if served {
+				t.Fatal("expected the request to be refused, but it was served")
+			}
+			if responseError == nil || responseError.ProblemDetail == nil ||
+				responseError.ProblemDetail.Status != http.StatusMisdirectedRequest {
+				t.Fatalf("expected 421, got %#v", responseError)
+			}
+		})
+	}
+}
+
+func TestVhostMuxHandleRequest_CarriesAuthority(t *testing.T) {
+	t.Parallel()
+
+	const servedHost = "wiki.vvvp.se"
+
+	t.Run("the resolved authority reaches the served mux", func(t *testing.T) {
+		t.Parallel()
+
+		var seen string
+		vhostMux := &VhostMux{
+			HostToSpecification: map[string]*VhostMuxSpecification{
+				servedHost: {Mux: http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+					seen, _ = forwarded_headers.AuthorityFromContext(request.Context())
+				})},
+			},
+			TrustForwardedHost: true,
+		}
+
+		request := vhostRequest(t, "vvvp-wiki-abcdef.run.app")
+		request.Header.Set("X-Forwarded-Host", servedHost)
+
+		if _, responseError := vhostMuxHandleRequest(vhostMux, request, httptest.NewRecorder()); responseError != nil {
+			t.Fatalf("unexpected error: %#v", responseError)
+		}
+		if seen != servedHost {
+			t.Fatalf("got %q, want %q", seen, servedHost)
+		}
+	})
+
+	t.Run("the port survives for a URL built from it", func(t *testing.T) {
+		t.Parallel()
+
+		var seen string
+		vhostMux := &VhostMux{
+			HostToSpecification: map[string]*VhostMuxSpecification{
+				"localhost": {Mux: http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+					seen, _ = forwarded_headers.AuthorityFromContext(request.Context())
+				})},
+			},
+		}
+
+		if _, responseError := vhostMuxHandleRequest(vhostMux, vhostRequest(t, "localhost:8080"), httptest.NewRecorder()); responseError != nil {
+			t.Fatalf("unexpected error: %#v", responseError)
+		}
+		if seen != "localhost:8080" {
+			t.Fatalf("got %q, want %q", seen, "localhost:8080")
 		}
 	})
 }

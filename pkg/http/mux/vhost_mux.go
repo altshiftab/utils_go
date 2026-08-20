@@ -2,7 +2,6 @@ package mux
 
 import (
 	"crypto/tls"
-	"net"
 	"net/http"
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -11,6 +10,7 @@ import (
 	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
 	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/forwarded_headers"
 	muxTypesResponseWriter "github.com/altshiftab/utils_go/pkg/http/mux/types/response_writer"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	altshiftStrings "github.com/altshiftab/utils_go/pkg/strings"
@@ -25,6 +25,18 @@ type VhostMuxSpecification struct {
 type VhostMux struct {
 	baseMux
 	HostToSpecification map[string]*VhostMuxSpecification
+	// TrustForwardedHost makes the host looked up below the one the forwarded
+	// headers name, rather than the one on the request. It is for a service
+	// behind a proxy that rewrites Host to an address of its own -- Firebase
+	// Hosting rewriting to a run.app URL, say -- where without it every request
+	// arrives for a host this mux does not answer for and is refused.
+	//
+	// It is off by default, and turning it on is a decision about what can
+	// reach the service rather than about what is in front of it: the headers
+	// are the client's to write unless a proxy overwrites them AND nothing can
+	// reach the service except through that proxy. Where the second does not
+	// hold, the 421 below stops being a check and becomes routing.
+	TrustForwardedHost bool
 }
 
 func (vhostMux *VhostMux) PatchHttpServer(httpServer *http.Server) {
@@ -76,10 +88,8 @@ func vhostMuxHandleRequest(
 		}
 	}
 
-	host, _, err := net.SplitHostPort(request.Host)
-	if err != nil {
-		host = request.Host
-	}
+	authority := forwarded_headers.Authority(request, vhostMux.TrustForwardedHost)
+	host := forwarded_headers.HostFromAuthority(authority)
 
 	hostToSpecification := vhostMux.HostToSpecification
 	if hostToSpecification == nil {
@@ -108,7 +118,14 @@ func vhostMuxHandleRequest(
 			},
 		}, nil
 	} else if muxSpecificationMux := muxSpecification.Mux; muxSpecificationMux != nil {
-		muxSpecificationMux.ServeHTTP(responseWriter, request)
+		// The host was decided here, so it travels with the request rather than
+		// being decided again further in. A redirector building a URL back to
+		// this service reads it from there and cannot disagree with the routing
+		// that got the request this far.
+		muxSpecificationMux.ServeHTTP(
+			responseWriter,
+			request.WithContext(forwarded_headers.NewContext(request.Context(), authority)),
+		)
 		return nil, nil
 	}
 

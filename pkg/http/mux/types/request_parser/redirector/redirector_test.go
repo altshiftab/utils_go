@@ -129,3 +129,88 @@ func TestParse_RequireProto(t *testing.T) {
 		t.Fatalf("expected a server error for missing X-Forwarded-Proto, got %#v", responseError)
 	}
 }
+
+func TestParse_SchemeInRedirectParameter(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		headers  map[string]string
+		expected string
+	}{
+		{
+			name:     "forwarded is preferred",
+			headers:  map[string]string{"Forwarded": "proto=https", "X-Forwarded-Proto": "http"},
+			expected: "https%3A%2F%2Fapp.example.com%2Fprotected",
+		},
+		{
+			name:     "x-forwarded-proto is used when forwarded says nothing",
+			headers:  map[string]string{"X-Forwarded-Proto": "https"},
+			expected: "https%3A%2F%2Fapp.example.com%2Fprotected",
+		},
+		{
+			name:     "a rejected proto falls back to the connection",
+			headers:  map[string]string{"X-Forwarded-Proto": "javascript"},
+			expected: "http%3A%2F%2Fapp.example.com%2Fprotected",
+		},
+	}
+
+	redirectUrl, err := url.Parse("https://example.com/login")
+	if err != nil {
+		t.Fatalf("url parse: %v", err)
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			parser, err := New(failingParser(http.StatusUnauthorized), redirectUrl)
+			if err != nil {
+				t.Fatalf("new: %v", err)
+			}
+
+			request := newNavigationRequest(t, true)
+			for name, value := range testCase.headers {
+				request.Header.Set(name, value)
+			}
+
+			_, responseError := parser.Parse(request)
+			location, ok := locationHeader(responseError)
+			if !ok {
+				t.Fatalf("expected a Location header, got %#v", responseError)
+			}
+			if !strings.Contains(location, testCase.expected) {
+				t.Fatalf("got %q, want it to contain %q", location, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestParse_RequireProtoAcceptsForwarded(t *testing.T) {
+	t.Parallel()
+
+	redirectUrl, err := url.Parse("https://example.com/login")
+	if err != nil {
+		t.Fatalf("url parse: %v", err)
+	}
+
+	parser, err := New(
+		failingParser(http.StatusUnauthorized),
+		redirectUrl,
+		redirector_config.WithRequireProto(true),
+	)
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+
+	request := newNavigationRequest(t, true)
+	request.Header.Set("Forwarded", "for=192.0.2.1;proto=https")
+
+	_, responseError := parser.Parse(request)
+	if responseError == nil || responseError.ServerError != nil {
+		t.Fatalf("Forwarded should satisfy RequireProto, got %#v", responseError)
+	}
+	if _, ok := locationHeader(responseError); !ok {
+		t.Fatalf("expected a Location header, got %#v", responseError)
+	}
+}

@@ -405,6 +405,7 @@ func makeHandler(
 	serviceMux *altshiftMux.Mux,
 	host string,
 	redirects []*service_config.Redirect,
+	trustForwardedHost bool,
 ) (http.Handler, error) {
 	if serviceMux == nil {
 		return nil, altshiftErrors.NewWithTrace(nil_error.New("mux"))
@@ -440,7 +441,10 @@ func makeHandler(
 		hostToSpecification[redirect.Host] = &altshiftMux.VhostMuxSpecification{RedirectTo: redirect.To}
 	}
 
-	vhostMux := &altshiftMux.VhostMux{HostToSpecification: hostToSpecification}
+	vhostMux := &altshiftMux.VhostMux{
+		HostToSpecification: hostToSpecification,
+		TrustForwardedHost:  trustForwardedHost,
+	}
 	// The mux's default headers are the vhost mux's too, so that a redirected host is answered with
 	// what the service is configured to answer with, and not with less.
 	vhostMux.DefaultHeaders = serviceMux.DefaultHeaders
@@ -472,7 +476,7 @@ func New(options ...service_config.Option) (*Service, error) {
 		return nil, fmt.Errorf("patch mux: %w", err)
 	}
 
-	handler, err := makeHandler(serviceMux, config.Host, config.Redirects)
+	handler, err := makeHandler(serviceMux, config.Host, config.Redirects, config.TrustForwardedHost)
 	if err != nil {
 		return nil, fmt.Errorf("make handler: %w", err)
 	}

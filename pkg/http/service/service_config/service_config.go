@@ -60,8 +60,12 @@ type Config struct {
 	DuplicatedEndpoints []*DuplicatedEndpoint
 	// Host is the host the service answers for. A request for any other host is answered with
 	// "421 Misdirected Request", rather than by the mux.
-	Host      string
-	Redirects []*Redirect
+	Host string
+	// TrustForwardedHost makes Host above compared against what the forwarded
+	// headers name rather than against the request's own Host. See
+	// WithTrustForwardedHost.
+	TrustForwardedHost bool
+	Redirects          []*Redirect
 	// Profile is what the service was set up as, for the record. What it decided is in the fields
 	// below, which an option applied after it may have overridden.
 	Profile Profile
@@ -183,6 +187,24 @@ func WithDuplicatedEndpoint(path string, to ...string) Option {
 func WithHost(host string) Option {
 	return func(config *Config) {
 		config.Host = host
+	}
+}
+
+// WithTrustForwardedHost makes the service decide which host a request is for from the `Forwarded`
+// and `X-Forwarded-Host` headers, falling back to the request's own Host where they say nothing.
+//
+// It is needed behind a proxy that rewrites Host to an address of its own -- Firebase Hosting
+// rewriting to a run.app URL, say -- where without it every request arrives for a host the service
+// does not answer for and is refused with "421 Misdirected Request".
+//
+// It is off by default, and it should stay off unless BOTH hold: a proxy in front overwrites these
+// headers on every request, and nothing can reach the service except through that proxy. Where the
+// second does not hold, the headers are the client's to write, and the 421 stops being a check on
+// the host and becomes only routing -- anything deciding on the host must then be able to answer
+// for a host the client chose.
+func WithTrustForwardedHost(trustForwardedHost bool) Option {
+	return func(config *Config) {
+		config.TrustForwardedHost = trustForwardedHost
 	}
 }
 
