@@ -868,10 +868,32 @@ func (mux *Mux) Add(endpoints ...*endpointPkg.Endpoint) {
 			slog.Warn("Endpoint with empty path.")
 		}
 
+		// Public and AuthenticationParser both say whether a session is needed,
+		// and only the parser enforces it. They are warned about separately
+		// because they go wrong in opposite ways.
+
+		// Declared as needing a session, with nothing to require one: served to
+		// anyone who asks.
 		if !endpoint.Public && utils.IsNil(endpoint.AuthenticationParser) {
 			slog.Warn(
 				fmt.Sprintf(
 					"Non-public endpoint without authentication parser: %s %s.",
+					endpoint.Method,
+					endpoint.Path,
+				),
+			)
+		}
+
+		// Requiring a session while declaring that it does not. The body is
+		// safe -- the parser refuses it -- but everything that reads Public
+		// rather than the parser is now wrong about it: the Cache-Control it
+		// was generated with offers it to shared caches, and a generated client
+		// will not send credentials. Nothing here fails, which is why it is
+		// worth saying out loud.
+		if endpoint.Public && !utils.IsNil(endpoint.AuthenticationParser) {
+			slog.Warn(
+				fmt.Sprintf(
+					"Public endpoint with an authentication parser: %s %s.",
 					endpoint.Method,
 					endpoint.Path,
 				),
