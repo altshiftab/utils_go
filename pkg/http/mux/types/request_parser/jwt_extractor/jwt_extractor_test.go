@@ -125,6 +125,28 @@ func TestParse(t *testing.T) {
 		}
 	})
 
+	// A token that will not parse is as much the client's mistake as one that
+	// will not verify. Answered 500, any string at all in an Authorization
+	// header is a way to make the service look broken.
+	t.Run("parse error is 401", func(t *testing.T) {
+		t.Parallel()
+		parser, err := New(
+			tokenExtractor("not-a-jwt", nil),
+			authenticatorReturning(nil, fmt.Errorf("%w: jws split: bad split", altshiftErrors.ErrParseError)),
+		)
+		if err != nil {
+			t.Fatalf("new: %v", err)
+		}
+		_, responseError := parser.Parse(newRequest(t))
+		if responseError == nil || responseError.ProblemDetail == nil ||
+			responseError.ProblemDetail.Status != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %#v", responseError)
+		}
+		if responseError.ServerError != nil {
+			t.Fatalf("a malformed token is not a server error: %#v", responseError.ServerError)
+		}
+	})
+
 	t.Run("unknown authenticator error is a server error", func(t *testing.T) {
 		t.Parallel()
 		parser, err := New(tokenExtractor("tok", nil), authenticatorReturning(nil, errAuthFailure))

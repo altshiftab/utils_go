@@ -94,7 +94,17 @@ func (p *Parser[T]) Parse(request *http.Request) (*authenticated_token.Token, *m
 					problem_detail_config.WithDetail("The subject is not allowed to access this resource."),
 				),
 			}
-		} else if altshiftErrors.IsAny(err, altshiftCryptoErrors.ErrSignatureMismatch, altshiftErrors.ErrValidationError) {
+		} else if altshiftErrors.IsAny(
+			err,
+			altshiftCryptoErrors.ErrSignatureMismatch,
+			altshiftErrors.ErrValidationError,
+			// A token that will not parse is a token the client sent wrong, the
+			// same as one that will not verify. Left out, it falls through to
+			// the server error below and is answered 500 -- so anything at all
+			// in an Authorization header, `Bearer x` included, is a way to make
+			// the service look broken.
+			altshiftErrors.ErrParseError,
+		) {
 			return nil, &muxResponseError.ResponseError{
 				ClientError: err,
 				ProblemDetail: problem_detail.New(
