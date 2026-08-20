@@ -23,6 +23,7 @@ import (
 	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_loader"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
+	"github.com/altshiftab/utils_go/pkg/http/types/cache_control"
 	muxTypesRateLimiting "github.com/altshiftab/utils_go/pkg/http/mux/types/rate_limiting"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
 	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
@@ -249,6 +250,65 @@ var extensionToParameter = map[string]*StaticContentParameter{
 	".png":  {ContentType: "image/png"},
 	".jpg":  {ContentType: "image/jpeg"},
 	".jpeg": {ContentType: "image/jpeg"},
+}
+
+
+// setStaticContentVisibility rewrites the Cache-Control of one body so that it
+// says what `public` says. The header is parsed and written back rather than
+// edited as a string: `private` may carry quoted field names, and a header is
+// not a thing to take a substring of.
+//
+// A body whose Cache-Control does not parse is left alone. It is not this
+// function's business to reject a header it was handed, and refusing to serve
+// over it would turn a cache hint into an outage.
+func setStaticContentVisibility(data *static_content.StaticContentData, public bool) {
+	if data == nil {
+		return
+	}
+
+	for _, header := range data.Headers {
+		if header == nil || !strings.EqualFold(header.Name, "Cache-Control") {
+			continue
+		}
+
+		parsed, err := cache_control.Parse([]byte(header.Value))
+		if err != nil || parsed == nil {
+			continue
+		}
+
+		parsed.SetVisibility(public)
+		header.Value = parsed.String()
+	}
+}
+
+// SetPublic says whether the endpoint may be reached without a session, and
+// brings its static content's Cache-Control with it.
+//
+// The two are set together at construction and can only be set together
+// afterwards. A service that gates an endpoint it generated as public -- which
+// is how a mixed set of endpoints is built, some reachable and some not -- would
+// otherwise leave the body still announcing itself to every shared cache on the
+// way to the reader.
+//
+// Every content encoding is covered. Each carries its own copy of the headers,
+// so changing only the one the caller happens to think of leaves the compressed
+// bodies saying what the identity body no longer does.
+func (endpoint *Endpoint) SetPublic(public bool) {
+	if endpoint == nil {
+		return
+	}
+
+	endpoint.Public = public
+
+	staticContent := endpoint.StaticContent
+	if staticContent == nil {
+		return
+	}
+
+	setStaticContentVisibility(&staticContent.StaticContentData, public)
+	for _, encoded := range staticContent.ContentEncodingToData {
+		setStaticContentVisibility(encoded, public)
+	}
 }
 
 // TODO: Use config.

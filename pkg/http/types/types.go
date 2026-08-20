@@ -526,6 +526,87 @@ type CacheControl struct {
 	Raw        string
 }
 
+// quotedValueCacheControlDirectives are the directives whose argument is a list
+// of field names, which RFC 9111 spells as a quoted-string rather than leaving
+// to the generic token-or-quoted-string of a directive value.
+const (
+	cacheControlPrivate = "private"
+	cacheControlPublic  = "public"
+)
+
+var quotedValueCacheControlDirectives = map[string]bool{
+	cacheControlPrivate: true,
+	"no-cache":          true,
+}
+
+// String writes the directive back out. A value that is a bare token is written
+// as it is; anything else is quoted, which is the only form the grammar allows
+// it to take.
+func (directive *CacheControlDirective) String() string {
+	if directive == nil || directive.Name == "" {
+		return ""
+	}
+
+	if directive.Value == "" {
+		return directive.Name
+	}
+
+	// `private` and `no-cache` take a list of field names, and the grammar
+	// requires that list to be quoted even when it would pass for a token on its
+	// own -- `private=set-cookie` is not what `private="set-cookie"` says.
+	if !quotedValueCacheControlDirectives[directive.Name] && isHttpToken(directive.Value) {
+		return directive.Name + "=" + directive.Value
+	}
+
+	return directive.Name + "=" + quoteHttpString(directive.Value)
+}
+
+// String writes the header back out from the directives, so that a parsed
+// header can be changed and re-sent rather than patched as a string. It is not
+// Raw: a header that has been altered no longer is what it was received as, and
+// one built from directives was never received at all.
+//
+// Directives keep the order they were parsed in, which is the order a reader
+// would have seen them.
+func (cacheControl *CacheControl) String() string {
+	if cacheControl == nil {
+		return ""
+	}
+
+	parts := make([]string, 0, len(cacheControl.Directives))
+	for _, directive := range cacheControl.Directives {
+		if part := directive.String(); part != "" {
+			parts = append(parts, part)
+		}
+	}
+
+	return strings.Join(parts, ", ")
+}
+
+// SetVisibility makes the header say `public` or `private` and not the other,
+// leaving every other directive where it was. Neither is added to a header that
+// states neither -- a response that says nothing about who may store it is left
+// saying nothing, rather than being given an answer it did not have.
+func (cacheControl *CacheControl) SetVisibility(public bool) {
+	if cacheControl == nil {
+		return
+	}
+
+	from, to := cacheControlPrivate, cacheControlPublic
+	if !public {
+		from, to = cacheControlPublic, cacheControlPrivate
+	}
+
+	for _, directive := range cacheControl.Directives {
+		if directive != nil && directive.Name == from {
+			directive.Name = to
+			// `private` takes optional field names and `public` does not, so
+			// the value cannot come along.
+			directive.Value = ""
+		}
+	}
+}
+
 func (cacheControl *CacheControl) findDirective(name string) *CacheControlDirective {
 	for _, directive := range cacheControl.Directives {
 		if directive.Name == name {

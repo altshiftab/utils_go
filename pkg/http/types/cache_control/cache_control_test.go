@@ -546,3 +546,57 @@ func TestCacheControlMethods(t *testing.T) {
 		}
 	})
 }
+
+// A header that is parsed and written back out should say the same thing, so
+// that changing one directive does not mean rebuilding the header by hand.
+func TestParseStringRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		header   string
+		expected string
+	}{
+		{name: "single", header: "no-store", expected: "no-store"},
+		{name: "with a value", header: "max-age=3600", expected: "max-age=3600"},
+		{
+			name:     "several, in order",
+			header:   "public, max-age=31356000, immutable",
+			expected: "public, max-age=31356000, immutable",
+		},
+		{name: "spacing is normalized", header: "public,   max-age=60", expected: "public, max-age=60"},
+		{name: "quoted value survives", header: `private="set-cookie"`, expected: `private="set-cookie"`},
+		{name: "names fold to lower", header: "No-Store, Max-Age=5", expected: "no-store, max-age=5"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			parsed, err := Parse([]byte(testCase.header))
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			if got := parsed.String(); got != testCase.expected {
+				t.Fatalf("got %q, want %q", got, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestParseSetVisibilityRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	parsed, err := Parse([]byte("public, max-age=31356000, immutable"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	parsed.SetVisibility(false)
+	if got := parsed.String(); got != "private, max-age=31356000, immutable" {
+		t.Fatalf("got %q", got)
+	}
+	if !parsed.Private() || parsed.Public() {
+		t.Fatalf("accessors disagree with the written header: private=%t public=%t", parsed.Private(), parsed.Public())
+	}
+}

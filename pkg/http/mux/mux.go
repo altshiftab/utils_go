@@ -31,6 +31,7 @@ import (
 	utils2 "github.com/altshiftab/utils_go/pkg/http/mux/utils"
 	muxUtilsContentNegotiation "github.com/altshiftab/utils_go/pkg/http/mux/utils/content_negotiation"
 	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/cache_control"
 	"github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
@@ -746,6 +747,18 @@ func produceResponse(
 		if responseError != nil {
 			return nil, responseError
 		}
+
+		// A body behind a session must not be handed to a shared cache. The
+		// header is set where the content is built, which is before anything
+		// knows whether the endpoint would end up gated, so it is answered for
+		// here instead -- where whether a session is required is finally known.
+		//
+		// Downgraded only, never the other way. A service may have good reason
+		// to keep a reachable body out of shared caches; none to put a gated one
+		// in, and a mistake in that direction is not one the reader would see.
+		if response != nil && !endpoint.Public {
+			response.Headers = privateCacheControlHeaders(response.Headers)
+		}
 	}
 
 	if response == nil {
@@ -770,6 +783,46 @@ func produceResponse(
 	}
 
 	return response, nil
+}
+
+// privateCacheControlHeaders returns the headers with any Cache-Control that
+// says `public` saying `private` instead.
+//
+// The entries belong to the endpoint and are read by every request it serves,
+// so the one that changes is replaced rather than written to: a shared header
+// edited in place would race, and would outlast the request that did it.
+func privateCacheControlHeaders(headers []*muxTypesResponse.HeaderEntry) []*muxTypesResponse.HeaderEntry {
+	out := headers
+	copied := false
+
+	for i, header := range headers {
+		if header == nil || !strings.EqualFold(header.Name, "Cache-Control") {
+			continue
+		}
+
+		parsed, err := cache_control.Parse([]byte(header.Value))
+		if err != nil || parsed == nil || !parsed.Public() {
+			continue
+		}
+
+		if !copied {
+			// Not slices.Clone: it answers nil for a nil slice, and the
+			// assignment below would then be to nothing. The loop cannot be
+			// running over a nil slice, but that is not something a reader --
+			// or a checker -- should have to work out from here.
+			cloned := make([]*muxTypesResponse.HeaderEntry, len(headers))
+			copy(cloned, headers)
+			out = cloned
+			copied = true
+		}
+
+		parsed.SetVisibility(false)
+		replacement := *header
+		replacement.Value = parsed.String()
+		out[i] = &replacement
+	}
+
+	return out
 }
 
 func (mux *Mux) ServeHTTP(originalResponseWriter http.ResponseWriter, request *http.Request) {

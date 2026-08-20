@@ -186,3 +186,104 @@ func TestCacheControlFieldNames(t *testing.T) {
 		})
 	}
 }
+
+func directive(name string, value string) *CacheControlDirective {
+	return &CacheControlDirective{Name: name, Value: value}
+}
+
+func TestCacheControlString(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		input    *CacheControl
+		expected string
+	}{
+		{name: "nil", input: nil, expected: ""},
+		{name: "empty", input: cacheControl(), expected: ""},
+		{name: "valueless", input: cacheControl(directive("no-store", "")), expected: "no-store"},
+		{name: "token value", input: cacheControl(directive("max-age", "3600")), expected: "max-age=3600"},
+		{
+			name:     "order is kept",
+			input:    cacheControl(directive("public", ""), directive("max-age", "31356000"), directive("immutable", "")),
+			expected: "public, max-age=31356000, immutable",
+		},
+		{
+			name:     "a value that is not a token is quoted",
+			input:    cacheControl(directive("private", "set-cookie, authorization")),
+			expected: `private="set-cookie, authorization"`,
+		},
+		{
+			name:     "a quote inside a value is escaped",
+			input:    cacheControl(directive("private", `a"b`)),
+			expected: `private="a\"b"`,
+		},
+		{
+			name:     "a nameless directive is dropped rather than written",
+			input:    cacheControl(directive("", "x"), directive("no-store", "")),
+			expected: "no-store",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			if got := testCase.input.String(); got != testCase.expected {
+				t.Fatalf("got %q, want %q", got, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestCacheControlSetVisibility(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		input    *CacheControl
+		public   bool
+		expected string
+	}{
+		{
+			name:     "public becomes private, the rest untouched",
+			input:    cacheControl(directive("public", ""), directive("max-age", "31356000"), directive("immutable", "")),
+			public:   false,
+			expected: "private, max-age=31356000, immutable",
+		},
+		{
+			name:     "private becomes public, dropping its field names",
+			input:    cacheControl(directive("private", "set-cookie"), directive("max-age", "60")),
+			public:   true,
+			expected: "public, max-age=60",
+		},
+		{
+			name:     "a header stating neither is left stating neither",
+			input:    cacheControl(directive("no-store", "")),
+			public:   false,
+			expected: "no-store",
+		},
+		{
+			name:     "no-cache keeps its meaning",
+			input:    cacheControl(directive("public", ""), directive("no-cache", "")),
+			public:   false,
+			expected: "private, no-cache",
+		},
+		{
+			name:     "already private, asked for private",
+			input:    cacheControl(directive("private", ""), directive("max-age", "60")),
+			public:   false,
+			expected: "private, max-age=60",
+		},
+		{name: "nil does not panic", input: nil, public: false, expected: ""},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			testCase.input.SetVisibility(testCase.public)
+			if got := testCase.input.String(); got != testCase.expected {
+				t.Fatalf("got %q, want %q", got, testCase.expected)
+			}
+		})
+	}
+}
