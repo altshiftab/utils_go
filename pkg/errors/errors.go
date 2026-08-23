@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -69,31 +69,75 @@ func CollectWrappedErrors(err error) []error {
 	return results
 }
 
-func removeFunctionFromStackTrace(stackTrace, funcName string) string {
-	lines := strings.Split(stackTrace, "\n")
-	filtered := make([]string, 0, len(lines))
+// maxStackDepth bounds the frames a captured stack retains, so that a stack deep enough to be a
+// runaway recursion is recorded to a fixed size rather than to its own.
+const maxStackDepth = 512
 
-	for i := 0; i < len(lines); i++ {
-		// Check if the line matches the function signature (e.g., "main.funcName()")
-		if strings.HasPrefix(lines[i], funcName+"(") {
-			// Skip this line and the next line (file/line info)
-			i++
-		} else {
-			filtered = append(filtered, lines[i])
+// capturePcs records the calling goroutine's stack as program counters, skipping the given number
+// of frames above the caller's own: skip 0 makes the caller the topmost frame, skip 1 its caller.
+//
+// The counters are what a stack costs at the point an error is made. Rendering them into the text a
+// stack trace is read as is left to formatFrames, which runs where the trace is asked for -- at the
+// point it is logged, if it is logged at all.
+func capturePcs(skip int) []uintptr {
+	pcs := make([]uintptr, 64)
+
+	for {
+		// Two frames above the requested one are this function's and runtime.Callers' own.
+		n := runtime.Callers(skip+2, pcs)
+		if n < len(pcs) || len(pcs) >= maxStackDepth {
+			return pcs[:n]
+		}
+
+		// The stack filled what it was given and so may have more frames than were asked for.
+		pcs = make([]uintptr, min(2*len(pcs), maxStackDepth))
+	}
+}
+
+// formatFrames renders program counters as the text a stack trace is read as: a line naming each
+// frame's function, and one giving the file and line it stands at.
+func formatFrames(pcs []uintptr) string {
+	if len(pcs) == 0 {
+		return ""
+	}
+
+	var frames []runtime.Frame
+
+	callersFrames := runtime.CallersFrames(pcs)
+	for {
+		frame, more := callersFrames.Next()
+		if frame.Function != "" {
+			frames = append(frames, frame)
+		}
+
+		if !more {
+			break
 		}
 	}
-	return strings.Join(filtered, "\n")
+
+	// A goroutine stands on the runtime's own frames -- runtime.main and runtime.goexit -- which
+	// say nothing about where the error was made, and which runtime.Stack leaves out as well.
+	for len(frames) > 0 && strings.HasPrefix(frames[len(frames)-1].Function, "runtime.") {
+		frames = frames[:len(frames)-1]
+	}
+
+	var builder strings.Builder
+	for _, frame := range frames {
+		builder.WriteString(frame.Function)
+		builder.WriteString("()\n\t")
+		builder.WriteString(frame.File)
+		builder.WriteByte(':')
+		builder.WriteString(strconv.Itoa(frame.Line))
+		builder.WriteByte('\n')
+	}
+
+	return strings.TrimSpace(builder.String())
 }
 
-func getFunctionName(f any) string {
-	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
-}
-
+// CaptureStackTrace returns the calling goroutine's stack as text, the caller being the topmost
+// frame.
 func CaptureStackTrace() string {
-	buf := make([]byte, 64<<10)
-	return strings.TrimSpace(
-		removeFunctionFromStackTrace(string(buf[:runtime.Stack(buf, false)]), getFunctionName(CaptureStackTrace)),
-	)
+	return formatFrames(capturePcs(1))
 }
 
 type CodeErrorI interface {
@@ -176,6 +220,10 @@ type ExtendedError struct {
 	Id         string
 	StackTrace string
 	Context    *context.Context
+
+	// pcs is the stack NewWithTrace captured, held as program counters until GetStackTrace is
+	// asked for the text they render as. StackTrace, set by hand, is answered with ahead of it.
+	pcs []uintptr
 }
 
 func (err *ExtendedError) Error() string {
@@ -239,6 +287,10 @@ func (err *ExtendedError) GetId() string {
 func (err *ExtendedError) GetStackTrace() string {
 	if stackTrace := err.StackTrace; stackTrace != "" {
 		return stackTrace
+	}
+
+	if len(err.pcs) != 0 {
+		return formatFrames(err.pcs)
 	}
 
 	includedErr := err.error
@@ -328,10 +380,7 @@ func NewCtx(ctx context.Context, e any, input ...any) *ExtendedError {
 
 func NewWithTrace(e any, input ...any) *ExtendedError {
 	extendedErr := New(e, input...)
-	extendedErr.StackTrace = removeFunctionFromStackTrace(
-		CaptureStackTrace(),
-		getFunctionName(NewWithTrace),
-	)
+	extendedErr.pcs = capturePcs(1)
 
 	return extendedErr
 }
