@@ -75,18 +75,23 @@ func (c *Configurator) Parse(request *http.Request) (*altshiftHttpTypes.CorsConf
 			}
 		}
 
-		originHostname := parsedOrigin.Hostname()
-		originDomainParts := domain_parts.New(originHostname)
-		if originDomainParts == nil {
-			return nil, &response_error.ResponseError{
-				ProblemDetail: problem_detail.New(
-					http.StatusBadRequest,
-					problem_detail_config.WithDetail("Invalid Origin header hostname."),
-				),
-			}
-		}
+		// The loopback identifiers are resolved alongside the registered names
+		// because a service can be configured for one: a run on a developer's
+		// machine sets its registered domain to localhost, and the page it serves
+		// is then an origin it has to be able to recognise as its own. It stays a
+		// match only where both sides are local -- a deployment configured for a
+		// public domain goes on sharing nothing with them, which is what keeps a
+		// page on the machine from reaching a real service with credentials.
+		originDomainParts := domain_parts.NewAllowingLoopback(parsedOrigin.Hostname())
 
-		if strings.EqualFold(originDomainParts.RegisteredDomain, registeredDomain) {
+		// A hostname naming no domain at all is not a malformed request. It is an
+		// origin this service shares no domain with, which is what every origin
+		// that fails to match is, and the answer is the same: out it goes without
+		// the header that would let the page read it, and the browser stops
+		// there. Refusing outright instead left the service answerable with a 400
+		// to any client willing to send an odd Origin, and left every origin that
+		// is an address unable to match however it was configured.
+		if originDomainParts != nil && strings.EqualFold(originDomainParts.RegisteredDomain, registeredDomain) {
 			matchedAllowedOrigin = origin
 		}
 	}

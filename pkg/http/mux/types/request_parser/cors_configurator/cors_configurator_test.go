@@ -77,3 +77,110 @@ func TestParse(t *testing.T) {
 		}
 	})
 }
+
+// A service configured for a local run has to recognise the page it serves as
+// its own origin, and a deployed one has to go on refusing every local origin.
+// The two are the same rule -- an origin matches when it shares the service's
+// registered domain -- and what is tested is that the local names reach it
+// rather than that they are trusted.
+func TestParseLoopbackOrigins(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name             string
+		registeredDomain string
+		origin           string
+		matches          bool
+	}{
+		{
+			name:             "a local run recognises the page it serves",
+			registeredDomain: "localhost",
+			origin:           "http://localhost:8080",
+			matches:          true,
+		},
+		{
+			name:             "on whatever port it is reached",
+			registeredDomain: "localhost",
+			origin:           "http://localhost:3000",
+			matches:          true,
+		},
+		{
+			name:             "with the port left off, as the default port is",
+			registeredDomain: "localhost",
+			origin:           "http://localhost",
+			matches:          true,
+		},
+		{
+			name:             "a name reserved beneath it counts as the same deployment",
+			registeredDomain: "localhost",
+			origin:           "http://app.localhost:8080",
+			matches:          true,
+		},
+		{
+			name:             "so does the address the name stands for",
+			registeredDomain: "localhost",
+			origin:           "http://127.0.0.1:8080",
+			matches:          true,
+		},
+		{
+			name:             "and its IPv6 spelling",
+			registeredDomain: "localhost",
+			origin:           "http://[::1]:8080",
+			matches:          true,
+		},
+		{
+			name:             "a public origin is not part of a local deployment",
+			registeredDomain: "localhost",
+			origin:           "https://evil.example.com",
+			matches:          false,
+		},
+		// The one that matters: a deployment serving a real domain must never
+		// take a page on somebody's machine for one of its own, or that page
+		// could read its answers with the reader's credentials attached.
+		{
+			name:             "a deployed service refuses a local origin",
+			registeredDomain: "example.com",
+			origin:           "http://localhost:8080",
+			matches:          false,
+		},
+		{
+			name:             "and refuses a name beneath the reserved one",
+			registeredDomain: "example.com",
+			origin:           "http://app.localhost:8080",
+			matches:          false,
+		},
+		{
+			name:             "and refuses the loopback address",
+			registeredDomain: "example.com",
+			origin:           "http://127.0.0.1:8080",
+			matches:          false,
+		},
+		// An origin naming no domain is simply an origin that does not match.
+		// Answering it with a 400 let any client make the service refuse.
+		{
+			name:             "an address that is nobody's loopback is answered, not refused",
+			registeredDomain: "example.com",
+			origin:           "http://8.8.8.8",
+			matches:          false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			configurator := &Configurator{RegisteredDomain: testCase.registeredDomain}
+			config, responseError := configurator.Parse(newRequestWithOrigin(t, testCase.origin))
+			if responseError != nil {
+				t.Fatalf("unexpected error: %#v", responseError)
+			}
+
+			switch {
+			case testCase.matches && (config == nil || config.Origin != testCase.origin):
+				t.Fatalf("expected %q to match, got %#v", testCase.origin, config)
+			case !testCase.matches && config != nil:
+				t.Fatalf("expected %q not to match, got %#v", testCase.origin, config)
+			}
+		})
+	}
+}

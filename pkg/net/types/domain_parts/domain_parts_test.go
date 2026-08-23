@@ -236,3 +236,106 @@ func BenchmarkNew(b *testing.B) {
 		}
 	}
 }
+
+func TestNewAllowingLoopback(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		domain string
+		want   *Parts
+	}{
+		// A registered name is still answered by New, unchanged.
+		{
+			name:   "a registered domain is described as before",
+			domain: "www.example.com",
+			want:   &Parts{RegisteredDomain: "example.com", Subdomain: "www", TopLevelDomain: "com"},
+		},
+		{
+			name:   "empty string",
+			domain: "",
+			want:   nil,
+		},
+
+		// The reserved name, which New cannot describe.
+		{
+			name:   "the reserved name is its own registered domain",
+			domain: "localhost",
+			want:   &Parts{RegisteredDomain: "localhost", TopLevelDomain: "localhost"},
+		},
+		{
+			name:   "fully qualified, with the root label",
+			domain: "localhost.",
+			want:   &Parts{RegisteredDomain: "localhost", TopLevelDomain: "localhost"},
+		},
+		{
+			name:   "case is not part of a name",
+			domain: "LocalHost",
+			want:   &Parts{RegisteredDomain: "localhost", TopLevelDomain: "localhost"},
+		},
+		{
+			name:   "a name beneath it is a subdomain of it",
+			domain: "app.localhost",
+			want:   &Parts{RegisteredDomain: "localhost", Subdomain: "app", TopLevelDomain: "localhost"},
+		},
+		{
+			name:   "however deep",
+			domain: "api.staging.localhost",
+			want:   &Parts{RegisteredDomain: "localhost", Subdomain: "api.staging", TopLevelDomain: "localhost"},
+		},
+		{
+			name:   "a name merely ending in the letters is not beneath it",
+			domain: "notlocalhost",
+			want:   nil,
+		},
+
+		// The addresses that mean the same host. An address has no top-level
+		// domain and no subdomain.
+		{
+			name:   "the loopback address",
+			domain: "127.0.0.1",
+			want:   &Parts{RegisteredDomain: "localhost"},
+		},
+		{
+			name:   "the whole loopback block, not just the usual address",
+			domain: "127.1.2.3",
+			want:   &Parts{RegisteredDomain: "localhost"},
+		},
+		{
+			name:   "the IPv6 loopback address",
+			domain: "::1",
+			want:   &Parts{RegisteredDomain: "localhost"},
+		},
+		{
+			name:   "written as an IPv4 address inside an IPv6 one",
+			domain: "::ffff:127.0.0.1",
+			want:   &Parts{RegisteredDomain: "localhost"},
+		},
+		{
+			name:   "an address that is not loopback names nothing here",
+			domain: "8.8.8.8",
+			want:   nil,
+		},
+		{
+			name:   "nor does a public IPv6 address",
+			domain: "2001:4860:4860::8888",
+			want:   nil,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := NewAllowingLoopback(testCase.domain)
+			switch {
+			case testCase.want == nil && got != nil:
+				t.Fatalf("expected nil, got %#v", got)
+			case testCase.want != nil && got == nil:
+				t.Fatalf("expected %#v, got nil", testCase.want)
+			case testCase.want != nil && *got != *testCase.want:
+				t.Errorf("got %#v, want %#v", *got, *testCase.want)
+			}
+		})
+	}
+}
