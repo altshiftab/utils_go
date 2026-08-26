@@ -1,6 +1,6 @@
 package problem_detail_config
 
-import "github.com/altshiftab/utils_go/pkg/uuid"
+import "uuid"
 
 type Config struct {
 	Type      string
@@ -13,7 +13,7 @@ type Option func(*Config)
 
 func New(options ...Option) *Config {
 	config := &Config{
-		Instance: uuid.NewString(),
+		Instance: uuid.New().String(),
 	}
 	for _, option := range options {
 		option(config)

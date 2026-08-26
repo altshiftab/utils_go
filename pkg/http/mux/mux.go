@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"uuid"
 
 	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
@@ -37,7 +38,6 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
 	altshiftIter "github.com/altshiftab/utils_go/pkg/iter"
 	"github.com/altshiftab/utils_go/pkg/utils"
-	"github.com/altshiftab/utils_go/pkg/uuid"
 )
 
 const (
@@ -99,22 +99,11 @@ func (bm *baseMux) ServeHttpWithCallback(
 		context.WithValue(request.Context(), MuxHttpContextContextKey, httpContext),
 	)
 
-	requestId, err := uuid.NewV7()
-	if err != nil {
-		slog.WarnContext(
-			altshiftContext.WithError(
-				request.Context(),
-				altshiftErrors.NewWithTrace(fmt.Errorf("uuid new v7: %w", err)),
-			),
-			"An error occurred when generating a request id.",
-		)
-	} else {
-		contextRequest := request.WithContext(
-			context.WithValue(request.Context(), altshiftHttpContext.RequestIdContextKey, requestId.String()),
-		)
-		if contextRequest != nil {
-			request = contextRequest
-		}
+	requestId := uuid.NewV7()
+	if contextRequest := request.WithContext(
+		context.WithValue(request.Context(), altshiftHttpContext.RequestIdContextKey, requestId.String()),
+	); contextRequest != nil {
+		request = contextRequest
 	}
 
 	if len(bm.SetContextKeyValuePairs) != 0 {
