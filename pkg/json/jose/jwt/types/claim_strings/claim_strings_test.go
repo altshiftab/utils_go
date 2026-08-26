@@ -167,6 +167,18 @@ func TestSingleAsString(t *testing.T) {
 			input:    multiple,
 			expected: `{"aud":["aud1","aud2"],"iss":"iss1"}`,
 		},
+		{
+			name:     "option keeps empty audience as empty array",
+			marshal:  func(v any) ([]byte, error) { return json.Marshal(v, SingleAsString()) },
+			input:    claims{Audience: ClaimStrings{}, Issuer: "iss1"},
+			expected: `{"aud":[],"iss":"iss1"}`,
+		},
+		{
+			name:     "option keeps nil audience as empty array",
+			marshal:  func(v any) ([]byte, error) { return json.Marshal(v, SingleAsString()) },
+			input:    claims{Issuer: "iss1"},
+			expected: `{"aud":[],"iss":"iss1"}`,
+		},
 	}
 
 	for _, tc := range testCases {

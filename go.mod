@@ -1,3 +1,3 @@
 module github.com/altshiftab/utils_go
 
-go 1.26
+go 1.27

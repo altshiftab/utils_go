@@ -65,14 +65,18 @@ func SingleAsString() json.Options {
 }
 
 // marshalSingleClaimStringAsString emits a single-element value as a bare string
-// and returns SkipFunc for every other length so the default array marshaling
-// runs. Functions supplied via WithMarshalers take precedence over the type's
-// own MarshalJSON, so this applies wherever ClaimStrings appears in the value.
+// and every other length as the plain string slice it is. Functions supplied
+// via WithMarshalers take precedence over the type's own MarshalJSON, so this
+// applies wherever ClaimStrings appears in the value. The conversion to
+// []string matters: the function is registered for ClaimStrings alone, so
+// encoding the underlying type runs the default array marshaling instead of
+// re-entering this function. (Go 1.27 removed json.SkipFunc, which used to
+// express the fallthrough.)
 func marshalSingleClaimStringAsString(encoder *jsontext.Encoder, claimStrings ClaimStrings) error {
-	if len(claimStrings) != 1 {
-		return json.SkipFunc
+	if len(claimStrings) == 1 {
+		return json.MarshalEncode(encoder, claimStrings[0])
 	}
-	return json.MarshalEncode(encoder, claimStrings[0])
+	return json.MarshalEncode(encoder, []string(claimStrings))
 }
 
 func Convert(value any) (ClaimStrings, error) {

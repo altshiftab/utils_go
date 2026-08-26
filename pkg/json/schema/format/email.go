@@ -95,10 +95,8 @@ func isValidEmail(s string, idn bool) bool {
 	//                  ; zeros.  No more than 4 groups in addition to the
 	//                  ; "::" and IPv4-address-literal may be present.
 
-	// RFC5321 permits IPv6 iterals as "IPv6:literal" but net/mail
-	// doesn't parse that.
-	s = strings.Replace(s, "[IPv6:", "[", 1)
-
+	// net/mail parses RFC 5321 address literals itself, including the
+	// "[IPv6:literal]" form, and rejects an IPv6 literal without the tag.
 	addr, err := mail.ParseAddress(s)
 	if err != nil || addr.Name != "" {
 		return false

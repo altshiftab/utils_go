@@ -1,6 +1,6 @@
 module github.com/altshiftab/utils_go/pkg/json/schema/internal/tests
 
-go 1.26
+go 1.27
 
 require github.com/altshiftab/utils_go v0.0.0
 
