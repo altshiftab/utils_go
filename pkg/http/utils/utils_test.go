@@ -350,6 +350,50 @@ func TestFetch_RetriesThenSucceeds(t *testing.T) {
 	}
 }
 
+// A deadline that passes mid-flight has to end the retrying, not merely fail
+// the attempt in progress. Left unchecked, the back-off sleeps its full
+// schedule after the caller is gone -- an attempt certain to fail, a sleep, and
+// again -- so the call returns long after the deadline it was given, and a
+// caller that sized its deadline to fit a proxy's patience overruns it anyway.
+func TestFetch_RetryStopsAtTheDeadline(t *testing.T) {
+	t.Parallel()
+
+	var attempts atomic.Int32
+	server := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		attempts.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+
+	// Long enough to let the first attempt happen, far shorter than the
+	// back-off's schedule of 100ms, 200ms, 400ms and 800ms.
+	const deadline = 50 * time.Millisecond
+
+	retryConfig := retry_config.New(
+		retry_config.WithCount(4),
+		retry_config.WithBaseDelay(100*time.Millisecond),
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), deadline)
+	defer cancel()
+
+	started := time.Now()
+	_, _, err := Fetch(ctx, server.URL, fetch_config.WithRetryConfig(retryConfig))
+	elapsed := time.Since(started)
+
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+
+	// The whole schedule is 1.5s; returning anywhere near that means the
+	// sleeps ran on regardless of the deadline.
+	if elapsed > deadline+400*time.Millisecond {
+		t.Errorf("returned %s after a %s deadline, having slept past it", elapsed, deadline)
+	}
+	if got := attempts.Load(); got > 2 {
+		t.Errorf("attempts = %d, want the retrying to stop once the deadline passed", got)
+	}
+}
+
 func TestFetch_RetryExhaustedReturnsError(t *testing.T) {
 	t.Parallel()
 

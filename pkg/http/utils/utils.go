@@ -247,6 +247,15 @@ func fetchWithRetryConfig(
 
 	for i := range 1 + retryConfig.Count {
 		if i != 0 {
+			// A caller that has stopped waiting is not served by trying again.
+			// The context is checked before the wait as well as during it: a
+			// deadline that passed during the previous attempt would otherwise
+			// buy a sleep, and then an attempt certain to fail, and then
+			// another sleep, running the caller well past the deadline it set.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				break
+			}
+
 			// Wait before the next attempt, based on the previous response.
 			waitDuration, giveUp := retryWaitDuration(retryConfig, response, responseBody, i)
 			if giveUp {
@@ -256,7 +265,15 @@ func fetchWithRetryConfig(
 			// TODO: Add jitter?
 
 			if waitDuration > 0 {
-				time.Sleep(waitDuration)
+				timer := time.NewTimer(waitDuration)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+				case <-timer.C:
+				}
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					break
+				}
 			}
 
 			// The previous attempt consumed the request body; replay it so the
