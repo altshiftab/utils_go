@@ -168,7 +168,7 @@ func zshSpecs(parser *argument_parser.Parser) []string {
 	specs := make([]string, 0, len(parser.Options)+len(parser.Positionals)+1)
 
 	for _, declared := range parser.Options {
-		if declared == nil {
+		if declared == nil || hidden(declared) {
 			continue
 		}
 
@@ -184,7 +184,7 @@ func zshSpecs(parser *argument_parser.Parser) []string {
 	}
 
 	for _, declared := range parser.Positionals {
-		if declared == nil {
+		if declared == nil || hidden(declared) {
 			continue
 		}
 

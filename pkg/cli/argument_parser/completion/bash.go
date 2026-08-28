@@ -23,7 +23,7 @@ func bashOptionNames(parser *argument_parser.Parser) string {
 	found := make([]string, 0, len(parser.Options)*2)
 
 	for _, declared := range parser.Options {
-		if declared == nil {
+		if declared == nil || hidden(declared) {
 			continue
 		}
 
@@ -43,7 +43,7 @@ func bashChoiceCases(builder *strings.Builder, parser *argument_parser.Parser, i
 	wrote := false
 
 	for _, declared := range parser.Options {
-		if declared == nil || !takesArgument(declared) {
+		if declared == nil || hidden(declared) || !takesArgument(declared) {
 			continue
 		}
 

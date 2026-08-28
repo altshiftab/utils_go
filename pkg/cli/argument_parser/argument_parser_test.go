@@ -2675,3 +2675,78 @@ func TestFormatHelpPositionals(t *testing.T) {
 		t.Errorf("FormatHelp mismatch (-expected +got):\n%s", diff)
 	}
 }
+
+// TestHiddenOptionIsUnlistedButAccepted holds what hidden means, and what it does not. An option
+// kept out of the help is still an option: a caller who knows it is there must be able to give it,
+// because hiding is about clutter rather than about keeping something out of reach.
+func TestHiddenOptionIsUnlistedButAccepted(t *testing.T) {
+	t.Parallel()
+
+	var shown string
+	var concealed string
+
+	parser := &Parser{
+		ProgramName: "thing",
+		Description: "Do the thing.",
+		Options: []option.Option{
+			option.NewStringOption('s', "shown", "An ordinary option.", false, &shown),
+			option.WithHidden(
+				option.NewStringOption(0, "concealed", "An option kept out of the help.", false, &concealed),
+			),
+		},
+	}
+
+	if err := parser.ParseArgs([]string{"--concealed", "given"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if concealed != "given" {
+		t.Errorf("expected the hidden option to be accepted, got %q", concealed)
+	}
+
+	help := parser.FormatHelp()
+
+	if strings.Contains(help, "concealed") {
+		t.Errorf("expected the hidden option to be unlisted, got:\n%s", help)
+	}
+	// The one beside it is still listed, so hiding one did not hide the rest.
+	if !strings.Contains(help, "--shown") {
+		t.Errorf("expected the ordinary option to still be listed, got:\n%s", help)
+	}
+	// The usage line is where a hidden option is most obviously out of place, because it is one
+	// line and every option widens it.
+	usageLine := strings.SplitN(help, "\n", 2)[0]
+	if strings.Contains(usageLine, "concealed") {
+		t.Errorf("expected the usage line to leave the hidden option out, got %q", usageLine)
+	}
+}
+
+// TestHiddenOptionInAGroupIsUnlisted holds that hiding works wherever an option is declared, not
+// only in the ungrouped list.
+func TestHiddenOptionInAGroupIsUnlisted(t *testing.T) {
+	t.Parallel()
+
+	var shown string
+	var concealed string
+
+	shownOption := option.NewStringOption('s', "shown", "An ordinary option.", false, &shown)
+	concealedOption := option.WithHidden(
+		option.NewStringOption(0, "concealed", "An option kept out of the help.", false, &concealed),
+	)
+
+	parser := &Parser{
+		ProgramName: "thing",
+		Options:     []option.Option{shownOption, concealedOption},
+		Groups: []*Group{
+			{Title: "Advanced", Options: []option.Option{shownOption, concealedOption}},
+		},
+	}
+
+	help := parser.FormatHelp()
+
+	if strings.Contains(help, "concealed") {
+		t.Errorf("expected the hidden option to be unlisted in its group, got:\n%s", help)
+	}
+	if !strings.Contains(help, "--shown") {
+		t.Errorf("expected the group's other option to still be listed, got:\n%s", help)
+	}
+}

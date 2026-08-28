@@ -595,6 +595,19 @@ func (parser *Parser) getCommandEntries() []*entry {
 	return entries
 }
 
+// isHidden reports whether the option is kept out of what is shown to a person.
+//
+// An option that does not say is shown, so that an Option written by hand rather than by the option
+// package does not have to know about this at all.
+func isHidden(opt option.Option) bool {
+	provider, ok := opt.(option.HiddenProvider)
+	if !ok {
+		return false
+	}
+
+	return provider.GetHidden()
+}
+
 // getOptionEntries returns the parser's options as they are written in the help message. Only the
 // options belonging to the named group are returned; passing the empty title returns those in no
 // group, along with the automatic help option.
@@ -616,7 +629,7 @@ func (parser *Parser) getOptionEntries(title string) []*entry {
 		}
 
 		for _, opt := range parser.Options {
-			if opt == nil {
+			if opt == nil || isHidden(opt) {
 				continue
 			}
 
@@ -635,7 +648,7 @@ func (parser *Parser) getOptionEntries(title string) []*entry {
 			}
 
 			for _, opt := range group.Options {
-				if opt != nil {
+				if opt != nil && !isHidden(opt) {
 					options = append(options, opt)
 				}
 			}
@@ -843,7 +856,7 @@ func (parser *Parser) formatUsage(width int) string {
 	emitted := make(map[int]struct{})
 
 	for _, opt := range parser.Options {
-		if opt == nil {
+		if opt == nil || isHidden(opt) {
 			continue
 		}
 

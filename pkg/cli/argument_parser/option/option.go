@@ -60,6 +60,12 @@ type ChoicesProvider interface {
 	GetChoices() []string
 }
 
+// HiddenProvider is implemented by options that are accepted but not shown. Every option built by
+// this package implements it; a hand-written Option may.
+type HiddenProvider interface {
+	GetHidden() bool
+}
+
 // DefaultProvider is implemented by options that are set to a value when no argument names them.
 // The value is nil when no default was declared, which is what distinguishes having no default
 // from defaulting to the empty string.
@@ -95,6 +101,9 @@ type base struct {
 	// Default is the value the option takes when no argument names it. A nil Default is no default
 	// at all, which is what lets the empty string be one.
 	Default *string
+	// Hidden keeps the option out of what is shown to a person. It is accepted exactly as any
+	// other; it is simply not listed.
+	Hidden bool
 }
 
 // GetShortName returns the option's short name, or the empty string when it has none. A zero
@@ -160,6 +169,15 @@ func (base *base) SetMetavar(metavar string) {
 	base.Metavar = metavar
 }
 
+// GetHidden reports whether the option is kept out of what is shown to a person.
+func (base *base) GetHidden() bool {
+	return base.Hidden
+}
+
+func (base *base) SetHidden(hidden bool) {
+	base.Hidden = hidden
+}
+
 // WithChoices restricts an option to the given values and returns it, so that it may be declared
 // inside an option list.
 func WithChoices[T interface {
@@ -188,6 +206,23 @@ func WithMetavar[T interface {
 	SetMetavar(string)
 }](opt T, metavar string) T {
 	opt.SetMetavar(metavar)
+
+	return opt
+}
+
+// WithHidden keeps an option out of the help and out of a generated completion, and returns it.
+//
+// It is for options that exist for a person to run once rather than to reach for: writing a
+// completion script, printing a version. They would otherwise sit in the help of every invocation
+// to serve a thing done at installation.
+//
+// The option is accepted exactly as any other. Hidden means unlisted, not unavailable, and it is
+// not a way to keep something secret: anything that must not be used should not be declared.
+func WithHidden[T interface {
+	Option
+	SetHidden(bool)
+}](opt T) T {
+	opt.SetHidden(true)
 
 	return opt
 }

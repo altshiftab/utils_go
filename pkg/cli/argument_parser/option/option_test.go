@@ -669,3 +669,29 @@ func TestSettersOnEveryOptionKind(t *testing.T) {
 		})
 	}
 }
+
+// TestWithHidden holds that hiding is opt-in, and that an option not built by this package -- which
+// cannot say whether it is hidden -- is shown rather than concealed by accident.
+func TestWithHidden(t *testing.T) {
+	t.Parallel()
+
+	var value string
+
+	ordinary := NewStringOption('o', "ordinary", "An option.", false, &value)
+	if ordinary.GetHidden() {
+		t.Error("expected an option to be shown unless it says otherwise")
+	}
+
+	concealed := WithHidden(NewStringOption(0, "concealed", "An option.", false, &value))
+	if !concealed.GetHidden() {
+		t.Error("expected WithHidden to hide the option")
+	}
+
+	// Hidden is about what is listed, never about what is accepted.
+	if err := concealed.Set("given"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if value != "given" {
+		t.Errorf("expected a hidden option to still take a value, got %q", value)
+	}
+}

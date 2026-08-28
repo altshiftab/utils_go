@@ -348,3 +348,64 @@ func TestOptionOffersTheShells(t *testing.T) {
 		t.Errorf("expected every shell offered, got %v", got)
 	}
 }
+
+// TestHiddenOptionIsNotCompleted holds that hidden means one thing rather than two. An option a
+// caller is not shown in the help is not one they should meet by pressing tab either -- an option
+// marked hidden because it is deprecated would otherwise keep being offered.
+func TestHiddenOptionIsNotCompleted(t *testing.T) {
+	t.Parallel()
+
+	var shown bool
+	var concealed string
+
+	parser := &argument_parser.Parser{
+		ProgramName: "thing",
+		Options: []option.Option{
+			option.NewBoolOption('s', "shown", "An ordinary option.", false, &shown),
+			option.WithChoices(
+				option.WithHidden(
+					option.NewStringOption(0, "concealed", "Kept out of the help.", false, &concealed),
+				),
+				"one", "two",
+			),
+		},
+	}
+
+	for _, shell := range Shells {
+		t.Run(shell, func(t *testing.T) {
+			t.Parallel()
+
+			script := write(t, parser, shell)
+
+			if strings.Contains(script, "concealed") {
+				t.Errorf("%s: expected the hidden option to be left out, got:\n%s", shell, script)
+			}
+			// Its values must go with it: a case arm offering "one two" after an option that is
+			// never offered is dead weight at best.
+			if strings.Contains(script, "one two") {
+				t.Errorf("%s: expected the hidden option's values to go with it, got:\n%s", shell, script)
+			}
+			// The one beside it is still there, so hiding one did not hide the rest.
+			if !strings.Contains(script, "--shown") {
+				t.Errorf("%s: expected the ordinary option to still be offered, got:\n%s", shell, script)
+			}
+		})
+	}
+}
+
+// TestOptionIsHidden holds that writing a completion is an installation step rather than something
+// to meet in the help of every invocation.
+func TestOptionIsHidden(t *testing.T) {
+	t.Parallel()
+
+	var shell string
+
+	provider, ok := Option(&shell).(option.HiddenProvider)
+	if !ok {
+		t.Fatal("expected the option to say whether it is hidden")
+	}
+
+	if !provider.GetHidden() {
+		t.Error("expected the completion option to be hidden")
+	}
+}

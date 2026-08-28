@@ -124,6 +124,21 @@ func repeatable(declared option.Option) bool {
 	return declared.GetNargs().IsVariadic()
 }
 
+// hidden reports whether the option is kept out of what is shown to a person.
+//
+// A hidden option is left out of the completion as well as the help. "Hidden" means one thing
+// rather than two: an option a caller is not shown in the help is not one they should meet by
+// pressing tab either, and an option marked hidden because it is deprecated or awkward would
+// otherwise keep being offered.
+func hidden(declared option.Option) bool {
+	provider, ok := declared.(option.HiddenProvider)
+	if !ok {
+		return false
+	}
+
+	return provider.GetHidden()
+}
+
 // choices returns the values an option accepts, or nothing where it accepts any.
 func choices(declared option.Option) []string {
 	provider, ok := declared.(option.ChoicesProvider)
@@ -251,18 +266,24 @@ func Write(writer io.Writer, parser *argument_parser.Parser, shell string) error
 //	if shell != "" {
 //		return completion.Write(os.Stdout, parser, shell)
 //	}
+//
+// It is hidden: writing a completion is done once, when the program is installed, and an option
+// that serves that has no business in the help of every invocation afterwards. It is accepted
+// exactly as any other, and a program that would rather advertise it can declare its own.
 func Option(shell *string) option.Option {
-	return option.WithChoices(
-		option.WithMetavar(
-			option.NewStringOption(
-				0,
-				"completion",
-				"Write a completion script for the given shell to standard output, and exit.",
-				false,
-				shell,
+	return option.WithHidden(
+		option.WithChoices(
+			option.WithMetavar(
+				option.NewStringOption(
+					0,
+					"completion",
+					"Write a completion script for the given shell to standard output, and exit.",
+					false,
+					shell,
+				),
+				"SHELL",
 			),
-			"SHELL",
+			Shells...,
 		),
-		Shells...,
 	)
 }
