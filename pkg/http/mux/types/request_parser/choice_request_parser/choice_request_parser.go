@@ -1,4 +1,16 @@
-package race_request_parser
+// Package choice_request_parser admits a request that any one of several parsers admits.
+//
+// It is an ordered choice: the parsers are tried, and the first of them in declaration order that
+// admitted the request is the one whose result is returned. They are tried concurrently, which is
+// an optimisation rather than the contract -- an endpoint reachable by a session or by a signed
+// token should not pay for both checks in series.
+//
+// The concurrency does cost something worth knowing. By default the first parser to admit the
+// request cancels the others, so a slower parser declared earlier may be cut off before it
+// finishes and its result lost: the declared precedence is honoured among the parsers that
+// completed, rather than guaranteed. WithExclusive removes the cancellation along with the reason
+// for it, and precedence is then exact.
+package choice_request_parser
 
 import (
 	"context"
@@ -9,7 +21,7 @@ import (
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
-	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/race_request_parser/race_request_parser_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/choice_request_parser/choice_request_parser_config"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
@@ -103,8 +115,8 @@ parserLoop:
 	return zero, p.responseErrorsParser(parserResponseErrors)
 }
 
-func New[T any](parsers []request_parser.RequestParser[T], options ...race_request_parser_config.Option) *Parser[T] {
-	config := race_request_parser_config.New(options...)
+func New[T any](parsers []request_parser.RequestParser[T], options ...choice_request_parser_config.Option) *Parser[T] {
+	config := choice_request_parser_config.New(options...)
 	return &Parser[T]{
 		Parsers:              parsers,
 		responseErrorsParser: config.ResponseErrorParser,

@@ -1,4 +1,4 @@
-package race_request_parser
+package choice_request_parser
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
-	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/race_request_parser/race_request_parser_config"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/choice_request_parser/choice_request_parser_config"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 )
@@ -113,7 +113,7 @@ func TestExclusiveRefusesTwoCredentials(t *testing.T) {
 			&admittingParser{identity: "session"},
 			&admittingParser{identity: "service account"},
 		},
-		race_request_parser_config.WithExclusive(),
+		choice_request_parser_config.WithExclusive(),
 	)
 
 	result, responseError := parser.Parse(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
@@ -141,7 +141,7 @@ func TestExclusiveAdmitsExactlyOne(t *testing.T) {
 			&refusingParser{},
 			&admittingParser{identity: "service account"},
 		},
-		race_request_parser_config.WithExclusive(),
+		choice_request_parser_config.WithExclusive(),
 	)
 
 	result, responseError := parser.Parse(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
