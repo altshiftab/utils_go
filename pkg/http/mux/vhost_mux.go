@@ -8,9 +8,9 @@ import (
 
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/forwarded_headers"
 	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
-	"github.com/altshiftab/utils_go/pkg/http/mux/types/forwarded_headers"
 	muxTypesResponseWriter "github.com/altshiftab/utils_go/pkg/http/mux/types/response_writer"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	altshiftStrings "github.com/altshiftab/utils_go/pkg/strings"

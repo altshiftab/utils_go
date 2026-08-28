@@ -2,6 +2,7 @@ package race_request_parser
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sync"
 
@@ -10,12 +11,19 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/race_request_parser/race_request_parser_config"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
+	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
+
+// ErrAmbiguousCredentials is a request more than one parser admitted, where the caller asked for
+// exactly one.
+var ErrAmbiguousCredentials = errors.New("more than one parser admitted the request")
 
 type Parser[T any] struct {
 	Parsers              []request_parser.RequestParser[T]
 	responseErrorsParser func([]*response_error.ResponseError) *response_error.ResponseError
+	exclusive            bool
 }
 
 func (p *Parser[T]) Parse(request *http.Request) (T, *response_error.ResponseError) {
@@ -55,7 +63,9 @@ parserLoop:
 					parsedResults[i] = result
 					parserResponseErrors[i] = responseError
 
-					if !utils.IsNil(result) {
+					// Where exactly one parser may admit the request, the others have to finish:
+					// whether a second would have admitted it is the thing being asked.
+					if !utils.IsNil(result) && !p.exclusive {
 						cancel()
 					}
 				},
@@ -64,6 +74,25 @@ parserLoop:
 	}
 
 	waitGroup.Wait()
+
+	if p.exclusive {
+		admitted := 0
+		for i := range p.Parsers {
+			if !utils.IsNil(parsedResults[i]) {
+				admitted++
+			}
+		}
+
+		if admitted > 1 {
+			return zero, &response_error.ResponseError{
+				ClientError: altshiftErrors.NewWithTrace(ErrAmbiguousCredentials, admitted),
+				ProblemDetail: problem_detail.New(
+					http.StatusBadRequest,
+					problem_detail_config.WithDetail("The request carries more than one kind of credential."),
+				),
+			}
+		}
+	}
 
 	for i := range p.Parsers {
 		if !utils.IsNil(parsedResults[i]) {
@@ -79,5 +108,6 @@ func New[T any](parsers []request_parser.RequestParser[T], options ...race_reque
 	return &Parser[T]{
 		Parsers:              parsers,
 		responseErrorsParser: config.ResponseErrorParser,
+		exclusive:            config.Exclusive,
 	}
 }

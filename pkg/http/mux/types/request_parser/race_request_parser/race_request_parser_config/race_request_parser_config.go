@@ -19,6 +19,18 @@ func defaultResponseErrorsParser(responseErrors []*response_error.ResponseError)
 
 type Config struct {
 	ResponseErrorParser func([]*response_error.ResponseError) *response_error.ResponseError
+
+	// Exclusive refuses a request that more than one parser admits.
+	//
+	// It is for authorization, where the question is not only whether a request may proceed but as
+	// whom. A request carrying two kinds of credential has two answers to that, and picking one is
+	// guessing at what the sender meant: an audit trail then records an identity nobody chose, and
+	// a handler that grants more to one of them grants it on the strength of a declaration order.
+	// OAuth 2.0 refuses the same thing for the same reason.
+	//
+	// It costs the early exit: every parser is run to completion, because whether a second would
+	// have admitted the request is the thing being asked.
+	Exclusive bool
 }
 
 type Option func(*Config)
@@ -32,6 +44,13 @@ func New(options ...Option) *Config {
 	}
 
 	return config
+}
+
+// WithExclusive refuses a request that more than one parser admits.
+func WithExclusive() Option {
+	return func(config *Config) {
+		config.Exclusive = true
+	}
 }
 
 func WithResponseErrorParser(responseErrorParser func([]*response_error.ResponseError) *response_error.ResponseError) Option {

@@ -38,6 +38,7 @@ func anyAuthenticationParser() request_parser.RequestParser[any] {
 // Public and AuthenticationParser disagree in two directions, and both are
 // worth hearing about: one is served to anyone, the other tells everything that
 // reads Public the wrong thing about a body that is in fact gated.
+//
 //nolint:paralleltest // Reads the default logger, which is global; running beside anything else that writes to it would make the assertions depend on the order.
 func TestAdd_VisibilityWarnings(t *testing.T) {
 	testCases := []struct {

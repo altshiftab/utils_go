@@ -23,13 +23,13 @@ import (
 	muxErrors "github.com/altshiftab/utils_go/pkg/http/mux/errors"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_loader"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint/static_content"
-	"github.com/altshiftab/utils_go/pkg/http/types/cache_control"
 	muxTypesRateLimiting "github.com/altshiftab/utils_go/pkg/http/mux/types/rate_limiting"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
 	muxResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	muxResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/utils"
 	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/cache_control"
 	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 	"github.com/altshiftab/utils_go/pkg/sync/errgroup"
 )
@@ -251,7 +251,6 @@ var extensionToParameter = map[string]*StaticContentParameter{
 	".jpg":  {ContentType: "image/jpeg"},
 	".jpeg": {ContentType: "image/jpeg"},
 }
-
 
 // setStaticContentVisibility rewrites the Cache-Control of one body so that it
 // says what `public` says. The header is parsed and written back rather than
