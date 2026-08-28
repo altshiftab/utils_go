@@ -1,4 +1,4 @@
-package race_request_parser_config
+package choice_request_parser_config
 
 import (
 	"net/http"
