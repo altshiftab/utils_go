@@ -396,3 +396,135 @@ func TestWithTokenAuthenticatesRequests(t *testing.T) {
 		t.Errorf("Authorization = %q", authorization)
 	}
 }
+
+func TestSearchCode(t *testing.T) {
+	t.Parallel()
+
+	t.Run("the query, the paging and the excerpt are asked for", func(t *testing.T) {
+		t.Parallel()
+
+		var asked url.Values
+		var accept string
+
+		client := clientFor(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != SearchCodePath {
+				t.Errorf("path = %q", r.URL.Path)
+			}
+			asked = r.URL.Query()
+			accept = r.Header.Get("Accept")
+
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := w.Write([]byte(`{
+				"total_count": 2,
+				"incomplete_results": false,
+				"items": [{
+					"name": "config.yaml",
+					"path": "deploy/config.yaml",
+					"html_url": "https://github.com/owner/repo/blob/sha/deploy/config.yaml",
+					"repository": {"full_name": "owner/repo", "html_url": "https://github.com/owner/repo"},
+					"text_matches": [{"fragment": "host: internal.example.com", "matches": [{"text": "example.com"}]}]
+				}]
+			}`)); err != nil {
+				t.Errorf("write: %v", err)
+			}
+		})
+
+		response, err := client.SearchCode(t.Context(), `"example.com" in:file`, 2, 50)
+		if err != nil {
+			t.Fatalf("SearchCode: %v", err)
+		}
+
+		if got := asked.Get("q"); got != `"example.com" in:file` {
+			t.Errorf("q = %q", got)
+		}
+		if got := asked.Get("page"); got != "2" {
+			t.Errorf("page = %q", got)
+		}
+		if got := asked.Get("per_page"); got != "50" {
+			t.Errorf("per_page = %q", got)
+		}
+		// Without the media type a result names the file that matched but not what
+		// in it did, and the excerpt is what makes a finding judgeable.
+		if accept != TextMatchMediaType {
+			t.Errorf("accept = %q, want %q", accept, TextMatchMediaType)
+		}
+
+		if response.TotalCount != 2 || len(response.Items) != 1 {
+			t.Fatalf("response = %+v", response)
+		}
+
+		item := response.Items[0]
+		if item.Path != "deploy/config.yaml" || item.Repository.FullName != "owner/repo" {
+			t.Errorf("item = %+v", item)
+		}
+		if len(item.TextMatches) != 1 || item.TextMatches[0].Fragment != "host: internal.example.com" {
+			t.Errorf("text matches = %+v", item.TextMatches)
+		}
+	})
+
+	t.Run("a page size beyond the maximum is capped", func(t *testing.T) {
+		t.Parallel()
+
+		var asked url.Values
+
+		client := clientFor(t, func(w http.ResponseWriter, r *http.Request) {
+			asked = r.URL.Query()
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := w.Write([]byte(`{"total_count": 0, "items": []}`)); err != nil {
+				t.Errorf("write: %v", err)
+			}
+		})
+
+		// Asking for more than the maximum is not an error upstream; it simply
+		// serves this many, so a caller paging on what it asked for would skip
+		// results. Capping here keeps the page size the caller pages by honest.
+		if _, err := client.SearchCode(t.Context(), "example.com", 0, 500); err != nil {
+			t.Fatalf("SearchCode: %v", err)
+		}
+
+		if got := asked.Get("per_page"); got != "100" {
+			t.Errorf("per_page = %q, want the maximum", got)
+		}
+	})
+
+	t.Run("zero paging asks for the server's own defaults", func(t *testing.T) {
+		t.Parallel()
+
+		var asked url.Values
+
+		client := clientFor(t, func(w http.ResponseWriter, r *http.Request) {
+			asked = r.URL.Query()
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := w.Write([]byte(`{"total_count": 0, "items": []}`)); err != nil {
+				t.Errorf("write: %v", err)
+			}
+		})
+
+		if _, err := client.SearchCode(t.Context(), "example.com", 0, 0); err != nil {
+			t.Fatalf("SearchCode: %v", err)
+		}
+
+		if asked.Has("page") || asked.Has("per_page") {
+			t.Errorf("expected neither to be sent, got %v", asked)
+		}
+	})
+
+	t.Run("an empty query is an error", func(t *testing.T) {
+		t.Parallel()
+
+		// GitHub refuses a query with no term of its own with a 422, so it is
+		// caught here rather than spent on a request that cannot succeed.
+		if _, err := NewClient().SearchCode(t.Context(), "", 0, 0); err == nil {
+			t.Error("expected an error, got none")
+		}
+	})
+
+	t.Run("a nil client is an error", func(t *testing.T) {
+		t.Parallel()
+
+		var client *Client
+		if _, err := client.SearchCode(t.Context(), "example.com", 0, 0); err == nil {
+			t.Error("expected an error, got none")
+		}
+	})
+}

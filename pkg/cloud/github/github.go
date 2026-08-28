@@ -1,10 +1,16 @@
-// Package github reads repository contents from the GitHub API.
+// Package github reads repository contents from the GitHub API, and searches
+// public code.
 //
 // It covers what a generator needs to track a file published upstream: find the
 // commit that last touched it, list the tree at that commit, and fetch a file or
 // the whole repository at it. Going through the API rather than cloning keeps
 // the fetch to what is wanted, and yields a commit SHA to record alongside
 // whatever was generated so a result can be traced back to what produced it.
+//
+// SearchCode answers a different question from the rest: not what is in a
+// repository already named, but which repositories mention something. It is the
+// one call here that reaches across all of GitHub rather than into one project,
+// and it is metered far more tightly than the others.
 package github
 
 import (
@@ -13,9 +19,12 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"slices"
+	"strconv"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/github/github_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/github/types/blob"
+	"github.com/altshiftab/utils_go/pkg/cloud/github/types/code_search"
 	"github.com/altshiftab/utils_go/pkg/cloud/github/types/commit"
 	"github.com/altshiftab/utils_go/pkg/cloud/github/types/tree"
 	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
@@ -30,6 +39,17 @@ const (
 	DefaultHost        = "api.github.com"
 	DefaultArchiveHost = "github.com"
 )
+
+// SearchCodePath is where code search is served.
+const SearchCodePath = "/search/code"
+
+// TextMatchMediaType asks for the excerpt around each match. Without it a result
+// names the file that matched but not what in it did.
+const TextMatchMediaType = "application/vnd.github.text-match+json"
+
+// SearchCodeMaxPerPage is the largest page the search serves. Asking for more is
+// not an error; it simply returns this many.
+const SearchCodeMaxPerPage = 100
 
 type Client struct {
 	baseUrl        *url.URL
@@ -220,4 +240,65 @@ func (c *Client) CommitArchive(
 	}
 
 	return reader, nil
+}
+
+// SearchCode returns the public files matching the query.
+//
+// The query is GitHub's own search syntax, so a caller narrows with qualifiers
+// -- "example.com in:file language:yaml" -- rather than through parameters here.
+// GitHub requires at least one term that is not a qualifier, and refuses a query
+// that is all qualifiers with a 422.
+//
+// Three things separate this from the rest of the client. It needs a token, and
+// answers 401 without one. It is rate limited to ten requests a minute rather
+// than the five thousand an hour the other calls get, so a caller sweeping many
+// domains must pace itself. And the excerpt around each match arrives only under
+// the text-match media type, which is asked for here because a result without it
+// cannot be judged without opening the file.
+//
+// perPage of zero asks for the server default; page of zero asks for the first.
+func (c *Client) SearchCode(
+	ctx context.Context,
+	query string,
+	page int,
+	perPage int,
+	options ...fetch_config.Option,
+) (*code_search.Response, error) {
+	if c == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("client"))
+	}
+	if query == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("query"))
+	}
+
+	u := *c.baseUrl
+	u.Path += SearchCodePath
+
+	values := u.Query()
+	values.Set("q", query)
+	if page > 0 {
+		values.Set("page", strconv.Itoa(page))
+	}
+	if perPage > 0 {
+		values.Set("per_page", strconv.Itoa(min(perPage, SearchCodeMaxPerPage)))
+	}
+	u.RawQuery = values.Encode()
+
+	urlString := u.String()
+
+	// slices.Concat rather than append: the client's options are shared by every
+	// call, and appending into that slice's spare capacity would have concurrent
+	// calls overwrite one another's.
+	fetchOptions := slices.Concat(
+		c.config.FetchOptions,
+		options,
+		[]fetch_config.Option{fetch_config.WithHeaders(map[string]string{"Accept": TextMatchMediaType})},
+	)
+
+	value, err := rest.GetJson[code_search.Response](ctx, urlString, fetchOptions)
+	if err != nil {
+		return nil, fmt.Errorf("get json: %w", err)
+	}
+
+	return value, nil
 }
