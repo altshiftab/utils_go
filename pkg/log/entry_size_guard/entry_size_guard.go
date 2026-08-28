@@ -12,8 +12,13 @@ import (
 const (
 	// Cloud Logging rejects entries above 256 KiB outright — they vanish rather
 	// than being truncated — so oversized entries must be reduced before being
-	// written. The default leaves headroom for agent-added metadata.
-	DefaultEntryLimit = 200 * 1024
+	// written. The agent in front of it cuts sooner: Cloud Run truncates a
+	// stdout line at around 100 KB, mid-string and without a continuation, so
+	// the JSON no longer parses and the entry arrives as an unstructured
+	// textPayload with its status codes and error fields gone. That lower cut
+	// is what the default has to stay under, with headroom for the metadata the
+	// agent adds on the way.
+	DefaultEntryLimit = 64 * 1024
 
 	// When an entry exceeds the entry limit, strings above this length are
 	// truncated.

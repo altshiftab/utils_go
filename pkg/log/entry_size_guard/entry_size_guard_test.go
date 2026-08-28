@@ -213,3 +213,71 @@ func TestWriteNilWriter(t *testing.T) {
 		t.Error("expected an error for a nil underlying writer")
 	}
 }
+
+// TestDefaultEntryLimitFitsAgentCut guards the default against the cut that
+// actually destroys entries. Cloud Logging's own ceiling is 256 KiB, but Cloud
+// Run truncates a stdout line around 100 KB, so a default above that leaves
+// entries the guard passes through to be mangled anyway.
+func TestDefaultEntryLimitFitsAgentCut(t *testing.T) {
+	t.Parallel()
+
+	const observedAgentCut = 99678
+
+	if DefaultEntryLimit >= observedAgentCut {
+		t.Errorf(
+			"default entry limit does not fit the agent's cut: %d >= %d",
+			DefaultEntryLimit,
+			observedAgentCut,
+		)
+	}
+}
+
+// TestWriteOversizedByDefaultFits checks the whole path at the shipped
+// defaults: an entry that would be cut by the agent is reduced to one that is
+// not, and stays parseable JSON rather than a truncated fragment.
+func TestWriteOversizedByDefaultFits(t *testing.T) {
+	t.Parallel()
+
+	var buffer bytes.Buffer
+	writer := New(&buffer)
+
+	entryBytes := marshalEntry(t, map[string]any{
+		"severity": "DEBUG",
+		"message":  "a fetch was performed",
+		"http": map[string]any{
+			"request":  map[string]any{"body": map[string]any{"content": strings.Repeat("a", 91453)}},
+			"response": map[string]any{"status_code": float64(503)},
+		},
+	})
+
+	if _, err := writer.Write(entryBytes); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	written := buffer.Bytes()
+	if len(written) > DefaultEntryLimit {
+		t.Errorf("written entry exceeds the default limit: %d > %d", len(written), DefaultEntryLimit)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(written, &parsed); err != nil {
+		t.Fatalf("json unmarshal (written entry): %v", err)
+	}
+	if parsed[TruncatedKey] != true {
+		t.Errorf("missing %q marker: %v", TruncatedKey, parsed)
+	}
+
+	// The fields the truncation exists to save: what the entry was about, and
+	// what the response said.
+	httpValue, ok := parsed["http"].(map[string]any)
+	if !ok {
+		t.Fatalf("http field lost: %v", parsed)
+	}
+	response, ok := httpValue["response"].(map[string]any)
+	if !ok {
+		t.Fatalf("http response lost: %v", httpValue)
+	}
+	if response["status_code"] != float64(503) {
+		t.Errorf("status code: got %v, want 503", response["status_code"])
+	}
+}
