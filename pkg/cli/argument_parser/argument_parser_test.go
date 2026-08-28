@@ -2714,7 +2714,7 @@ func TestHiddenOptionIsUnlistedButAccepted(t *testing.T) {
 	}
 	// The usage line is where a hidden option is most obviously out of place, because it is one
 	// line and every option widens it.
-	usageLine := strings.SplitN(help, "\n", 2)[0]
+	usageLine, _, _ := strings.Cut(help, "\n")
 	if strings.Contains(usageLine, "concealed") {
 		t.Errorf("expected the usage line to leave the hidden option out, got %q", usageLine)
 	}
