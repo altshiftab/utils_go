@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
@@ -14,6 +15,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/get_message_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/gmail_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_history_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_messages_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/filter"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/history"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
@@ -179,20 +181,35 @@ type listMessagesResponse struct {
 	ResultSizeEstimate int                `json:"resultSizeEstimate"`
 }
 
-// ListMessages retrieves all messages for the given user matching the optional query.
-// The query string uses the same format as the Gmail search box (e.g. "in:inbox", "from:user@example.com").
+// ListMessages retrieves all messages for the given user matching the optional query,
+// following the paging to the end.
 // Only message IDs and thread IDs are populated; use GetMessage to retrieve the full message.
-func (c *Client) ListMessages(ctx context.Context, userId string, q string, options ...fetch_config.Option) ([]*message.Message, error) {
+//
+// Spam and trash are left out unless WithIncludeSpamTrash asks for them, as Gmail
+// leaves them out: a caller taking stock of everything a mailbox holds wants them,
+// and one reading the inbox does not.
+func (c *Client) ListMessages(ctx context.Context, userId string, options ...list_messages_config.Option) ([]*message.Message, error) {
 	if userId == "" {
 		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
 	}
+
+	listMessagesConfig := list_messages_config.New(options...)
 
 	return rest.ListPaginated(
 		ctx,
 		func(pageToken string) string {
 			query := url.Values{}
-			if q != "" {
-				query.Set("q", q)
+			if listMessagesConfig.Query != "" {
+				query.Set("q", listMessagesConfig.Query)
+			}
+			for _, labelId := range listMessagesConfig.LabelIds {
+				query.Add("labelIds", labelId)
+			}
+			if listMessagesConfig.IncludeSpamTrash {
+				query.Set("includeSpamTrash", "true")
+			}
+			if listMessagesConfig.MaxResults > 0 {
+				query.Set("maxResults", strconv.Itoa(listMessagesConfig.MaxResults))
 			}
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
@@ -202,7 +219,7 @@ func (c *Client) ListMessages(ctx context.Context, userId string, q string, opti
 		func(response *listMessagesResponse) ([]*message.Message, string) {
 			return response.Messages, response.NextPageToken
 		},
-		c.fetchOptions(options),
+		c.fetchOptions(listMessagesConfig.FetchOptions),
 	)
 }
 

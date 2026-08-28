@@ -42,7 +42,7 @@ func TestNewNilOptionSkipped(t *testing.T) {
 func TestNewOptions(t *testing.T) {
 	t.Parallel()
 
-	checker := response_checker.New(func(*http.Response, error) bool { return false })
+	checker := response_checker.New(func(*http.Response, []byte, error) bool { return false })
 	retryAfter := func(*http.Response, []byte) *time.Duration { return nil }
 
 	config := New(
@@ -92,7 +92,7 @@ func TestDefaultResponseChecker(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := DefaultResponseChecker.Check(testCase.response, testCase.err); got != testCase.want {
+			if got := DefaultResponseChecker.Check(testCase.response, nil, testCase.err); got != testCase.want {
 				t.Errorf("Check() = %v, want %v", got, testCase.want)
 			}
 		})

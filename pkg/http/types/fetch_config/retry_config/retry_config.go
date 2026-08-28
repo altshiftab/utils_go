@@ -7,8 +7,11 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config/retry_config/response_checker"
 )
 
+// DefaultResponseChecker retries what a status code alone says is worth
+// retrying. It reads no body: an API whose refusals need reading -- Google's,
+// which say "too often" with a 403 and a reason -- wants a checker of its own.
 var DefaultResponseChecker = response_checker.New(
-	func(response *http.Response, err error) bool {
+	func(response *http.Response, _ []byte, err error) bool {
 		if response != nil {
 			return response.StatusCode == http.StatusTooManyRequests || response.StatusCode >= 500
 		}

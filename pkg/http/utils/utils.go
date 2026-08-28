@@ -293,7 +293,7 @@ func fetchWithRetryConfig(
 
 		response, responseBody, err = fetch(ctx, request, fetchConfig)
 
-		if !retryConfig.ResponseChecker.Check(response, err) {
+		if !retryConfig.ResponseChecker.Check(response, responseBody, err) {
 			break
 		}
 

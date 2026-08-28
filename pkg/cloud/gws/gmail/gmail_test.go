@@ -12,6 +12,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/get_message_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/gmail_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_history_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_messages_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/filter"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/send_as"
@@ -627,7 +628,7 @@ func TestListMessages(t *testing.T) {
 		}
 	})
 
-	messages, err := client.ListMessages(context.Background(), "me", "in:inbox")
+	messages, err := client.ListMessages(context.Background(), "me", list_messages_config.WithQuery("in:inbox"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -649,7 +650,7 @@ func TestListMessages_EmptyUserId(t *testing.T) {
 	t.Parallel()
 
 	client := NewClient()
-	_, err := client.ListMessages(context.Background(), "", "in:inbox")
+	_, err := client.ListMessages(context.Background(), "", list_messages_config.WithQuery("in:inbox"))
 	if err == nil {
 		t.Fatal("expected error for empty user id")
 	}
@@ -661,7 +662,7 @@ func TestListMessages_CancelledContext(t *testing.T) {
 	client := NewClient()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := client.ListMessages(ctx, "me", "in:inbox")
+	_, err := client.ListMessages(ctx, "me", list_messages_config.WithQuery("in:inbox"))
 	if err == nil {
 		t.Fatal("expected error for cancelled context")
 	}
@@ -685,12 +686,84 @@ func TestListMessages_EmptyQuery(t *testing.T) {
 		}
 	})
 
-	messages, err := client.ListMessages(context.Background(), "me", "")
+	messages, err := client.ListMessages(context.Background(), "me")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(messages) != 1 {
 		t.Fatalf("expected 1 message, got %d", len(messages))
+	}
+}
+
+// The options the config exists for: what a caller taking stock of a whole
+// mailbox needs, and what the bare query string could not express.
+func TestListMessages_Options(t *testing.T) {
+	t.Parallel()
+
+	var got url.Values
+
+	client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Query()
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.MarshalWrite(w, map[string]any{
+			"messages": []map[string]string{{"id": "msg-1"}},
+		}); err != nil {
+			t.Errorf("marshal: %v", err)
+		}
+	})
+
+	if _, err := client.ListMessages(
+		context.Background(),
+		"me",
+		list_messages_config.WithQuery("after:1756382400"),
+		list_messages_config.WithIncludeSpamTrash(true),
+		list_messages_config.WithMaxResults(500),
+		list_messages_config.WithLabelIds("INBOX", "UNREAD"),
+	); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got.Get("q") != "after:1756382400" {
+		t.Errorf("q = %q", got.Get("q"))
+	}
+	if got.Get("includeSpamTrash") != "true" {
+		t.Errorf("includeSpamTrash = %q, want true", got.Get("includeSpamTrash"))
+	}
+	if got.Get("maxResults") != "500" {
+		t.Errorf("maxResults = %q, want 500", got.Get("maxResults"))
+	}
+	if labelIds := got["labelIds"]; len(labelIds) != 2 || labelIds[0] != "INBOX" || labelIds[1] != "UNREAD" {
+		t.Errorf("labelIds = %v, want [INBOX UNREAD]", labelIds)
+	}
+}
+
+// What is not asked for is not sent, so a caller wanting Gmail's own defaults
+// gets them.
+func TestListMessages_UnsetOptionsAreAbsent(t *testing.T) {
+	t.Parallel()
+
+	var got url.Values
+
+	client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Query()
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.MarshalWrite(w, map[string]any{
+			"messages": []map[string]string{{"id": "msg-1"}},
+		}); err != nil {
+			t.Errorf("marshal: %v", err)
+		}
+	})
+
+	if _, err := client.ListMessages(context.Background(), "me"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, name := range []string{"q", "includeSpamTrash", "maxResults", "labelIds"} {
+		if got.Has(name) {
+			t.Errorf("%s = %q, want it absent", name, got.Get(name))
+		}
 	}
 }
 
