@@ -18,4 +18,5 @@ var (
 	ErrMissingPositional           = errors.New("missing positional argument")
 	ErrAmbiguousPositionals        = errors.New("more than one variadic positional argument")
 	ErrHelp                        = errors.New("help requested")
+	ErrCompletion                  = errors.New("completion requested")
 )

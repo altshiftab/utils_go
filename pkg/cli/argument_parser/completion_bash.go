@@ -1,11 +1,9 @@
-package completion
+package argument_parser
 
 import (
 	"fmt"
 	"io"
 	"strings"
-
-	"github.com/altshiftab/utils_go/pkg/cli/argument_parser"
 )
 
 // bashQuote wraps a string in single quotes, closing and reopening them around any it contains.
@@ -19,7 +17,7 @@ func bashIdentifier(value string) string {
 }
 
 // bashOptionNames returns every form of every option a parser declares, as a space-separated list.
-func bashOptionNames(parser *argument_parser.Parser) string {
+func bashOptionNames(parser *Parser) string {
 	found := make([]string, 0, len(parser.Options)*2)
 
 	for _, declared := range parser.Options {
@@ -39,7 +37,7 @@ func bashOptionNames(parser *argument_parser.Parser) string {
 
 // bashChoiceCases writes a case arm per option that accepts only certain values, so that the shell
 // offers those values after the option rather than the next option's name.
-func bashChoiceCases(builder *strings.Builder, parser *argument_parser.Parser, indent string) {
+func bashChoiceCases(builder *strings.Builder, parser *Parser, indent string) {
 	wrote := false
 
 	for _, declared := range parser.Options {
@@ -81,7 +79,7 @@ func bashChoiceCases(builder *strings.Builder, parser *argument_parser.Parser, i
 // completes from a flat list of words, with no room for a description beside each or for one option
 // ruling out another. What it does carry is the option names, and the values of an option that
 // accepts only some.
-func writeBash(writer io.Writer, parser *argument_parser.Parser) error {
+func writeBash(writer io.Writer, parser *Parser) error {
 	name := parser.ProgramName
 	function := "_" + bashIdentifier(name)
 

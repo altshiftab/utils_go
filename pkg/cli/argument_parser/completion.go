@@ -1,4 +1,4 @@
-// Package completion writes shell completions from a parser's own declaration.
+// Shell completions, written from a parser's own declaration.
 //
 // A parser already knows everything a completion needs: the options and what each one is for,
 // whether it takes an argument, the values it accepts, which options rule out which others, and
@@ -6,18 +6,22 @@
 // the first time an option is added. Generating it means the completion cannot disagree with what
 // the program accepts, because both are read from the same declaration.
 //
+// It lives here rather than beside the parser because a parser cannot import a package that
+// imports it, and because writing a completion is the same job as writing the help: rendering the
+// declaration for someone to read. Every program built on this parser answers --completion without
+// being told to, which is the whole point -- an ecosystem of programs that all complete is worth
+// more than one that each had to opt in.
+//
 // The generated script is static: it encodes the declaration and calls nothing back. That keeps
 // completion working when the binary is slow to start, or absent, and makes the output something a
-// package can ship. Values that are only knowable at run time are the exception, and belong to the
-// program rather than here.
-package completion
+// package can ship.
+package argument_parser
 
 import (
 	"fmt"
 	"io"
 	"strings"
 
-	"github.com/altshiftab/utils_go/pkg/cli/argument_parser"
 	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
@@ -57,12 +61,7 @@ func (unsupportedShellError *UnsupportedShellError) Error() string {
 // is opaque to this package unless it says what it holds. One that does not is still completed, by
 // name and description; its options simply cannot be seen.
 type parserProvider interface {
-	GetParser() *argument_parser.Parser
-}
-
-// describer is implemented by a subparser that can describe itself.
-type describer interface {
-	GetDescription() string
+	GetParser() *Parser
 }
 
 // subcommand is one of a parser's commands, as this package needs it.
@@ -70,11 +69,11 @@ type subcommand struct {
 	name        string
 	description string
 	// parser is nil where the subparser did not say what it holds.
-	parser *argument_parser.Parser
+	parser *Parser
 }
 
 // subcommands reads a parser's commands.
-func subcommands(parser *argument_parser.Parser) []*subcommand {
+func subcommands(parser *Parser) []*subcommand {
 	found := make([]*subcommand, 0, len(parser.Parsers))
 
 	for _, subparser := range parser.Parsers {
@@ -94,7 +93,7 @@ func subcommands(parser *argument_parser.Parser) []*subcommand {
 		}
 
 		switch typed := subparser.(type) {
-		case *argument_parser.Parser:
+		case *Parser:
 			entry.parser = typed
 		case parserProvider:
 			entry.parser = typed.GetParser()
@@ -186,7 +185,7 @@ func summary(usage string) string {
 //
 // This is the part a hand-written completion almost never has, because most parsers do not know it:
 // having given --quiet, a caller should not be offered --verbose.
-func exclusions(parser *argument_parser.Parser) map[option.Option][]option.Option {
+func exclusions(parser *Parser) map[option.Option][]option.Option {
 	found := make(map[option.Option][]option.Option)
 
 	for _, group := range parser.ExclusiveGroups {
@@ -226,14 +225,14 @@ func names(declared option.Option) []string {
 	return found
 }
 
-// Write writes the completion for the parser to w.
-func Write(writer io.Writer, parser *argument_parser.Parser, shell string) error {
-	if writer == nil {
-		return altshiftErrors.NewWithTrace(nil_error.New("writer"))
-	}
-
+// WriteCompletion writes a completion script for the shell to w.
+func (parser *Parser) WriteCompletion(writer io.Writer, shell string) error {
 	if parser == nil {
 		return altshiftErrors.NewWithTrace(nil_error.New("parser"))
+	}
+
+	if writer == nil {
+		return altshiftErrors.NewWithTrace(nil_error.New("writer"))
 	}
 
 	if shell == "" {
@@ -254,23 +253,31 @@ func Write(writer io.Writer, parser *argument_parser.Parser, shell string) error
 	}
 }
 
-// Option is the option a program adds to offer completions of itself.
+// getCompletionOption returns the automatic completion option, or nil when it is withheld or the
+// program has claimed the name. It mirrors the help option: an ordinary option, so that it takes
+// part in lookup and abbreviation like any other.
 //
-// It is opt-in rather than built into the parser: a program that never ships a completion should
-// not carry the scripts to write one, and the shell the caller wants is a choice only they can
-// make.
-//
-//	var shell string
-//	parser.Options = append(parser.Options, completion.Option(&shell))
-//	parser.ParseOrExit()
-//	if shell != "" {
-//		return completion.Write(os.Stdout, parser, shell)
-//	}
-//
-// It is hidden: writing a completion is done once, when the program is installed, and an option
-// that serves that has no business in the help of every invocation afterwards. It is accepted
-// exactly as any other, and a program that would rather advertise it can declare its own.
-func Option(shell *string) option.Option {
+// It is hidden, because writing a completion is done once when a program is installed and has no
+// business in the help of every invocation afterwards. It has no short name: a single letter is too
+// valuable to spend on something run once.
+func (parser *Parser) getCompletionOption(shell *string) option.Option {
+	if parser.DisableCompletion {
+		return nil
+	}
+
+	// A subparser answers for a command rather than for a program, and a completion is installed
+	// against a program. Offering one per subcommand would write a script claiming to complete a
+	// command that does not exist on its own.
+	if parser.Command != "" {
+		return nil
+	}
+
+	for _, opt := range parser.Options {
+		if opt != nil && opt.GetLongName() == "completion" {
+			return nil
+		}
+	}
+
 	return option.WithHidden(
 		option.WithChoices(
 			option.WithMetavar(

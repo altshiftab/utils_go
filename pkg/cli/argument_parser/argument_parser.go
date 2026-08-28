@@ -74,6 +74,10 @@ type Parser struct {
 	// Rest receives the arguments left over once the positionals have taken theirs, including
 	// everything after a "--" terminator. A leftover argument is an error while this is nil.
 	Rest *[]string
+	// DisableCompletion withholds the automatic --completion option, which a program that writes
+	// its own completions or wants the name for something else turns off.
+	DisableCompletion bool
+
 	// DisableHelp withholds the automatic help option, leaving "-h" and "--help" to be used as
 	// ordinary option names, or to be reported as unknown.
 	DisableHelp bool
@@ -969,8 +973,8 @@ func (parser *Parser) report(err error) (string, int, bool) {
 	switch {
 	case err == nil:
 		return "", 0, true
-	case errors.Is(err, argumentParserErrors.ErrHelp):
-		// Help has already been answered on stdout; there is nothing left to say or do.
+	case errors.Is(err, argumentParserErrors.ErrHelp), errors.Is(err, argumentParserErrors.ErrCompletion):
+		// Already answered on stdout; there is nothing left to say or do.
 		return "", 0, false
 	default:
 		return parser.FormatError(err), 2, false
@@ -1405,6 +1409,14 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 		tableOptions = append(slices.Clone(options), helpOption)
 	}
 
+	// The completion option joins them the same way. Unlike help it takes a value, so it cannot be
+	// answered the moment it is matched: the shell it was given has to be read first.
+	var completionShell string
+	completionOption := parser.getCompletionOption(&completionShell)
+	if completionOption != nil {
+		tableOptions = append(slices.Clone(tableOptions), completionOption)
+	}
+
 	tables, err := makeNameTables(tableOptions)
 	if err != nil {
 		return altshiftErrors.New(fmt.Errorf("make name tables: %w", err), options)
@@ -1552,6 +1564,17 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 
 	if err := closePending(pending, pendingName, pendingCount); err != nil {
 		return err
+	}
+
+	// Answered before the positionals are assigned and before anything required is insisted on,
+	// because writing a completion is not a run of the program: a caller asking for one has no
+	// reason to satisfy arguments they are not using.
+	if completionOption != nil && completionShell != "" {
+		if err := parser.WriteCompletion(parser.getOutput(), completionShell); err != nil {
+			return fmt.Errorf("write completion: %w", err)
+		}
+
+		return argumentParserErrors.ErrCompletion
 	}
 
 	leftover, err := assignPositionals(parser.Positionals, rest)

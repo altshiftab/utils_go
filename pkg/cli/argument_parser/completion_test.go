@@ -1,24 +1,25 @@
-package completion
+package argument_parser
 
 import (
 	"errors"
 	"strings"
 	"testing"
 
-	"github.com/altshiftab/utils_go/pkg/cli/argument_parser"
+	argumentParserErrors "github.com/altshiftab/utils_go/pkg/cli/argument_parser/errors"
+
 	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
 )
 
 // wrapped is a subparser that holds a parser rather than being one, as a program that needs to know
 // which subcommand ran writes.
 type wrapped struct {
-	parser *argument_parser.Parser
+	parser *Parser
 }
 
 func (w *wrapped) ParseArgs(arguments []string) error { return w.parser.ParseArgs(arguments) }
 func (w *wrapped) GetCommand() string                 { return w.parser.Command }
 func (w *wrapped) GetDescription() string             { return w.parser.Description }
-func (w *wrapped) GetParser() *argument_parser.Parser { return w.parser }
+func (w *wrapped) GetParser() *Parser                 { return w.parser }
 
 // opaque is a subparser that says nothing about what it holds.
 type opaque struct{}
@@ -26,7 +27,7 @@ type opaque struct{}
 func (*opaque) ParseArgs([]string) error { return nil }
 func (*opaque) GetCommand() string       { return "opaque" }
 
-func testParser() *argument_parser.Parser {
+func testParser() *Parser {
 	var (
 		verbose     bool
 		quiet       bool
@@ -40,7 +41,7 @@ func testParser() *argument_parser.Parser {
 	verboseOption := option.NewBoolOption('v', "verbose", "Say more about what is happening.", false, &verbose)
 	quietOption := option.NewBoolOption('q', "quiet", "Say less.", false, &quiet)
 
-	return &argument_parser.Parser{
+	return &Parser{
 		ProgramName: "thing-doer",
 		Description: "Do the thing.",
 		Options: []option.Option{
@@ -66,7 +67,7 @@ func testParser() *argument_parser.Parser {
 				option.NargsOptional,
 			),
 		},
-		ExclusiveGroups: []*argument_parser.ExclusiveGroup{
+		ExclusiveGroups: []*ExclusiveGroup{
 			{Options: []option.Option{verboseOption, quietOption}},
 		},
 		Positionals: []option.Option{
@@ -75,11 +76,11 @@ func testParser() *argument_parser.Parser {
 	}
 }
 
-func write(t *testing.T, parser *argument_parser.Parser, shell string) string {
+func write(t *testing.T, parser *Parser, shell string) string {
 	t.Helper()
 
 	var builder strings.Builder
-	if err := Write(&builder, parser, shell); err != nil {
+	if err := parser.WriteCompletion(&builder, shell); err != nil {
 		t.Fatalf("%s: %v", shell, err)
 	}
 
@@ -182,7 +183,7 @@ func TestDescriptionsAreEscaped(t *testing.T) {
 	t.Parallel()
 
 	var value bool
-	parser := &argument_parser.Parser{
+	parser := &Parser{
 		ProgramName: "thing",
 		Options: []option.Option{
 			option.NewBoolOption('x', "awkward", `Takes [brackets], a colon: and an apostrophe's worth.`, false, &value),
@@ -237,17 +238,17 @@ func TestSummaryIsOneLine(t *testing.T) {
 func TestSubcommands(t *testing.T) {
 	t.Parallel()
 
-	child := &argument_parser.Parser{
+	child := &Parser{
 		ProgramName: "thing child",
 		Command:     "child",
 		Description: "Do a smaller thing.",
 	}
 
-	parser := &argument_parser.Parser{
+	parser := &Parser{
 		ProgramName: "thing",
-		Parsers: []argument_parser.Subparser{
+		Parsers: []Subparser{
 			child,
-			&wrapped{parser: &argument_parser.Parser{
+			&wrapped{parser: &Parser{
 				ProgramName: "thing wrapped",
 				Command:     "wrapped",
 				Description: "Do a wrapped thing.",
@@ -310,42 +311,137 @@ func TestWriteArgumentChecks(t *testing.T) {
 
 	var builder strings.Builder
 
-	if err := Write(nil, testParser(), Zsh); err == nil {
+	if err := testParser().WriteCompletion(nil, Zsh); err == nil {
 		t.Error("expected a nil writer to be an error")
 	}
-	if err := Write(&builder, nil, Zsh); err == nil {
+
+	var nilParser *Parser
+	if err := nilParser.WriteCompletion(&builder, Zsh); err == nil {
 		t.Error("expected a nil parser to be an error")
 	}
-	if err := Write(&builder, testParser(), ""); err == nil {
+	if err := testParser().WriteCompletion(&builder, ""); err == nil {
 		t.Error("expected an empty shell to be an error")
 	}
-	if err := Write(&builder, &argument_parser.Parser{}, Zsh); err == nil {
+	if err := (&Parser{}).WriteCompletion(&builder, Zsh); err == nil {
 		t.Error("expected a parser with no program name to be an error")
 	}
 
-	err := Write(&builder, testParser(), "fish")
+	err := testParser().WriteCompletion(&builder, "fish")
 	var unsupported *UnsupportedShellError
 	if !errors.As(err, &unsupported) {
 		t.Errorf("expected an unsupported shell error, got %v", err)
 	}
 }
 
-// TestOptionOffersTheShells holds that --completion completes its own values, which is the first
-// thing a caller will try.
-func TestOptionOffersTheShells(t *testing.T) {
+// TestCompletionOptionIsAutomaticAndHidden holds what makes this worth having: every program built
+// on this parser answers --completion without being told to, and none of them pays for it in the
+// help of every invocation.
+func TestCompletionOptionIsAutomaticAndHidden(t *testing.T) {
 	t.Parallel()
 
 	var shell string
-	declared := Option(&shell)
+	declared := (&Parser{ProgramName: "thing"}).getCompletionOption(&shell)
+
+	if declared == nil {
+		t.Fatal("expected the option to be injected")
+	}
 
 	provider, ok := declared.(option.ChoicesProvider)
 	if !ok {
 		t.Fatal("expected the option to declare its choices")
 	}
+	if len(provider.GetChoices()) != len(Shells) {
+		t.Errorf("expected every shell offered, got %v", provider.GetChoices())
+	}
 
-	got := provider.GetChoices()
-	if len(got) != len(Shells) {
-		t.Errorf("expected every shell offered, got %v", got)
+	hiddenProvider, ok := declared.(option.HiddenProvider)
+	if !ok || !hiddenProvider.GetHidden() {
+		t.Error("expected the option to be hidden")
+	}
+
+	// A single letter is too valuable to spend on something run once.
+	if declared.GetShortName() != "" {
+		t.Errorf("expected no short name, got %q", declared.GetShortName())
+	}
+}
+
+// TestCompletionOptionYieldsToTheProgram holds that a program wanting the name for something of its
+// own keeps it, rather than colliding with an option it never declared.
+func TestCompletionOptionYieldsToTheProgram(t *testing.T) {
+	t.Parallel()
+
+	var value string
+	var shell string
+
+	claimed := &Parser{
+		ProgramName: "thing",
+		Options: []option.Option{
+			option.NewStringOption(0, "completion", "The program's own.", false, &value),
+		},
+	}
+	if claimed.getCompletionOption(&shell) != nil {
+		t.Error("expected the parser to yield the name to the program")
+	}
+
+	// And a program that wants nothing to do with it says so.
+	disabled := &Parser{ProgramName: "thing", DisableCompletion: true}
+	if disabled.getCompletionOption(&shell) != nil {
+		t.Error("expected DisableCompletion to withhold the option")
+	}
+
+	// A subparser answers for a command rather than a program, and a completion is installed
+	// against a program: one per subcommand would claim to complete a command that does not exist
+	// on its own.
+	subparser := &Parser{ProgramName: "thing child", Command: "child"}
+	if subparser.getCompletionOption(&shell) != nil {
+		t.Error("expected a subparser to offer no completion of its own")
+	}
+}
+
+// TestParseAnswersCompletion holds that a completion is answered like help: on stdout, before
+// anything required is insisted on, and leaving through a status that is not a failure.
+func TestParseAnswersCompletion(t *testing.T) {
+	t.Parallel()
+
+	var builder strings.Builder
+	var required string
+
+	parser := &Parser{
+		ProgramName: "thing",
+		Output:      &builder,
+		// A required option the caller has not given: asking for a completion is not a run of the
+		// program, so it must not be insisted on.
+		Options: []option.Option{
+			option.NewStringOption('r', "required", "Needed for a real run.", true, &required),
+		},
+	}
+
+	err := parser.ParseArgs([]string{"--completion", "zsh"})
+	if !errors.Is(err, argumentParserErrors.ErrCompletion) {
+		t.Fatalf("expected a completion request, got %v", err)
+	}
+
+	if !strings.Contains(builder.String(), "#compdef thing") {
+		t.Errorf("expected the script on the output, got:\n%s", builder.String())
+	}
+
+	// And a program leaves through 0 rather than reporting a bad invocation.
+	message, code, carryOn := parser.report(err)
+	if message != "" || code != 0 || carryOn {
+		t.Errorf("expected a silent, successful exit, got %q %d %v", message, code, carryOn)
+	}
+}
+
+// TestParseRejectsAnUnknownShell holds that a shell this cannot write is a bad invocation rather
+// than an empty script, and that the choices are what the parser validates against.
+func TestParseRejectsAnUnknownShell(t *testing.T) {
+	t.Parallel()
+
+	var builder strings.Builder
+	parser := &Parser{ProgramName: "thing", Output: &builder}
+
+	if err := parser.ParseArgs([]string{"--completion", "fish"}); err == nil {
+		t.Error("expected an unknown shell to be refused")
 	}
 }
 
@@ -358,7 +454,7 @@ func TestHiddenOptionIsNotCompleted(t *testing.T) {
 	var shown bool
 	var concealed string
 
-	parser := &argument_parser.Parser{
+	parser := &Parser{
 		ProgramName: "thing",
 		Options: []option.Option{
 			option.NewBoolOption('s', "shown", "An ordinary option.", false, &shown),
@@ -390,22 +486,5 @@ func TestHiddenOptionIsNotCompleted(t *testing.T) {
 				t.Errorf("%s: expected the ordinary option to still be offered, got:\n%s", shell, script)
 			}
 		})
-	}
-}
-
-// TestOptionIsHidden holds that writing a completion is an installation step rather than something
-// to meet in the help of every invocation.
-func TestOptionIsHidden(t *testing.T) {
-	t.Parallel()
-
-	var shell string
-
-	provider, ok := Option(&shell).(option.HiddenProvider)
-	if !ok {
-		t.Fatal("expected the option to say whether it is hidden")
-	}
-
-	if !provider.GetHidden() {
-		t.Error("expected the completion option to be hidden")
 	}
 }

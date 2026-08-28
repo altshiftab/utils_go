@@ -1,11 +1,10 @@
-package completion
+package argument_parser
 
 import (
 	"fmt"
 	"io"
 	"strings"
 
-	"github.com/altshiftab/utils_go/pkg/cli/argument_parser"
 	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
 )
 
@@ -162,7 +161,7 @@ func zshPositionalSpec(declared option.Option) string {
 }
 
 // zshSpecs renders every spec a parser's own options and positionals produce.
-func zshSpecs(parser *argument_parser.Parser) []string {
+func zshSpecs(parser *Parser) []string {
 	ruledOut := exclusions(parser)
 
 	specs := make([]string, 0, len(parser.Options)+len(parser.Positionals)+1)
@@ -195,7 +194,7 @@ func zshSpecs(parser *argument_parser.Parser) []string {
 }
 
 // writeZsh writes a zsh completion for the parser.
-func writeZsh(writer io.Writer, parser *argument_parser.Parser) error {
+func writeZsh(writer io.Writer, parser *Parser) error {
 	name := parser.ProgramName
 	function := "_" + zshIdentifier(name)
 
