@@ -420,6 +420,154 @@ var grammarSuites = []*grammarSuite{
 			{name: "no disposition type", input: "; filename=\"a\"", accepts: false},
 		},
 	},
+	{
+		directory: "security_txt",
+		root:      "body",
+		cases: []*grammarCase{
+			{
+				name:      "contact and expires",
+				input:     "Contact: mailto:security@example.com\nExpires: 2030-01-01T00:00:00Z\n",
+				accepts:   true,
+				reference: "RFC 9116 Section 4",
+			},
+			{
+				// The published grammar orders contact-field before expires-field;
+				// the prose says the order does not matter. This follows the prose.
+				name:      "expires before contact",
+				input:     "Expires: 2030-01-01T00:00:00Z\nContact: mailto:a@example.com\n",
+				accepts:   true,
+				reference: "RFC 9116 Section 2.4",
+			},
+			{
+				name:      "a bare line feed",
+				input:     "Contact: mailto:a@example.com\n",
+				accepts:   true,
+				reference: "RFC 9116 Section 2.2, and errata 7743 against the Section 4 grammar",
+			},
+			{
+				name:      "a carriage return and line feed",
+				input:     "Contact: mailto:a@example.com\r\n",
+				accepts:   true,
+				reference: "RFC 9116 Section 2.2",
+			},
+			{
+				name:      "a comment",
+				input:     "# who to tell\nContact: mailto:a@example.com\n",
+				accepts:   true,
+				reference: "RFC 9116 Section 2.1",
+			},
+			{
+				name:      "a blank line",
+				input:     "Contact: mailto:a@example.com\n\nPolicy: https://example.com/p\n",
+				accepts:   true,
+				reference: "RFC 9116 Section 4, line = [ (field / comment) ] eol",
+			},
+			{
+				name:      "trailing whitespace after a value",
+				input:     "Contact: mailto:a@example.com   \n",
+				accepts:   true,
+				reference: "RFC 9116 Section 4, eol = *WSP [CR] LF",
+			},
+			{
+				name:      "an unregistered field",
+				input:     "Email: security@example.com\n",
+				accepts:   true,
+				reference: "RFC 9116 Section 4, ext-field",
+			},
+			{name: "a line that is neither field nor comment", input: "this is not a field\n", accepts: false},
+			{name: "no space after the colon", input: "Contact:mailto:a@example.com\n", accepts: false},
+			{name: "a field name holding a colon", input: "Con:tact: mailto:a@example.com\n", accepts: false},
+		},
+	},
+	{
+		directory: "security_txt",
+		root:      "date-time",
+		cases: []*grammarCase{
+			{
+				name:      "a zulu timestamp",
+				input:     "2030-01-01T00:00:00Z",
+				accepts:   true,
+				reference: "RFC 3339 Section 5.6, via RFC 9116 Section 2.5.5",
+			},
+			{
+				// RFC 5234 makes an ABNF quoted string case-insensitive, and
+				// RFC 9116's own example writes the marker in lowercase. Errata 7264
+				// argues the example is wrong; the grammar accepts it either way.
+				name:      "a lowercase zulu marker",
+				input:     "2030-01-01T00:00:00z",
+				accepts:   true,
+				reference: "RFC 5234 Section 2.3, and errata 7264 against RFC 9116 Section 2.5.5",
+			},
+			{
+				name:      "a numeric offset",
+				input:     "2030-01-01T00:00:00+02:00",
+				accepts:   true,
+				reference: "RFC 3339 Section 5.6",
+			},
+			{
+				name:      "fractional seconds",
+				input:     "2030-01-01T00:00:00.000Z",
+				accepts:   true,
+				reference: "RFC 3339 Section 5.6",
+			},
+			{name: "a date alone", input: "2030-01-01", accepts: false},
+			{name: "no offset at all", input: "2030-01-01T00:00:00", accepts: false},
+		},
+	},
+	{
+		directory: "security_txt",
+		root:      "URI",
+		cases: []*grammarCase{
+			{
+				name:      "https",
+				input:     "https://example.com/report",
+				accepts:   true,
+				reference: "RFC 3986 Section 3, via RFC 9116 Section 2.5.3",
+			},
+			{
+				name:      "mailto",
+				input:     "mailto:security@example.com",
+				accepts:   true,
+				reference: "RFC 9116 Section 2.5.3",
+			},
+			{
+				name:      "tel",
+				input:     "tel:+1-201-555-0123",
+				accepts:   true,
+				reference: "RFC 9116 Section 2.5.3",
+			},
+			{
+				// The sub-delims of RFC 3986 include the comma and semicolon that
+				// the DMARC grammar leaves out, and a query string uses them.
+				name:      "a query holding sub-delims",
+				input:     "https://example.com/p?type=team;view=true&a=1,2",
+				accepts:   true,
+				reference: "RFC 3986 Section 2.2",
+			},
+			{name: "no scheme", input: "security@example.com", accepts: false},
+			{name: "a bare host", input: "example.com/report", accepts: false},
+		},
+	},
+	{
+		directory: "security_txt",
+		root:      "lang-values",
+		cases: []*grammarCase{
+			{
+				name:      "one language",
+				input:     "en",
+				accepts:   true,
+				reference: "RFC 9116 Section 2.5.8",
+			},
+			{
+				name:      "several, with space around the separators",
+				input:     "en, sv , de-DE",
+				accepts:   true,
+				reference: "RFC 9116 Section 4, lang-values",
+			},
+			{name: "a trailing separator", input: "en,", accepts: false},
+			{name: "nothing", input: "", accepts: false},
+		},
+	},
 }
 
 func TestGrammarsAgainstSpecifications(t *testing.T) {
