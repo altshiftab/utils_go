@@ -64,6 +64,24 @@ type ResponseWriter struct {
 	DefaultDocumentHeaders map[string]string
 }
 
+// Unwrap returns the ResponseWriter this one wraps. http.ResponseController
+// follows it to reach the connection.
+//
+// Without it every controller call -- Flush, SetReadDeadline, SetWriteDeadline
+// -- fails with http.ErrNotSupported for every handler behind the mux, however
+// capable the wrapped writer is. The embedded field above is an *interface*, so
+// it promotes only Header, Write and WriteHeader; a type assertion for
+// http.Flusher against this struct finds nothing. Nothing reports the failure
+// unless the caller inspects the error, so a handler lifting a per-request
+// deadline reads as correct and does nothing at all -- which is how a 60s
+// ReadTimeout went on killing streaming uploads through reverse_proxy after it
+// had supposedly been exempted.
+//
+// Hijack is unaffected: baseMux hijacks the original writer before wrapping it.
+func (responseWriter *ResponseWriter) Unwrap() http.ResponseWriter {
+	return responseWriter.ResponseWriter
+}
+
 func (responseWriter *ResponseWriter) WriteHeader(statusCode int) {
 	responseWriter.WriteHeaderCalled = true
 	responseWriter.WrittenStatusCode = statusCode
