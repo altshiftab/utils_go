@@ -25,6 +25,8 @@ const (
 	maxHelpPosition = 24
 	// termIndent is the indent of the term column in the help message.
 	termIndent = "  "
+	// dash is the argument that names standard input or output rather than an option.
+	dash = "-"
 )
 
 // Subparser consumes the arguments that follow its command name.
@@ -1068,6 +1070,13 @@ type parsedArgument struct {
 // parseArgument returns how an argument names options, or nil when it names none.
 func parseArgument(argument string) *parsedArgument {
 	if argument == "" {
+		return nil
+	}
+
+	// A lone dash is an operand, not an option: by long convention it names standard input or output,
+	// and both getopt and argparse hand it to the program as a positional. Read as an option it is a
+	// cluster of no names at all, which is silently dropped on the way past.
+	if argument == dash {
 		return nil
 	}
 

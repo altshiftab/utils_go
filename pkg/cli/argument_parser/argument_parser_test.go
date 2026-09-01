@@ -2750,3 +2750,123 @@ func TestHiddenOptionInAGroupIsUnlisted(t *testing.T) {
 		t.Errorf("expected the group's other option to still be listed, got:\n%s", help)
 	}
 }
+
+// TestLoneDashIsAnOperand covers the argument that names standard input or output. Both getopt and
+// argparse hand a single dash to the program as a positional; read as an option it parses to a
+// cluster of no names, and is dropped without a word — the positional that should have had it then
+// reports itself missing.
+func TestLoneDashIsAnOperand(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name            string
+		arguments       []string
+		expectedFile    string
+		expectedRest    []string
+		expectedVerbose bool
+	}{
+		{name: "on its own", arguments: []string{"-"}, expectedFile: "-"},
+		{name: "after an option", arguments: []string{"-v", "-"}, expectedFile: "-", expectedVerbose: true},
+		{name: "before an option", arguments: []string{"-", "-v"}, expectedFile: "-", expectedVerbose: true},
+		{name: "after a terminator", arguments: []string{"--", "-"}, expectedFile: "-"},
+		{
+			// Several of them: the first is the positional and the rest are what is left over.
+			name:         "more than one",
+			arguments:    []string{"-", "-", "-"},
+			expectedFile: "-",
+			expectedRest: []string{"-", "-"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var file string
+			var verbose bool
+			var rest []string
+
+			parser := &Parser{
+				ProgramName: "reader",
+				Options: []option.Option{
+					option.NewBoolOption('v', "verbose", "say more", false, &verbose),
+				},
+				Positionals: []option.Option{
+					option.WithMetavar(option.NewStringOption(0, "", "the file to read", false, &file), "FILE"),
+				},
+				Rest: &rest,
+			}
+
+			if err := parser.ParseArgs(testCase.arguments); err != nil {
+				t.Fatalf("ParseArgs(%v): %v", testCase.arguments, err)
+			}
+			if file != testCase.expectedFile {
+				t.Errorf("file = %q, want %q", file, testCase.expectedFile)
+			}
+			if verbose != testCase.expectedVerbose {
+				t.Errorf("verbose = %v, want %v", verbose, testCase.expectedVerbose)
+			}
+			if strings.Join(rest, ",") != strings.Join(testCase.expectedRest, ",") {
+				t.Errorf("rest = %v, want %v", rest, testCase.expectedRest)
+			}
+		})
+	}
+}
+
+// TestDashesThatAreStillOptions makes sure the operand does not swallow the forms around it.
+func TestDashesThatAreStillOptions(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		argument  string
+		expectNil bool
+	}{
+		{name: "a lone dash is an operand", argument: "-", expectNil: true},
+		{name: "an empty argument is an operand", argument: "", expectNil: true},
+		{name: "a short option", argument: "-v"},
+		{name: "a cluster", argument: "-abc"},
+		{name: "a long option", argument: "--verbose"},
+		{name: "a long option with a value", argument: "--name=value"},
+		{name: "a value that is itself a dash", argument: "--name=-"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			parsed := parseArgument(testCase.argument)
+			if testCase.expectNil {
+				if parsed != nil {
+					t.Errorf("parseArgument(%q) = %+v, want it read as an operand", testCase.argument, parsed)
+				}
+
+				return
+			}
+			if parsed == nil {
+				t.Errorf("parseArgument(%q) read as an operand, want an option", testCase.argument)
+			}
+		})
+	}
+}
+
+// TestLoneDashAsAnOptionValue covers a dash given to an option that takes a value, where it means
+// standard input just as often.
+func TestLoneDashAsAnOptionValue(t *testing.T) {
+	t.Parallel()
+
+	var input string
+	parser := &Parser{
+		ProgramName: "reader",
+		Options: []option.Option{
+			option.NewStringOption('i', "input", "where to read from", false, &input),
+		},
+	}
+
+	if err := parser.ParseArgs([]string{"--input", "-"}); err != nil {
+		t.Fatalf("ParseArgs: %v", err)
+	}
+	if input != "-" {
+		t.Errorf("input = %q, want %q", input, "-")
+	}
+}
