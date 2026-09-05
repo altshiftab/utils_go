@@ -75,8 +75,9 @@ type Base struct {
 	Vulnerability *Vulnerability `json:"vulnerability,omitzero"`
 
 	// NOTE: Custom namespaces
-	Whois *Whois `json:"whois,omitzero"`
-	Tcp   *Tcp   `json:"tcp,omitzero"`
+	Whois    *Whois    `json:"whois,omitzero"`
+	Tcp      *Tcp      `json:"tcp,omitzero"`
+	Nftables *Nftables `json:"nftables,omitzero"`
 }
 
 func (b *Base) MakeConnectionMessage() string {
@@ -544,9 +545,7 @@ type ObserverIngressEgress struct {
 }
 
 type Observer struct {
-	Egress *ObserverIngressEgress `json:"egress,omitzero"`
-	// NOTE: Custom
-	Hook         string                 `json:"hook,omitzero"`
+	Egress       *ObserverIngressEgress `json:"egress,omitzero"`
 	Hostname     string                 `json:"hostname,omitzero"`
 	Ingress      *ObserverIngressEgress `json:"ingress,omitzero"`
 	Ip           string                 `json:"ip,omitzero"`
@@ -690,6 +689,13 @@ type Tcp struct {
 	AcknowledgementNumber *int     `json:"acknowledgement_number,omitzero"`
 	SequenceNumber        *int     `json:"sequence_number,omitzero"`
 	State                 string   `json:"state,omitzero"`
+}
+
+type Nftables struct {
+	ConntrackState string  `json:"conntrack_state,omitzero"`
+	Hook           string  `json:"hook,omitzero"`
+	HwAddr         string  `json:"hw_addr,omitzero"`
+	Mark           *uint32 `json:"mark,omitzero"`
 }
 
 type ThreatGroup struct {
