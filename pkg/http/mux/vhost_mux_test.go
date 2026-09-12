@@ -273,6 +273,110 @@ func TestVhostMuxHandleRequest_TrustForwardedHost(t *testing.T) {
 	}
 }
 
+func TestVhostMuxHandleRequest_ServerNameMatchesHost(t *testing.T) {
+	t.Parallel()
+
+	const servedHost = "upload-logs.home.arpa"
+	const otherHost = "restic.home.arpa"
+
+	testCases := []struct {
+		name           string
+		serverName     string
+		host           string
+		tls            bool
+		trustForwarded bool
+		expectServed   bool
+	}{
+		{
+			name:         "the server name and the host agree",
+			serverName:   servedHost,
+			host:         servedHost,
+			tls:          true,
+			expectServed: true,
+		},
+		{
+			name:         "case and port do not make them disagree",
+			serverName:   "Upload-Logs.Home.Arpa",
+			host:         servedHost + ":443",
+			tls:          true,
+			expectServed: true,
+		},
+		{
+			// Handshaking as a vhost that asks nothing of the client and then
+			// addressing one that does is what the check exists for.
+			name:         "another vhost's server name is refused",
+			serverName:   otherHost,
+			host:         servedHost,
+			tls:          true,
+			expectServed: false,
+		},
+		{
+			name:         "no server name is refused",
+			serverName:   "",
+			host:         servedHost,
+			tls:          true,
+			expectServed: false,
+		},
+		{
+			name:         "a plaintext request has no server name to disagree with",
+			host:         servedHost,
+			tls:          false,
+			expectServed: true,
+		},
+		{
+			// With the forwarded headers trusted, TLS was terminated in front
+			// and the host routed on is not the connection's.
+			name:           "trusting the forwarded host exempts the request",
+			serverName:     otherHost,
+			host:           servedHost,
+			tls:            true,
+			trustForwarded: true,
+			expectServed:   true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var served bool
+			vhostMux := &VhostMux{
+				HostToSpecification: map[string]*VhostMuxSpecification{
+					servedHost: {Mux: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+						served = true
+					})},
+					otherHost: {Mux: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+						t.Error("the request reached the wrong vhost")
+					})},
+				},
+				TrustForwardedHost: testCase.trustForwarded,
+			}
+
+			request := vhostRequest(t, testCase.host)
+			if testCase.tls {
+				request.TLS = &tls.ConnectionState{ServerName: testCase.serverName}
+			}
+
+			_, responseError := vhostMuxHandleRequest(vhostMux, request, httptest.NewRecorder())
+
+			if testCase.expectServed {
+				if !served {
+					t.Fatalf("expected the request to be served, got %#v", responseError)
+				}
+				return
+			}
+
+			if served {
+				t.Fatal("expected the request to be refused, but it was served")
+			}
+			if responseError == nil || responseError.ProblemDetail == nil ||
+				responseError.ProblemDetail.Status != http.StatusMisdirectedRequest {
+				t.Fatalf("expected 421, got %#v", responseError)
+			}
+		})
+	}
+}
+
 func TestVhostMuxHandleRequest_CarriesAuthority(t *testing.T) {
 	t.Parallel()
 

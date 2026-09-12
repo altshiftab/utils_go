@@ -91,6 +91,22 @@ func vhostMuxHandleRequest(
 	authority := forwarded_headers.Authority(request, vhostMux.TrustForwardedHost)
 	host := forwarded_headers.HostFromAuthority(authority)
 
+	// The TLS configuration a connection got was chosen by its server name and
+	// the vhost a request goes to is chosen by its host, and nothing in HTTP
+	// makes the two agree: a client can handshake as a vhost that asks nothing
+	// of it and then address one that demands a client certificate. A
+	// connection that sent no server name fails this too, having matched no
+	// vhost's certificate to be addressing. It cannot apply where the forwarded
+	// headers are trusted, since the host routed on is then deliberately not
+	// the one the connection was opened for.
+	if request.TLS != nil && !vhostMux.TrustForwardedHost {
+		if forwarded_headers.HostFromAuthority(request.TLS.ServerName) != host {
+			return nil, &muxTypesResponseError.ResponseError{
+				ProblemDetail: problem_detail.New(http.StatusMisdirectedRequest),
+			}
+		}
+	}
+
 	hostToSpecification := vhostMux.HostToSpecification
 	if hostToSpecification == nil {
 		return nil, &muxTypesResponseError.ResponseError{
