@@ -30,7 +30,6 @@ import (
 	"reflect"
 	"strings"
 	"text/template"
-	"unicode"
 
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
@@ -133,37 +132,6 @@ func makeTypescriptContext(endpoints []*endpointPkg.Endpoint) (*typeGenerationTy
 }
 
 var emptyInterfaceType = reflect.TypeFor[any]()
-
-// titleCase uppercases the first rune of s, leaving the rest unchanged.
-func titleCase(s string) string {
-	if s == "" {
-		return s
-	}
-	runes := []rune(s)
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
-}
-
-func makePathPart(path string) string {
-	segments := strings.Split(
-		strings.ReplaceAll(
-			strings.TrimPrefix(
-				path,
-				"/api/",
-			),
-			"/",
-			"-",
-		),
-		"-",
-	)
-
-	var casedSegments []string
-	for _, segment := range segments {
-		casedSegments = append(casedSegments, titleCase(segment))
-	}
-
-	return strings.ReplaceAll(strings.Join(casedSegments, ""), ".", "")
-}
 
 func isEmptyInterfaceType(t reflect.Type) bool {
 	if t == nil {
@@ -330,11 +298,7 @@ func makeTemplateInput(
 		templateInputs = append(
 			templateInputs,
 			&clientCodeGenerationTypes.TemplateInput{
-				Name: fmt.Sprintf(
-					"%s%s",
-					strings.ToLower(method),
-					makePathPart(path),
-				),
+				Name: endpointPkg.OperationName(method, path),
 				InputType:                 typescriptInputType,
 				UrlInputType:              typescriptUrlInputType,
 				ReturnType:                typescriptOutputType,

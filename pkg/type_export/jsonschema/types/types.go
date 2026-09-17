@@ -19,6 +19,25 @@ import (
 
 type Context struct {
 	*typeExportContext.Context
+
+	// RefPrefix is what a reference to a named type is written against, the type's identifier
+	// following it. Empty means "#/$defs/", where RenderRoot puts the schemas it builds.
+	//
+	// A document that keeps its schemas elsewhere says so here: an OpenAPI document holds them
+	// under "#/components/schemas/", and a reference into $defs would dangle there.
+	RefPrefix string
+}
+
+// defaultRefPrefix is where RenderRoot puts the schemas it builds, and so where a reference points
+// when nothing says otherwise.
+const defaultRefPrefix = "#/$defs/"
+
+func (c *Context) refPrefix() string {
+	if c.RefPrefix == "" {
+		return defaultRefPrefix
+	}
+
+	return c.RefPrefix
 }
 
 // JSON Schema type names.
@@ -47,11 +66,11 @@ func (c *Context) GetJSONSchemaType(reflectType reflect.Type) (map[string]any, e
 			return map[string]any{"type": schemaTypeString, "format": "date-time"}, nil
 		}
 
-		// Reference another interface via local $defs
+		// Reference another interface where the schemas are kept.
 		typeDeclaration, ok := c.TypeDeclarations[reflectType]
 		if ok {
 			if iface, ok2 := typeDeclaration.(*type_declaration.InterfaceDeclaration); ok2 {
-				return map[string]any{"$ref": "#/$defs/" + iface.QualifiedName()}, nil
+				return map[string]any{"$ref": c.refPrefix() + iface.QualifiedName()}, nil
 			}
 		}
 		return nil, altshiftErrors.NewWithTrace(typeExportErrors.ErrUnsupportedKind, kind)
@@ -305,11 +324,50 @@ func (c *Context) buildInterfaceSchema(interfaceDeclaration *type_declaration.In
 	return schemaMap, nil
 }
 
+// BuildSchemas builds the object schema of every interface the context has discovered, keyed by the
+// identifier a reference names it with.
+//
+// It is what RenderRoot puts under $defs, offered on its own for a document that keeps its schemas
+// somewhere else -- an OpenAPI document's components, say -- and needs them without the $defs
+// wrapper and the root type RenderRoot insists on.
+//
+// The order the declarations were discovered in is not preserved: a map has none. What is preserved
+// is the identifier each schema is reachable by, which is what a reference resolves against.
+func (c *Context) BuildSchemas() (map[string]any, error) {
+	schemas := make(map[string]any, len(c.TypeDeclarationsInOrder))
+
+	for _, typeDeclaration := range c.TypeDeclarationsInOrder {
+		interfaceDeclaration, ok := typeDeclaration.(*type_declaration.InterfaceDeclaration)
+		if !ok || interfaceDeclaration == nil {
+			continue
+		}
+
+		schema, err := c.buildInterfaceSchema(interfaceDeclaration)
+		if err != nil {
+			return nil, altshiftErrors.New(fmt.Errorf("build interface schema: %w", err), interfaceDeclaration)
+		}
+
+		schemas[interfaceDeclaration.Identifier] = schema
+	}
+
+	return schemas, nil
+}
+
 // RenderRoot builds a single JSON Schema document with the provided root type as the top-level schema
 // and all discovered interfaces included under $defs. References use local $refs to $defs.
 // If root is a slice or array of structs, the top-level schema describes an array whose items
 // reference the element type.
 func (c *Context) RenderRoot(root reflect.Type) (string, error) {
+	// The document built here keeps its schemas under $defs and references them there. A context
+	// whose references were aimed elsewhere cannot produce it: every reference in it, the root's
+	// included, would point outside the document it appears in.
+	if c.RefPrefix != "" && c.RefPrefix != defaultRefPrefix {
+		return "", altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: %s", typeExportErrors.ErrRefPrefixWithRoot, c.RefPrefix),
+			c.RefPrefix,
+		)
+	}
+
 	root = altshiftReflect.RemoveIndirection(root)
 
 	isArray := false
@@ -347,19 +405,9 @@ func (c *Context) RenderRoot(root reflect.Type) (string, error) {
 	}
 
 	// Build $defs for all interfaces
-	defs := map[string]any{}
-	for _, typeDeclaration := range c.TypeDeclarationsInOrder {
-		interfaceDeclaration, ok := typeDeclaration.(*type_declaration.InterfaceDeclaration)
-		if !ok || interfaceDeclaration == nil {
-			continue
-		}
-
-		schema, err := c.buildInterfaceSchema(interfaceDeclaration)
-		if err != nil {
-			return "", altshiftErrors.New(fmt.Errorf("build interface schema: %w", err), interfaceDeclaration)
-		}
-
-		defs[interfaceDeclaration.Identifier] = schema
+	defs, err := c.BuildSchemas()
+	if err != nil {
+		return "", fmt.Errorf("build schemas: %w", err)
 	}
 
 	rootInterfaceDeclarationIdentifier := rootInterfaceDeclaration.Identifier

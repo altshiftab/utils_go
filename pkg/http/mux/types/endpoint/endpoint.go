@@ -34,6 +34,19 @@ import (
 	"github.com/altshiftab/utils_go/pkg/sync/errgroup"
 )
 
+// Hint is what an endpoint says about the types it takes and returns, for whoever generates
+// something from the endpoint rather than serving it: a typed client, an OpenAPI document.
+//
+// # Where the input goes
+//
+// InputType is read as query parameters when the method carries no body -- GET, HEAD and DELETE --
+// and as the request body otherwise. UrlInputType is always query parameters, and is how an
+// endpoint that takes both a body and a query says so; on a body-less method it would say nothing
+// InputType does not, and a generator may refuse both at once rather than guess which was meant.
+//
+// The rule is the method's, not the body loader's, because that is the rule the generated clients
+// already follow. A generator that read BodyLoader instead would agree with them on every endpoint
+// written so far and disagree on the first one where the two part company.
 type Hint struct {
 	InputType         reflect.Type
 	UrlInputType      reflect.Type
@@ -41,6 +54,52 @@ type Hint struct {
 	UrlOutputType     reflect.Type
 	OutputContentType string
 	OutputOptional    bool
+
+	// OutputStatusCode is the status of the success response.
+	//
+	// Zero means what the response writer does when a handler names no status: 200 where there is
+	// a body, 204 where there is none. It is set where the handler answers with something else --
+	// a 201 for what it created, or a 204 it sends with a body it wants ignored -- since that
+	// choice is made inside the handler, where nothing generating from the endpoint can see it.
+	OutputStatusCode int
+
+	// Summary is one line saying what the operation does. Description elaborates on it, in
+	// CommonMark. A generator leaves out what is not set rather than inventing it from the path,
+	// which would tell a reader only what the method and path already told them.
+	Summary     string
+	Description string
+
+	// OperationId names the operation to whoever generates from it, overriding the name derived
+	// from the method and the path by OperationName. Set it where the derived name collides or
+	// reads badly; leave it unset otherwise, so that the name stays the one the generated clients
+	// call the operation by.
+	OperationId string
+
+	// Tags group the operation with others in generated documentation.
+	Tags []string
+
+	// Deprecated says the operation is still served but should no longer be reached for.
+	Deprecated bool
+
+	// ErrorResponses describes the failures the handler produces that the endpoint's own fields do
+	// not imply, keyed by status code and valued by a description of what that status means here.
+	//
+	// The failures the mux itself produces -- a body over the limit, a body that fails validation,
+	// a request without a session -- follow from the endpoint and need no entry. What only the
+	// handler knows does: which 404 it answers with, and why it would answer 409.
+	//
+	// An entry for a status that would have been derived replaces its description, so that a
+	// generic "Forbidden." can be said properly where the endpoint means something particular by
+	// it.
+	ErrorResponses map[int]string
+
+	// Internal keeps the endpoint out of documentation meant for third parties, while leaving it
+	// served and leaving the typed clients that call it alone.
+	//
+	// It is the endpoint that knows whether it is anyone else's business, and it must keep knowing
+	// it when the endpoints are handed onward in bulk. Documentation generators honour it;
+	// client generators have no use for it, the caller being the service's own frontend.
+	Internal bool
 }
 
 type Handler = func(*http.Request, []byte) (*muxResponse.Response, *muxResponseError.ResponseError)
