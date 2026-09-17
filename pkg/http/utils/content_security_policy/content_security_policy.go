@@ -15,10 +15,16 @@ const trustedTypePolicyNameKind = "policy-name"
 
 // ChromeXmlViewerStyleHashes are the styles Chrome's XML viewer applies to the document tree it
 // renders an XML response as. They are the bodies of style elements, which a hash source matches as
-// it is.
+// it is. The first is the empty body the viewer inserts the element with, before it is filled.
+//
+// Chrome edits that stylesheet from one version to the next, and a body that no longer matches is
+// blocked -- so a version's hash is added here rather than replacing the one before it, the older
+// ones being what an older Chrome still applies. The last is what Chrome 152 applies; the one before
+// it, what the versions before that did.
 var ChromeXmlViewerStyleHashes = []string{
 	"sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
 	"sha256-p08VBe6m5i8+qtXWjnH/AN3klt1l4uoOLsjNn8BjdQo=",
+	"sha256-FP2rLIq2SXli/a2p8OSS/CTcCw1LqqWUbEfuSDVBWxc=",
 }
 
 // EdgePdfViewerStyleHashes are the styles Edge's PDF viewer applies to the document it renders a
