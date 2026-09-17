@@ -93,13 +93,17 @@ type Hint struct {
 	// it.
 	ErrorResponses map[int]string
 
-	// Internal keeps the endpoint out of documentation meant for third parties, while leaving it
-	// served and leaving the typed clients that call it alone.
+	// Documented offers the endpoint to third parties, by putting it in the documentation generated
+	// from these hints. It leaves the endpoint's serving alone, and the typed clients that call it
+	// alone: client generators have no use for it, the caller being the service's own frontend.
 	//
-	// It is the endpoint that knows whether it is anyone else's business, and it must keep knowing
-	// it when the endpoints are handed onward in bulk. Documentation generators honour it;
-	// client generators have no use for it, the caller being the service's own frontend.
-	Internal bool
+	// An endpoint says nothing about itself until someone says it should, so the zero value keeps
+	// it out. An endpoint is written to be called by the thing that was being built at the time,
+	// and whether anyone else should be invited to call it is a later and separate decision --
+	// taken for each endpoint, by someone who has thought about that endpoint. Defaulting the other
+	// way would publish the surface of every endpoint anyone adds, and be noticed only by whoever
+	// reads the document.
+	Documented bool
 }
 
 type Handler = func(*http.Request, []byte) (*muxResponse.Response, *muxResponseError.ResponseError)

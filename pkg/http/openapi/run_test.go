@@ -18,6 +18,7 @@ func runEndpoints() []*endpointPkg.Endpoint {
 			Method:     http.MethodPost,
 			BodyLoader: jsonBodyLoader(4096),
 			Hint: &endpointPkg.Hint{
+				Documented:        true,
 				InputType:         reflect.TypeFor[testOrder](),
 				OutputType:        reflect.TypeFor[testOrder](),
 				OutputContentType: contentTypeJson,
@@ -145,7 +146,7 @@ func TestRunArguments(t *testing.T) {
 					Path:       "/api/orders",
 					Method:     MethodQuery,
 					BodyLoader: jsonBodyLoader(4096),
-					Hint:       &endpointPkg.Hint{InputType: reflect.TypeFor[testOrdersQuery]()},
+					Hint:       &endpointPkg.Hint{Documented: true, InputType: reflect.TypeFor[testOrdersQuery]()},
 				},
 			},
 			expectedCode: exitFailure,

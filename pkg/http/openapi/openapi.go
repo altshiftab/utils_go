@@ -9,9 +9,13 @@
 //
 // # Which endpoints are documented
 //
-// Those with a hint, and without Hint.Internal. An endpoint with no hint says nothing about what it
-// takes or returns, and one serving static content is a document rather than an operation; neither
-// is left out to be tidy, but because there is nothing to write about it.
+// Those whose hint sets Hint.Documented, and no others. An endpoint is not offered to third parties
+// until someone decides it should be, so a service that declares no documented endpoint gets a
+// document with no operations rather than one describing everything it happens to serve.
+//
+// Two further exclusions are not decisions anyone makes: an endpoint with no hint says nothing
+// about what it takes or returns, and one serving static content is a document rather than an
+// operation.
 //
 // # Version
 //
@@ -60,7 +64,7 @@ func isDocumented(endpoint *endpointPkg.Endpoint) bool {
 		return false
 	}
 
-	if endpoint.Hint.Internal {
+	if !endpoint.Hint.Documented {
 		return false
 	}
 

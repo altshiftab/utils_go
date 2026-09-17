@@ -99,6 +99,7 @@ func TestGenerateOperationShapes(t *testing.T) {
 				Path:   "/api/project",
 				Method: http.MethodGet,
 				Hint: &endpointPkg.Hint{
+					Documented:        true,
 					InputType:         reflect.TypeFor[queryIdInput](),
 					OutputType:        reflect.TypeFor[testOrder](),
 					OutputContentType: contentTypeJson,
@@ -128,6 +129,7 @@ func TestGenerateOperationShapes(t *testing.T) {
 				Method:     http.MethodPost,
 				BodyLoader: jsonBodyLoader(4096),
 				Hint: &endpointPkg.Hint{
+					Documented:        true,
 					InputType:         reflect.TypeFor[testOrder](),
 					OutputType:        reflect.TypeFor[testOrder](),
 					OutputContentType: contentTypeJson,
@@ -159,6 +161,7 @@ func TestGenerateOperationShapes(t *testing.T) {
 				Method:     MethodQuery,
 				BodyLoader: jsonBodyLoader(4096),
 				Hint: &endpointPkg.Hint{
+					Documented:        true,
 					InputType:         reflect.TypeFor[testOrdersQuery](),
 					OutputType:        reflect.TypeFor[[]testOrder](),
 					OutputContentType: contentTypeJson,
@@ -190,6 +193,7 @@ func TestGenerateOperationShapes(t *testing.T) {
 				Path:   "/api/order/bucket-file",
 				Method: http.MethodGet,
 				Hint: &endpointPkg.Hint{
+					Documented:        true,
 					InputType:         reflect.TypeFor[queryIdInput](),
 					OutputContentType: "application/pdf",
 				},
@@ -218,6 +222,7 @@ func TestGenerateOperationShapes(t *testing.T) {
 				Method: http.MethodGet,
 				Public: true,
 				Hint: &endpointPkg.Hint{
+					Documented:        true,
 					OutputType:        reflect.TypeFor[[]byte](),
 					OutputContentType: "application/jwk-set+json",
 				},
@@ -238,7 +243,8 @@ func TestGenerateOperationShapes(t *testing.T) {
 				Method:     http.MethodPost,
 				BodyLoader: &body_loader.Loader{ContentType: testContentTypeCose, MaxBytes: 40_000_000},
 				Hint: &endpointPkg.Hint{
-					InputType: reflect.TypeFor[testCandidateDetails](),
+					Documented: true,
+					InputType:  reflect.TypeFor[testCandidateDetails](),
 				},
 			},
 			assert: func(t *testing.T, document *openapiTypes.Document) {
@@ -269,7 +275,8 @@ func TestGenerateOperationShapes(t *testing.T) {
 				Method:     http.MethodPost,
 				BodyLoader: jsonBodyLoader(1024),
 				Hint: &endpointPkg.Hint{
-					InputType: reflect.TypeFor[testOrder](),
+					Documented: true,
+					InputType:  reflect.TypeFor[testOrder](),
 				},
 			},
 			assert: func(t *testing.T, document *openapiTypes.Document) {
@@ -290,6 +297,7 @@ func TestGenerateOperationShapes(t *testing.T) {
 				Method:     http.MethodPost,
 				BodyLoader: jsonBodyLoader(1024),
 				Hint: &endpointPkg.Hint{
+					Documented:       true,
 					InputType:        reflect.TypeFor[testOrder](),
 					OutputStatusCode: http.StatusCreated,
 				},
@@ -338,6 +346,7 @@ func TestGenerateDerivedErrorResponses(t *testing.T) {
 		BodyLoader:                jsonBodyLoader(4096),
 		RateLimitingConfiguration: &muxTypesRateLimiting.RateLimitingConfiguration{},
 		Hint: &endpointPkg.Hint{
+			Documented:        true,
 			InputType:         reflect.TypeFor[testOrder](),
 			OutputType:        reflect.TypeFor[testOrder](),
 			OutputContentType: contentTypeJson,
@@ -433,13 +442,13 @@ func TestGeneratePublicEndpointRequiresNothing(t *testing.T) {
 		{
 			Path:   "/api/settings",
 			Method: http.MethodGet,
-			Hint:   &endpointPkg.Hint{OutputType: reflect.TypeFor[testOrder](), OutputContentType: contentTypeJson},
+			Hint:   &endpointPkg.Hint{Documented: true, OutputType: reflect.TypeFor[testOrder](), OutputContentType: contentTypeJson},
 		},
 		{
 			Path:   "/verification",
 			Method: http.MethodGet,
 			Public: true,
-			Hint:   &endpointPkg.Hint{OutputContentType: "text/html"},
+			Hint:   &endpointPkg.Hint{Documented: true, OutputContentType: "text/html"},
 		},
 	}
 
@@ -486,23 +495,26 @@ func TestGeneratePublicEndpointRequiresNothing(t *testing.T) {
 	}
 }
 
-func TestGenerateExclusions(t *testing.T) {
+func TestGenerateDocumentsOnlyWhatOptsIn(t *testing.T) {
 	t.Parallel()
 
 	endpoints := []*endpointPkg.Endpoint{
 		{
 			Path:   "/api/settings",
 			Method: http.MethodGet,
-			Hint:   &endpointPkg.Hint{OutputType: reflect.TypeFor[testOrder](), OutputContentType: contentTypeJson},
+			Hint: &endpointPkg.Hint{
+				Documented:        true,
+				OutputType:        reflect.TypeFor[testOrder](),
+				OutputContentType: contentTypeJson,
+			},
 		},
 		{
+			// Hinted, and never asked to be documented. The hint is there for the typed client,
+			// which is a different question from whether anyone else should be invited to call it.
 			Path:       "/api/order/candidate-details",
 			Method:     http.MethodPost,
 			BodyLoader: jsonBodyLoader(1024),
-			Hint: &endpointPkg.Hint{
-				InputType: reflect.TypeFor[testCandidateDetails](),
-				Internal:  true,
-			},
+			Hint:       &endpointPkg.Hint{InputType: reflect.TypeFor[testCandidateDetails]()},
 		},
 		{
 			// No hint: nothing is known about what it takes or returns.
@@ -516,20 +528,73 @@ func TestGenerateExclusions(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if _, ok := document.Paths["/api/settings"]; !ok {
+		t.Error("an endpoint that opted in is missing")
+	}
 	if _, ok := document.Paths["/api/order/candidate-details"]; ok {
-		t.Error("an internal endpoint was documented")
+		t.Error("an endpoint that never opted in was documented")
 	}
 	if _, ok := document.Paths["/api/unhinted"]; ok {
 		t.Error("an endpoint with no hint was documented")
 	}
-	if _, ok := document.Paths["/api/settings"]; !ok {
-		t.Error("a documented endpoint is missing")
+
+	// Nor may its types reach the components: a reader would learn the shape of what an endpoint
+	// takes without the endpoint appearing at all.
+	if _, ok := document.Components.Schemas["TestCandidateDetails"]; ok {
+		t.Error("the type of an endpoint that never opted in reached the components")
+	}
+}
+
+// TestGenerateWithNothingOptedIn is the shape a service gets before anyone has decided what to
+// offer: a document that is valid, and describes nothing.
+//
+// It is the default, so it must be a document rather than an error. A service adding the generator
+// should get an empty document and then choose what goes in it, not a failure telling it to choose
+// first.
+func TestGenerateWithNothingOptedIn(t *testing.T) {
+	t.Parallel()
+
+	endpoints := []*endpointPkg.Endpoint{
+		{
+			Path:   "/api/settings",
+			Method: http.MethodGet,
+			Hint: &endpointPkg.Hint{
+				OutputType:        reflect.TypeFor[testOrder](),
+				OutputContentType: contentTypeJson,
+			},
+		},
 	}
 
-	// An internal endpoint's types must not reach the components either: a reader would learn the
-	// shape of what the endpoint takes without the endpoint appearing at all.
-	if _, ok := document.Components.Schemas["TestCandidateDetails"]; ok {
-		t.Error("an internal endpoint's type reached the components")
+	document, err := Generate(endpoints, testOptions()...)
+	if err != nil {
+		t.Fatalf("a document with nothing opted in is an error: %v", err)
+	}
+
+	if len(document.Paths) != 0 {
+		t.Errorf("expected no operations, got %v", slices.Sorted(maps(document.Paths)))
+	}
+
+	if _, ok := document.Components.Schemas["TestOrder"]; ok {
+		t.Error("the type of an undocumented endpoint reached the components")
+	}
+
+	// The document still says what it is, and still marshals as one.
+	data, err := Marshal(document)
+	if err != nil {
+		t.Fatalf("an empty document could not be written: %v", err)
+	}
+
+	var roundTripped map[string]any
+	if err := json.Unmarshal(data, &roundTripped); err != nil {
+		t.Fatalf("an empty document does not parse: %v", err)
+	}
+
+	paths, ok := roundTripped["paths"].(map[string]any)
+	if !ok {
+		t.Fatalf("an empty document has no paths member: %v", roundTripped)
+	}
+	if len(paths) != 0 {
+		t.Errorf("expected an empty paths member, got %v", paths)
 	}
 }
 
@@ -548,7 +613,7 @@ func TestGenerateRefusals(t *testing.T) {
 				Path:       "/api/orders",
 				Method:     MethodQuery,
 				BodyLoader: jsonBodyLoader(4096),
-				Hint:       &endpointPkg.Hint{InputType: reflect.TypeFor[testOrdersQuery]()},
+				Hint:       &endpointPkg.Hint{Documented: true, InputType: reflect.TypeFor[testOrdersQuery]()},
 			},
 			options:       []openapi_config.Option{openapi_config.WithVersion(openapi_config.Version31)},
 			expectedError: openapiErrors.ErrQueryMethodUnsupported,
@@ -558,7 +623,7 @@ func TestGenerateRefusals(t *testing.T) {
 			endpoint: &endpointPkg.Endpoint{
 				Path:   "/api/order",
 				Method: http.MethodPost,
-				Hint:   &endpointPkg.Hint{InputType: reflect.TypeFor[testOrder]()},
+				Hint:   &endpointPkg.Hint{Documented: true, InputType: reflect.TypeFor[testOrder]()},
 			},
 			expectedError: openapiErrors.ErrBodyNotAccepted,
 		},
@@ -568,7 +633,7 @@ func TestGenerateRefusals(t *testing.T) {
 				Path:       "/api/project",
 				Method:     http.MethodDelete,
 				BodyLoader: jsonBodyLoader(1024),
-				Hint:       &endpointPkg.Hint{InputType: reflect.TypeFor[queryIdInput]()},
+				Hint:       &endpointPkg.Hint{Documented: true, InputType: reflect.TypeFor[queryIdInput]()},
 			},
 			expectedError: openapiErrors.ErrUndescribedBody,
 		},
@@ -578,6 +643,7 @@ func TestGenerateRefusals(t *testing.T) {
 				Path:   "/api/project",
 				Method: http.MethodGet,
 				Hint: &endpointPkg.Hint{
+					Documented:   true,
 					InputType:    reflect.TypeFor[queryIdInput](),
 					UrlInputType: reflect.TypeFor[queryJsonFallbackInput](),
 				},
@@ -590,6 +656,7 @@ func TestGenerateRefusals(t *testing.T) {
 				Path:   "/api/order/bucket-file",
 				Method: http.MethodGet,
 				Hint: &endpointPkg.Hint{
+					Documented:        true,
 					OutputType:        reflect.TypeFor[testOrder](),
 					OutputContentType: "application/pdf",
 				},
@@ -602,6 +669,7 @@ func TestGenerateRefusals(t *testing.T) {
 				Path:   "/api/order/bucket-file",
 				Method: http.MethodGet,
 				Hint: &endpointPkg.Hint{
+					Documented:        true,
 					OutputContentType: "application/pdf",
 					OutputOptional:    true,
 				},
@@ -629,7 +697,7 @@ func TestGenerateDocumentRefusals(t *testing.T) {
 		return &endpointPkg.Endpoint{
 			Path:   "/api/settings",
 			Method: http.MethodGet,
-			Hint:   &endpointPkg.Hint{OutputType: reflect.TypeFor[testOrder](), OutputContentType: contentTypeJson},
+			Hint:   &endpointPkg.Hint{Documented: true, OutputType: reflect.TypeFor[testOrder](), OutputContentType: contentTypeJson},
 		}
 	}
 
@@ -669,12 +737,12 @@ func TestGenerateDocumentRefusals(t *testing.T) {
 				{
 					Path:   "/api/order-file",
 					Method: http.MethodGet,
-					Hint:   &endpointPkg.Hint{OutputContentType: "text/plain", OutputType: reflect.TypeFor[string]()},
+					Hint:   &endpointPkg.Hint{Documented: true, OutputContentType: "text/plain", OutputType: reflect.TypeFor[string]()},
 				},
 				{
 					Path:   "/api/order/file",
 					Method: http.MethodGet,
-					Hint:   &endpointPkg.Hint{OutputContentType: "text/plain", OutputType: reflect.TypeFor[string]()},
+					Hint:   &endpointPkg.Hint{Documented: true, OutputContentType: "text/plain", OutputType: reflect.TypeFor[string]()},
 				},
 			},
 			options: []openapi_config.Option{
@@ -709,6 +777,7 @@ func TestMarshalIsDeterministic(t *testing.T) {
 			Method:     http.MethodPost,
 			BodyLoader: jsonBodyLoader(4096),
 			Hint: &endpointPkg.Hint{
+				Documented:        true,
 				InputType:         reflect.TypeFor[testOrder](),
 				OutputType:        reflect.TypeFor[testOrder](),
 				OutputContentType: contentTypeJson,
@@ -719,6 +788,7 @@ func TestMarshalIsDeterministic(t *testing.T) {
 			Method:     MethodQuery,
 			BodyLoader: jsonBodyLoader(4096),
 			Hint: &endpointPkg.Hint{
+				Documented:        true,
 				InputType:         reflect.TypeFor[testOrdersQuery](),
 				OutputType:        reflect.TypeFor[[]testOrder](),
 				OutputContentType: contentTypeJson,
@@ -728,6 +798,7 @@ func TestMarshalIsDeterministic(t *testing.T) {
 			Path:   "/api/project",
 			Method: http.MethodGet,
 			Hint: &endpointPkg.Hint{
+				Documented:        true,
 				InputType:         reflect.TypeFor[queryIdInput](),
 				OutputType:        reflect.TypeFor[testCandidateDetails](),
 				OutputContentType: contentTypeJson,
@@ -737,6 +808,7 @@ func TestMarshalIsDeterministic(t *testing.T) {
 			Path:   "/api/project",
 			Method: http.MethodDelete,
 			Hint: &endpointPkg.Hint{
+				Documented:        true,
 				InputType:         reflect.TypeFor[queryIdInput](),
 				OutputContentType: "text/plain",
 				OutputType:        reflect.TypeFor[string](),
@@ -787,6 +859,7 @@ func TestMarshalRoundTrips(t *testing.T) {
 		Method:     http.MethodPost,
 		BodyLoader: &body_loader.Loader{ContentType: contentTypeJson, MaxBytes: 4096, Setting: body_setting.Optional},
 		Hint: &endpointPkg.Hint{
+			Documented:        true,
 			InputType:         reflect.TypeFor[testOrder](),
 			OutputType:        reflect.TypeFor[testOrder](),
 			OutputContentType: contentTypeJson,
