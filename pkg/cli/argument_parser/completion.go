@@ -184,7 +184,8 @@ func summary(usage string) string {
 // exclusions maps each option to the others it rules out.
 //
 // This is the part a hand-written completion almost never has, because most parsers do not know it:
-// having given --quiet, a caller should not be offered --verbose.
+// having given --quiet, a caller should not be offered --verbose. An option rules out the other
+// members of its exclusive group, not the options beside it in a member that is a group.
 func exclusions(parser *Parser) map[option.Option][]option.Option {
 	found := make(map[option.Option][]option.Option)
 
@@ -193,17 +194,14 @@ func exclusions(parser *Parser) map[option.Option][]option.Option {
 			continue
 		}
 
-		for _, declared := range group.Options {
-			if declared == nil {
-				continue
-			}
-
-			for _, other := range group.Options {
-				if other == nil || other == declared {
-					continue
+		sets := memberSets(group)
+		for index, set := range sets {
+			for _, declared := range set {
+				for otherIndex, other := range sets {
+					if otherIndex != index {
+						found[declared] = append(found[declared], other...)
+					}
 				}
-
-				found[declared] = append(found[declared], other)
 			}
 		}
 	}

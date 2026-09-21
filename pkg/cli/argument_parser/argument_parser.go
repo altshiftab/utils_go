@@ -51,11 +51,50 @@ type Group struct {
 	Options []option.Option
 }
 
-// ExclusiveGroup is a set of the parser's options of which at most one may be given.
+// ExclusiveGroup is a set of members of which at most one may be given. A member is an option on
+// its own, or a group of options that count as one: giving any of a group's options chooses that
+// member, and the group's options may be combined with one another freely. One --no-timeouts
+// option against a group of several timeout options is the case a flat list cannot express.
 type ExclusiveGroup struct {
 	Options []option.Option
-	// Required demands that one of them be given.
+	// Groups are the members that are groups of options. They follow the options in the usage
+	// line, each option of a group bracketed on its own. Naming a group here says what is
+	// accepted; titling it in the help is what Parser.Groups does, and a group may be in both.
+	Groups []*Group
+	// Required demands that one member be given.
 	Required bool
+}
+
+// memberSets returns the group's members, each as the options that choose it: an option on its
+// own, or the options of a group. Nil and empty members are left out, since nothing can choose
+// them.
+func memberSets(group *ExclusiveGroup) [][]option.Option {
+	sets := make([][]option.Option, 0, len(group.Options)+len(group.Groups))
+
+	for _, opt := range group.Options {
+		if opt != nil {
+			sets = append(sets, []option.Option{opt})
+		}
+	}
+
+	for _, member := range group.Groups {
+		if member == nil {
+			continue
+		}
+
+		var set []option.Option
+		for _, opt := range member.Options {
+			if opt != nil {
+				set = append(set, opt)
+			}
+		}
+
+		if len(set) != 0 {
+			sets = append(sets, set)
+		}
+	}
+
+	return sets
 }
 
 type Parser struct {
@@ -95,6 +134,23 @@ type Parser struct {
 	// Width is the column at which the help message wraps. COLUMNS, then defaultWidth, is used
 	// when this is not positive.
 	Width int
+
+	// seen records the names the last parse met, which is what Given answers from.
+	seen *seenNames
+}
+
+// Given reports whether an argument of the last parse named the option, as opposed to the option
+// holding its default or having been left alone. The parser tells the two apart for its own checks,
+// so that a defaulted option never conflicts with one that rules it out; this is the same answer
+// for a program that needs it, such as to tell an explicit --timeout 0 from no timeout given. It is
+// false before any parse, and for every option of a parser that handed the arguments to a
+// subparser.
+func (parser *Parser) Given(opt option.Option) bool {
+	if opt == nil || parser.seen == nil {
+		return false
+	}
+
+	return parser.seen.has(opt.GetShortName(), opt.GetLongName())
 }
 
 // GetCommand returns the name this parser answers to as a subparser.
@@ -327,23 +383,32 @@ func optionKey(opt option.Option) string {
 	return opt.GetShortName() + "\x00" + opt.GetLongName()
 }
 
-// formatAlternation renders an exclusive group as the choice between its options that it is,
-// bracketed when none of them need be given.
+// formatAlternation renders an exclusive group as the choice between its members that it is,
+// bracketed when none of them need be given. A member that is a group of options is written as
+// those options, each bracketed on its own, since any of them chooses it.
 func formatAlternation(group *ExclusiveGroup) string {
-	invocations := make([]string, 0, len(group.Options))
-	for _, opt := range group.Options {
-		if opt == nil {
+	sets := memberSets(group)
+	members := make([]string, 0, len(sets))
+
+	for _, set := range sets {
+		if len(set) == 1 {
+			members = append(members, formatInvocation(set[0]))
 			continue
 		}
 
-		invocations = append(invocations, formatInvocation(opt))
+		invocations := make([]string, 0, len(set))
+		for _, opt := range set {
+			invocations = append(invocations, "["+formatInvocation(opt)+"]")
+		}
+
+		members = append(members, strings.Join(invocations, " "))
 	}
 
-	if len(invocations) == 0 {
+	if len(members) == 0 {
 		return ""
 	}
 
-	joined := strings.Join(invocations, " | ")
+	joined := strings.Join(members, " | ")
 	if group.Required {
 		return "(" + joined + ")"
 	}
@@ -473,7 +538,8 @@ func assignPositionals(positionals []option.Option, arguments []string) ([]strin
 
 // checkGroups reports an option that a group names but the parser does not declare. Such an option
 // appears in the help and can never be given, which is a mistake in the declaration rather than in
-// the command line.
+// the command line. So is an option that is two members of one exclusive group, which would rule
+// itself out.
 func checkGroups(options []option.Option, groups []*Group, exclusiveGroups []*ExclusiveGroup) error {
 	declared := make(map[string]struct{}, len(options))
 	for _, opt := range options {
@@ -513,9 +579,24 @@ func checkGroups(options []option.Option, groups []*Group, exclusiveGroups []*Ex
 			continue
 		}
 
-		for _, opt := range group.Options {
-			if err := checkMember(opt); err != nil {
-				return err
+		membership := make(map[string]struct{})
+		for _, set := range memberSets(group) {
+			for _, opt := range set {
+				if err := checkMember(opt); err != nil {
+					return err
+				}
+
+				key := optionKey(opt)
+				if _, ok := membership[key]; ok {
+					return altshiftErrors.NewWithTrace(
+						fmt.Errorf(
+							"%w: %s",
+							argumentParserErrors.ErrSelfExclusiveOption,
+							formatInvocation(opt),
+						),
+					)
+				}
+				membership[key] = struct{}{}
 			}
 		}
 	}
@@ -523,8 +604,9 @@ func checkGroups(options []option.Option, groups []*Group, exclusiveGroups []*Ex
 	return nil
 }
 
-// checkExclusive reports options that rule one another out but were given together, and groups
-// that demanded one of their options and got none.
+// checkExclusive reports members of an exclusive group that were given together, and groups that
+// demanded one of their members and got none. A member that is a group of options is given when
+// any of its options is; the complaint names the options themselves, which is what was typed.
 func checkExclusive(groups []*ExclusiveGroup, seen *seenNames) error {
 	for _, group := range groups {
 		if group == nil {
@@ -533,20 +615,26 @@ func checkExclusive(groups []*ExclusiveGroup, seen *seenNames) error {
 
 		var given []string
 		var all []string
+		var givenMembers int
 
-		for _, opt := range group.Options {
-			if opt == nil {
-				continue
+		for _, set := range memberSets(group) {
+			chosen := false
+
+			for _, opt := range set {
+				invocation := formatInvocation(opt)
+				all = append(all, invocation)
+				if seen.has(opt.GetShortName(), opt.GetLongName()) {
+					given = append(given, invocation)
+					chosen = true
+				}
 			}
 
-			invocation := formatInvocation(opt)
-			all = append(all, invocation)
-			if seen.has(opt.GetShortName(), opt.GetLongName()) {
-				given = append(given, invocation)
+			if chosen {
+				givenMembers++
 			}
 		}
 
-		if len(given) > 1 {
+		if givenMembers > 1 {
 			return altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: %s",
@@ -556,7 +644,7 @@ func checkExclusive(groups []*ExclusiveGroup, seen *seenNames) error {
 			)
 		}
 
-		if group.Required && len(given) == 0 && len(all) != 0 {
+		if group.Required && givenMembers == 0 && len(all) != 0 {
 			return altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: one of %s",
@@ -852,8 +940,8 @@ func (parser *Parser) formatUsage(width int) string {
 			continue
 		}
 
-		for _, opt := range group.Options {
-			if opt != nil {
+		for _, set := range memberSets(group) {
+			for _, opt := range set {
 				keyToExclusive[optionKey(opt)] = index
 			}
 		}
@@ -1383,6 +1471,9 @@ func checkRequired(options []option.Option, seen *seenNames) error {
 
 // ParseArgs parses arguments, dispatching to a subparser when the first argument names one.
 func (parser *Parser) ParseArgs(arguments []string) error {
+	// A parse that hands its arguments to a subparser names none of this parser's options.
+	parser.seen = makeSeenNames()
+
 	if parsers := parser.Parsers; len(parsers) != 0 && len(arguments) != 0 {
 		firstArgument := arguments[0]
 
@@ -1449,7 +1540,7 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 	var pendingName string
 	var pendingCount int
 
-	seen := makeSeenNames()
+	seen := parser.seen
 	var rest []string
 
 	for index, argument := range arguments {

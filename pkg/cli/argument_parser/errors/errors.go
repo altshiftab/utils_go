@@ -15,6 +15,7 @@ var (
 	ErrInvalidChoice               = errors.New("invalid choice")
 	ErrMutuallyExclusiveOptions    = errors.New("mutually exclusive options")
 	ErrUndeclaredOption            = errors.New("undeclared option")
+	ErrSelfExclusiveOption         = errors.New("option rules itself out")
 	ErrMissingPositional           = errors.New("missing positional argument")
 	ErrAmbiguousPositionals        = errors.New("more than one variadic positional argument")
 	ErrHelp                        = errors.New("help requested")

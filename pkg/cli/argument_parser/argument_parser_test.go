@@ -2250,11 +2250,24 @@ func TestGroupsMustNameDeclaredOptions(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "an exclusive group's group naming an option left out of Options",
+			parser: &Parser{
+				Options: []option.Option{declared},
+				ExclusiveGroups: []*ExclusiveGroup{
+					{Groups: []*Group{{Title: "Network", Options: []option.Option{declared, forgotten}}}},
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "nil members are ignored",
 			parser: &Parser{
-				Options:         []option.Option{declared},
-				Groups:          []*Group{nil, {Title: "Network", Options: []option.Option{nil, declared}}},
-				ExclusiveGroups: []*ExclusiveGroup{nil, {Options: []option.Option{nil}}},
+				Options: []option.Option{declared},
+				Groups:  []*Group{nil, {Title: "Network", Options: []option.Option{nil, declared}}},
+				ExclusiveGroups: []*ExclusiveGroup{
+					nil,
+					{Options: []option.Option{nil}, Groups: []*Group{nil, {Options: []option.Option{nil}}}},
+				},
 			},
 		},
 	}
@@ -2868,5 +2881,296 @@ func TestLoneDashAsAnOptionValue(t *testing.T) {
 	}
 	if input != "-" {
 		t.Errorf("input = %q, want %q", input, "-")
+	}
+}
+
+// timeoutsParser declares the case a flat exclusive group cannot express: one option against a
+// group of options that may be combined with one another. The group is also titled in the help,
+// so that the same declaration serves both.
+func timeoutsParser(required bool, none *bool, connect *int, read *int) *Parser {
+	noneOption := option.NewBoolOption(0, "none", "Disable all timeouts", false, none)
+	connectOption := option.NewIntOption(0, "connect", "Connect timeout", false, connect)
+	readOption := option.WithDefault(option.NewIntOption(0, "read", "Read timeout", false, read), "30")
+	timeouts := &Group{Title: "Timeouts", Options: []option.Option{connectOption, readOption}}
+
+	return &Parser{
+		ProgramName:     "myapp",
+		Width:           80,
+		Options:         []option.Option{noneOption, connectOption, readOption},
+		Groups:          []*Group{timeouts},
+		ExclusiveGroups: []*ExclusiveGroup{{Options: []option.Option{noneOption}, Groups: []*Group{timeouts}, Required: required}},
+	}
+}
+
+func TestParseArgsExclusiveGroupWithGroups(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name        string
+		required    bool
+		args        []string
+		wantErr     error
+		wantMessage string
+		wantRead    int
+	}{
+		{name: "nothing given", wantRead: 30},
+		{name: "the option alone", args: []string{"--none"}, wantRead: 30},
+		{name: "one of the group alone", args: []string{"--connect", "5"}, wantRead: 30},
+		{name: "the group's options combine freely", args: []string{"--connect", "5", "--read", "7"}, wantRead: 7},
+		{
+			name:        "the option against one of the group",
+			args:        []string{"--none", "--read", "7"},
+			wantErr:     argumentParserErrors.ErrMutuallyExclusiveOptions,
+			wantMessage: "--none, --read INT",
+		},
+		{
+			name:        "the option against two of the group names everything given",
+			args:        []string{"--connect", "5", "--none", "--read", "7"},
+			wantErr:     argumentParserErrors.ErrMutuallyExclusiveOptions,
+			wantMessage: "--none, --connect INT, --read INT",
+		},
+		{
+			name:        "a required group with nothing given names every option",
+			required:    true,
+			wantErr:     argumentParserErrors.ErrMissingRequiredOption,
+			wantMessage: "one of --none, --connect INT, --read INT",
+		},
+		{name: "a required group satisfied by the option", required: true, args: []string{"--none"}, wantRead: 30},
+		{name: "a required group satisfied by one of the group", required: true, args: []string{"--read", "1"}, wantRead: 1},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var none bool
+			var connect, read int
+			parser := timeoutsParser(testCase.required, &none, &connect, &read)
+
+			err := parser.ParseArgs(testCase.args)
+			if testCase.wantErr != nil {
+				if !errors.Is(err, testCase.wantErr) {
+					t.Fatalf("unexpected error = %v, want %v", err, testCase.wantErr)
+				}
+				if !strings.Contains(err.Error(), testCase.wantMessage) {
+					t.Errorf("error = %q, want it to contain %q", err.Error(), testCase.wantMessage)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error = %v", err)
+			}
+
+			// The read timeout's default is applied whether or not --none was given: a defaulted
+			// option was not given, so it cannot conflict with the option that rules it out.
+			if read != testCase.wantRead {
+				t.Errorf("read = %d, want %d", read, testCase.wantRead)
+			}
+		})
+	}
+}
+
+func TestFormatUsageExclusiveGroupWithGroups(t *testing.T) {
+	t.Parallel()
+
+	noneOption := option.NewBoolOption(0, "none", "Disable all timeouts", false, nil)
+	connectOption := option.NewIntOption(0, "connect", "Connect timeout", false, nil)
+	readOption := option.NewIntOption(0, "read", "Read timeout", false, nil)
+	hostOption := option.NewStringOption(0, "host", "Host", false, nil)
+	timeouts := &Group{Title: "Timeouts", Options: []option.Option{connectOption, readOption}}
+
+	testCases := []struct {
+		name     string
+		options  []option.Option
+		required bool
+		want     string
+	}{
+		{
+			name:    "a group member is written as its options, each bracketed",
+			options: []option.Option{noneOption, connectOption, readOption, hostOption},
+			want:    "Usage: myapp [-h] [--none | [--connect INT] [--read INT]] [--host STRING]",
+		},
+		{
+			name:     "a required group is parenthesised",
+			options:  []option.Option{noneOption, connectOption, readOption, hostOption},
+			required: true,
+			want:     "Usage: myapp [-h] (--none | [--connect INT] [--read INT]) [--host STRING]",
+		},
+		{
+			name:    "the alternation goes where its first member would have, whichever member that is",
+			options: []option.Option{connectOption, hostOption, noneOption, readOption},
+			want:    "Usage: myapp [-h] [--none | [--connect INT] [--read INT]] [--host STRING]",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			parser := &Parser{
+				ProgramName: "myapp",
+				Width:       120,
+				Options:     testCase.options,
+				ExclusiveGroups: []*ExclusiveGroup{
+					{Options: []option.Option{noneOption}, Groups: []*Group{timeouts}, Required: testCase.required},
+				},
+			}
+
+			if got := parser.FormatUsage(); got != testCase.want {
+				t.Errorf("FormatUsage() = %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestFormatHelpExclusiveGroupWithGroups(t *testing.T) {
+	t.Parallel()
+
+	var none bool
+	var connect, read int
+	parser := timeoutsParser(false, &none, &connect, &read)
+
+	// The group is both a member of the alternation and a section of the help, declared once.
+	expected := "Usage: myapp [-h] [--none | [--connect INT] [--read INT]]\n" +
+		"\n" +
+		"Options:\n" +
+		"      --none         Disable all timeouts\n" +
+		"  -h, --help         Show this help message and exit\n" +
+		"\n" +
+		"Timeouts:\n" +
+		"      --connect INT  Connect timeout\n" +
+		"      --read INT     Read timeout (default: 30)\n"
+
+	if diff := cmp.Diff(expected, parser.FormatHelp()); diff != "" {
+		t.Errorf("FormatHelp mismatch (-expected +got):\n%s", diff)
+	}
+}
+
+func TestExclusiveGroupRejectsAnOptionThatIsTwoMembers(t *testing.T) {
+	t.Parallel()
+
+	port := option.NewIntOption('p', "port", "Port", false, nil)
+	host := option.NewStringOption(0, "host", "Host", false, nil)
+
+	testCases := []struct {
+		name  string
+		group *ExclusiveGroup
+	}{
+		{
+			name:  "listed twice among the options",
+			group: &ExclusiveGroup{Options: []option.Option{port, port}},
+		},
+		{
+			name:  "an option on its own and in a group",
+			group: &ExclusiveGroup{Options: []option.Option{port}, Groups: []*Group{{Options: []option.Option{port, host}}}},
+		},
+		{
+			name:  "in two groups",
+			group: &ExclusiveGroup{Groups: []*Group{{Options: []option.Option{port}}, {Options: []option.Option{port, host}}}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			parser := &Parser{
+				Options:         []option.Option{port, host},
+				ExclusiveGroups: []*ExclusiveGroup{testCase.group},
+			}
+
+			// Both paths must catch it, as for an undeclared option.
+			if err := parser.Validate(); !errors.Is(err, argumentParserErrors.ErrSelfExclusiveOption) {
+				t.Errorf("Validate error = %v, want ErrSelfExclusiveOption", err)
+			}
+			if err := parser.ParseArgs(nil); !errors.Is(err, argumentParserErrors.ErrSelfExclusiveOption) {
+				t.Errorf("ParseArgs error = %v, want ErrSelfExclusiveOption", err)
+			}
+		})
+	}
+}
+
+func TestGiven(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		parses   [][]string
+		wantPort bool
+		wantHost bool
+	}{
+		{name: "before any parse"},
+		{name: "nothing given", parses: [][]string{nil}},
+		{name: "given by short name", parses: [][]string{{"-p", "1"}}, wantPort: true},
+		{name: "given by long name", parses: [][]string{{"--port", "1"}}, wantPort: true},
+		{name: "given by abbreviation", parses: [][]string{{"--ho", "x"}}, wantHost: true},
+		{name: "both given", parses: [][]string{{"-p", "1", "--host", "x"}}, wantPort: true, wantHost: true},
+		{name: "a defaulted option is not given", parses: [][]string{{"--host", "x"}}, wantHost: true},
+		{name: "a later parse forgets an earlier one", parses: [][]string{{"-p", "1"}, {"--host", "x"}}, wantHost: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var port int
+			var host string
+			portOption := option.WithDefault(option.NewIntOption('p', "port", "Port", false, &port), "8080")
+			hostOption := option.NewStringOption(0, "host", "Host", false, &host)
+			parser := &Parser{Options: []option.Option{portOption, hostOption}}
+
+			for _, args := range testCase.parses {
+				if err := parser.ParseArgs(args); err != nil {
+					t.Fatalf("ParseArgs(%v) error = %v", args, err)
+				}
+			}
+
+			if got := parser.Given(portOption); got != testCase.wantPort {
+				t.Errorf("Given(port) = %v, want %v", got, testCase.wantPort)
+			}
+			if got := parser.Given(hostOption); got != testCase.wantHost {
+				t.Errorf("Given(host) = %v, want %v", got, testCase.wantHost)
+			}
+			if parser.Given(nil) {
+				t.Error("Given(nil) = true, want false")
+			}
+
+			// The default is what a program cannot tell from an explicit value; Given is.
+			if len(testCase.parses) != 0 && !testCase.wantPort && port != 8080 {
+				t.Errorf("port = %d, want the default 8080", port)
+			}
+		})
+	}
+}
+
+func TestGivenAfterDispatchToASubparser(t *testing.T) {
+	t.Parallel()
+
+	var verbose bool
+	var count int
+	verboseOption := option.NewBoolOption('v', "verbose", "Verbose", false, &verbose)
+	countOption := option.NewIntOption('n', "count", "Count", false, &count)
+
+	child := &Parser{Command: "run", Options: []option.Option{countOption}}
+	parent := &Parser{Options: []option.Option{verboseOption}, Parsers: []Subparser{child}}
+
+	// A parse of the parent alone gives its option; the dispatching parse that follows gives none
+	// of the parent's, and the child's answer is the child's to give.
+	if err := parent.ParseArgs([]string{"-v"}); err != nil {
+		t.Fatalf("ParseArgs error = %v", err)
+	}
+	if !parent.Given(verboseOption) {
+		t.Error("Given(verbose) = false after -v, want true")
+	}
+
+	if err := parent.ParseArgs([]string{"run", "-n", "3"}); err != nil {
+		t.Fatalf("ParseArgs error = %v", err)
+	}
+	if parent.Given(verboseOption) {
+		t.Error("Given(verbose) = true after a dispatching parse, want false")
+	}
+	if !child.Given(countOption) {
+		t.Error("child Given(count) = false after run -n 3, want true")
 	}
 }

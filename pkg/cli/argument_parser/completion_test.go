@@ -488,3 +488,48 @@ func TestHiddenOptionIsNotCompleted(t *testing.T) {
 		})
 	}
 }
+
+// TestZshExclusionsSpareTheOptionsOfOneMember holds that an option rules out the other members of
+// its exclusive group and not the options beside it in a member that is a group: having given
+// --connect, a caller is still offered --read, and no longer --none.
+func TestZshExclusionsSpareTheOptionsOfOneMember(t *testing.T) {
+	t.Parallel()
+
+	var none bool
+	var connect, read int
+	noneOption := option.NewBoolOption(0, "none", "Disable all timeouts.", false, &none)
+	connectOption := option.NewIntOption(0, "connect", "Connect timeout.", false, &connect)
+	readOption := option.NewIntOption(0, "read", "Read timeout.", false, &read)
+
+	parser := &Parser{
+		ProgramName: "myapp",
+		Options:     []option.Option{noneOption, connectOption, readOption},
+		ExclusiveGroups: []*ExclusiveGroup{
+			{
+				Options: []option.Option{noneOption},
+				Groups:  []*Group{{Title: "Timeouts", Options: []option.Option{connectOption, readOption}}},
+			},
+		},
+	}
+
+	script := write(t, parser, Zsh)
+
+	testCases := []struct {
+		name string
+		want string
+	}{
+		{name: "the option rules out the whole group", want: "'(--none --connect --read)--none["},
+		{name: "one of the group rules out the option only", want: "'(--connect --none)--connect+["},
+		{name: "the other of the group likewise", want: "'(--read --none)--read+["},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if !strings.Contains(script, testCase.want) {
+				t.Errorf("expected %q in the script, got:\n%s", testCase.want, script)
+			}
+		})
+	}
+}
