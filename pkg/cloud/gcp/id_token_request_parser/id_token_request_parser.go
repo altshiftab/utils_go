@@ -30,18 +30,12 @@ import (
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
-	requestParserAdapter "github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/adapter"
-	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/jwt_extractor"
-	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/token_header_extractor"
-	interfacesAuthenticator "github.com/altshiftab/utils_go/pkg/interfaces/authenticator"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/jwk_jwt_parser"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/token_header_extractor/token_header_extractor_config"
 	"github.com/altshiftab/utils_go/pkg/interfaces/validator"
-	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler"
 	altshiftJwt "github.com/altshiftab/utils_go/pkg/json/jose/jwt"
-	jwtAuthenticator "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/authenticator"
-	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/authenticator/authenticator_with_key_handler_config"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/claim_strings"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/numeric_date"
-	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
@@ -134,29 +128,18 @@ func New(options ...id_token_request_parser_config.Option) (request_parser.Reque
 		jwkUrl = googleJwkUrl
 	}
 
-	keyHandler, err := key_handler.New(jwkUrl)
-	if err != nil {
-		return nil, altshiftErrors.New(fmt.Errorf("key handler new: %w", err), jwkUrl)
-	}
-
-	authenticator, err := jwtAuthenticator.NewWithKeyHandler(
-		keyHandler,
-		authenticator_with_key_handler_config.WithClaimsValidator(
-			MakeClaimsValidator(config.Audience, config.ServiceAccountEmails),
-		),
+	// An ordinary bearer credential, which is the token header extractor's own default.
+	parser, err := jwk_jwt_parser.New(
+		jwkUrl,
+		token_header_extractor_config.DefaultHeaderName,
+		token_header_extractor_config.DefaultHeaderValuePrefix,
+		MakeClaimsValidator(config.Audience, config.ServiceAccountEmails),
 	)
 	if err != nil {
-		return nil, altshiftErrors.New(fmt.Errorf("authenticator new with key handler: %w", err))
+		return nil, fmt.Errorf("jwk jwt parser new: %w", err)
 	}
 
-	return requestParserAdapter.New(
-		&jwt_extractor.Parser[*token_header_extractor.Parser]{
-			TokenExtractor: token_header_extractor.New(),
-			Authenticators: []interfacesAuthenticator.Authenticator[*authenticated_token.Token, string]{
-				authenticator,
-			},
-		},
-	), nil
+	return parser, nil
 }
 
 // JwkUrl is JwkUrlString parsed, which is what a parser uses when given no other.

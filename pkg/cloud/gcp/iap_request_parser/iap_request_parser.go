@@ -28,19 +28,11 @@ import (
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
-	requestParserAdapter "github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/adapter"
-	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/jwt_extractor"
-	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/token_header_extractor"
-	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/token_header_extractor/token_header_extractor_config"
-	interfacesAuthenticator "github.com/altshiftab/utils_go/pkg/interfaces/authenticator"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser/jwk_jwt_parser"
 	"github.com/altshiftab/utils_go/pkg/interfaces/validator"
-	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler"
 	altshiftJwt "github.com/altshiftab/utils_go/pkg/json/jose/jwt"
-	jwtAuthenticator "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/authenticator"
-	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/authenticator/authenticator_with_key_handler_config"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/claim_strings"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/numeric_date"
-	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
@@ -176,34 +168,19 @@ func New(options ...iap_request_parser_config.Option) (request_parser.RequestPar
 		jwkUrl = iapJwkUrl
 	}
 
-	keyHandler, err := key_handler.New(jwkUrl)
-	if err != nil {
-		return nil, altshiftErrors.New(fmt.Errorf("key handler new: %w", err), jwkUrl)
-	}
-
-	authenticator, err := jwtAuthenticator.NewWithKeyHandler(
-		keyHandler,
-		authenticator_with_key_handler_config.WithClaimsValidator(
-			MakeClaimsValidator(config.Audience, lowered(config.AllowedEmails), lowered(config.AllowedHostedDomains)),
-		),
+	// IAP's own header, and no prefix: the assertion is the whole of the value rather than a
+	// bearer token.
+	parser, err := jwk_jwt_parser.New(
+		jwkUrl,
+		HeaderName,
+		"",
+		MakeClaimsValidator(config.Audience, lowered(config.AllowedEmails), lowered(config.AllowedHostedDomains)),
 	)
 	if err != nil {
-		return nil, altshiftErrors.New(fmt.Errorf("authenticator new with key handler: %w", err))
+		return nil, fmt.Errorf("jwk jwt parser new: %w", err)
 	}
 
-	return requestParserAdapter.New(
-		&jwt_extractor.Parser[*token_header_extractor.Parser]{
-			// IAP's own header, and no prefix: the assertion is the whole of the value rather than
-			// a bearer token.
-			TokenExtractor: token_header_extractor.New(
-				token_header_extractor_config.WithHeaderName(HeaderName),
-				token_header_extractor_config.WithHeaderValuePrefix(""),
-			),
-			Authenticators: []interfacesAuthenticator.Authenticator[*authenticated_token.Token, string]{
-				authenticator,
-			},
-		},
-	), nil
+	return parser, nil
 }
 
 // lowered returns the values folded, so that an address written in another case still matches.
