@@ -1401,6 +1401,59 @@ func TestModify_ArgumentErrors(t *testing.T) {
 
 // TestListLabels is how a caller learns the id of a label it knows by name: a
 // user-created label's id is opaque, unlike the built-in ones.
+func TestGetProfile(t *testing.T) {
+	t.Parallel()
+
+	client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if !strings.HasSuffix(r.URL.Path, "/me/profile") {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(
+			`{"emailAddress":"pool.one@gmail.com","messagesTotal":1204,"threadsTotal":900,"historyId":"987654"}`,
+		)); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	})
+
+	got, err := client.GetProfile(context.Background(), "me")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected a profile")
+	}
+	// The field the method exists for: where the mailbox's history stands now.
+	if got.HistoryId != "987654" {
+		t.Errorf("history id = %q, want 987654", got.HistoryId)
+	}
+	if got.EmailAddress != "pool.one@gmail.com" || got.MessagesTotal != 1204 {
+		t.Errorf("unexpected profile: %+v", got)
+	}
+}
+
+func TestGetProfile_EmptyUserId(t *testing.T) {
+	t.Parallel()
+
+	// Against the test server, not NewClient: a client pointed at the real API
+	// fails on the network whether the guard is there or not, so the test would
+	// pass with it removed.
+	client := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(`{"historyId":"1"}`)); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	})
+
+	if _, err := client.GetProfile(context.Background(), ""); err == nil {
+		t.Fatal("expected error for empty user id")
+	}
+}
+
 func TestListLabels(t *testing.T) {
 	t.Parallel()
 

@@ -21,6 +21,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/label"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/modify_request"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/profile"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/send_as"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/thread"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/watch_request"
@@ -68,6 +69,12 @@ func (c *Client) sendUrl(userId string) string {
 func (c *Client) watchUrl(userId string) string {
 	u := *c.baseUrl
 	u.Path += url.PathEscape(userId) + "/watch"
+	return u.String()
+}
+
+func (c *Client) profileUrl(userId string) string {
+	u := *c.baseUrl
+	u.Path += url.PathEscape(userId) + "/profile"
 	return u.String()
 }
 
@@ -368,6 +375,27 @@ type listLabelsResponse struct {
 //
 // A label is applied by id, and a user-created label's id is opaque, so this
 // is how a caller finds the id of a label it knows only by name.
+// GetProfile retrieves the mailbox's profile, which is how to ask where its
+// history stands now.
+//
+// That is the one question a history listing cannot answer for the caller who
+// needs it most: reading history requires a start id still inside Gmail's
+// window, and a caller whose stored cursor has fallen outside it is told only
+// that it is gone. This is where such a caller starts again from.
+func (c *Client) GetProfile(ctx context.Context, userId string, options ...fetch_config.Option) (*profile.Profile, error) {
+	if userId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
+	}
+
+	return rest.SendJson[profile.Profile, any](
+		ctx,
+		http.MethodGet,
+		c.profileUrl(userId),
+		nil,
+		c.fetchOptions(options),
+	)
+}
+
 func (c *Client) ListLabels(ctx context.Context, userId string, options ...fetch_config.Option) ([]*label.Label, error) {
 	if userId == "" {
 		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
