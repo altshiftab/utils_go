@@ -18,8 +18,11 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_messages_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/filter"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/history"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/label"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/modify_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/send_as"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/thread"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/watch_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/watch_response"
 )
@@ -79,6 +82,24 @@ func (c *Client) sendAsUrl(userId string, sendAsEmail string) string {
 	u.Path += url.PathEscape(userId) + "/settings/sendAs"
 	if sendAsEmail != "" {
 		u.Path += "/" + url.PathEscape(sendAsEmail)
+	}
+	return u.String()
+}
+
+func (c *Client) threadsUrl(userId string, threadId string) string {
+	u := *c.baseUrl
+	u.Path += url.PathEscape(userId) + "/threads"
+	if threadId != "" {
+		u.Path += "/" + url.PathEscape(threadId)
+	}
+	return u.String()
+}
+
+func (c *Client) labelsUrl(userId string, labelId string) string {
+	u := *c.baseUrl
+	u.Path += url.PathEscape(userId) + "/labels"
+	if labelId != "" {
+		u.Path += "/" + url.PathEscape(labelId)
 	}
 	return u.String()
 }
@@ -263,6 +284,138 @@ func (c *Client) Trash(ctx context.Context, userId string, messageId string, opt
 		http.MethodPost,
 		c.messagesUrl(userId, messageId)+"/trash",
 		nil,
+		c.fetchOptions(options),
+	)
+}
+
+// Modify changes which labels a message carries. Requires the gmail.modify
+// scope (or wider).
+//
+// It is how a service marks what it has done with a message, which is the one
+// record the mailbox keeps and a database cannot: a database knows what it
+// ingested, and says nothing about what arrived and was never read.
+//
+// A request naming no label is refused. Gmail accepts it and changes nothing,
+// so the call would succeed while doing none of what the caller meant.
+func (c *Client) Modify(
+	ctx context.Context,
+	userId string,
+	messageId string,
+	request *modify_request.Request,
+	options ...fetch_config.Option,
+) (*message.Message, error) {
+	if userId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
+	}
+	if messageId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("message id"))
+	}
+	if request == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("modify request"))
+	}
+	if len(request.AddLabelIds) == 0 && len(request.RemoveLabelIds) == 0 {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("label ids"))
+	}
+
+	return rest.SendJson[message.Message](
+		ctx,
+		http.MethodPost,
+		c.messagesUrl(userId, messageId)+"/modify",
+		request,
+		c.fetchOptions(options),
+	)
+}
+
+// ModifyThread changes which labels every message in a thread carries.
+//
+// The same call as Modify against the conversation rather than one message,
+// which is what to use when what was decided applies to the exchange and not
+// to a single arrival.
+func (c *Client) ModifyThread(
+	ctx context.Context,
+	userId string,
+	threadId string,
+	request *modify_request.Request,
+	options ...fetch_config.Option,
+) (*thread.Thread, error) {
+	if userId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
+	}
+	if threadId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("thread id"))
+	}
+	if request == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("modify request"))
+	}
+	if len(request.AddLabelIds) == 0 && len(request.RemoveLabelIds) == 0 {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("label ids"))
+	}
+
+	return rest.SendJson[thread.Thread](
+		ctx,
+		http.MethodPost,
+		c.threadsUrl(userId, threadId)+"/modify",
+		request,
+		c.fetchOptions(options),
+	)
+}
+
+type listLabelsResponse struct {
+	Labels []*label.Label `json:"labels,omitzero"`
+}
+
+// ListLabels returns every label in the mailbox.
+//
+// A label is applied by id, and a user-created label's id is opaque, so this
+// is how a caller finds the id of a label it knows only by name.
+func (c *Client) ListLabels(ctx context.Context, userId string, options ...fetch_config.Option) ([]*label.Label, error) {
+	if userId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
+	}
+
+	response, err := rest.SendJson[listLabelsResponse, any](
+		ctx,
+		http.MethodGet,
+		c.labelsUrl(userId, ""),
+		nil,
+		c.fetchOptions(options),
+	)
+	if err != nil {
+		return nil, err
+	}
+	if response == nil {
+		return nil, nil
+	}
+
+	return response.Labels, nil
+}
+
+// CreateLabel adds a label to the mailbox and returns it with its id.
+//
+// Creating one that already exists is answered 409 by Gmail rather than
+// returning the existing label, so a caller that wants "ensure it is there"
+// lists first.
+func (c *Client) CreateLabel(
+	ctx context.Context,
+	userId string,
+	l *label.Label,
+	options ...fetch_config.Option,
+) (*label.Label, error) {
+	if userId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
+	}
+	if l == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("label"))
+	}
+	if l.Name == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("label name"))
+	}
+
+	return rest.SendJson[label.Label](
+		ctx,
+		http.MethodPost,
+		c.labelsUrl(userId, ""),
+		l,
 		c.fetchOptions(options),
 	)
 }

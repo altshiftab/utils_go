@@ -14,7 +14,9 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_history_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_messages_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/filter"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/label"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/modify_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/send_as"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/watch_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/watch_response"
@@ -1248,5 +1250,252 @@ func TestFiltersUrl(t *testing.T) {
 	expected = "http://localhost:8080/gmail/v1/users/user@example.com/settings/filters/filter-1"
 	if got != expected {
 		t.Errorf("expected %q, got %q", expected, got)
+	}
+}
+
+func TestModify(t *testing.T) {
+	t.Parallel()
+
+	client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if !strings.HasSuffix(r.URL.Path, "/me/messages/msg-123/modify") {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+
+		var sent modify_request.Request
+		if err := json.UnmarshalRead(r.Body, &sent); err != nil {
+			t.Errorf("unmarshal: %v", err)
+		}
+		if len(sent.AddLabelIds) != 1 || sent.AddLabelIds[0] != "Label_1" {
+			t.Errorf("expected the label to be added, got %v", sent.AddLabelIds)
+		}
+		if len(sent.RemoveLabelIds) != 1 || sent.RemoveLabelIds[0] != "UNREAD" {
+			t.Errorf("expected the label to be removed, got %v", sent.RemoveLabelIds)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.MarshalWrite(w, &message.Message{
+			Id:       "msg-123",
+			LabelIds: []string{"Label_1"},
+		}); err != nil {
+			t.Errorf("marshal: %v", err)
+		}
+	})
+
+	msg, err := client.Modify(context.Background(), "me", "msg-123", &modify_request.Request{
+		AddLabelIds:    []string{"Label_1"},
+		RemoveLabelIds: []string{"UNREAD"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(msg.LabelIds) != 1 || msg.LabelIds[0] != "Label_1" {
+		t.Errorf("expected label ids ['Label_1'], got %v", msg.LabelIds)
+	}
+}
+
+// TestModify_ArgumentErrors covers the request that names no label. Gmail
+// accepts it and changes nothing, so the call would report success while doing
+// none of what the caller meant.
+//
+// Message and thread share one table because they are the same call against a
+// different subject, and the arguments they refuse are the same arguments.
+//
+// The client points at a server that answers every request, deliberately: with
+// NewClient() a request that got past the argument checks would fail on the
+// network, and the test would pass whether the checks existed or not.
+func TestModify_ArgumentErrors(t *testing.T) {
+	t.Parallel()
+
+	client := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.MarshalWrite(w, &message.Message{Id: "msg-123"}); err != nil {
+			t.Errorf("marshal: %v", err)
+		}
+	})
+
+	withLabel := &modify_request.Request{AddLabelIds: []string{"Label_1"}}
+
+	testCases := []struct {
+		name string
+		run  func() error
+	}{
+		{
+			name: "a message with no user id",
+			run: func() error {
+				_, err := client.Modify(context.Background(), "", "msg-123", withLabel)
+
+				return err
+			},
+		},
+		{
+			name: "a message with no id",
+			run: func() error {
+				_, err := client.Modify(context.Background(), "me", "", withLabel)
+
+				return err
+			},
+		},
+		{
+			name: "a message with no request",
+			run: func() error {
+				_, err := client.Modify(context.Background(), "me", "msg-123", nil)
+
+				return err
+			},
+		},
+		{
+			name: "a message request naming no label",
+			run: func() error {
+				_, err := client.Modify(context.Background(), "me", "msg-123", &modify_request.Request{})
+
+				return err
+			},
+		},
+		{
+			name: "a thread with no user id",
+			run: func() error {
+				_, err := client.ModifyThread(context.Background(), "", "thread-456", withLabel)
+
+				return err
+			},
+		},
+		{
+			name: "a thread with no id",
+			run: func() error {
+				_, err := client.ModifyThread(context.Background(), "me", "", withLabel)
+
+				return err
+			},
+		},
+		{
+			name: "a thread with no request",
+			run: func() error {
+				_, err := client.ModifyThread(context.Background(), "me", "thread-456", nil)
+
+				return err
+			},
+		},
+		{
+			name: "a thread request naming no label",
+			run: func() error {
+				_, err := client.ModifyThread(context.Background(), "me", "thread-456", &modify_request.Request{})
+
+				return err
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if err := testCase.run(); err == nil {
+				t.Errorf("%s: was accepted", testCase.name)
+			}
+		})
+	}
+}
+
+// TestListLabels is how a caller learns the id of a label it knows by name: a
+// user-created label's id is opaque, unlike the built-in ones.
+func TestListLabels(t *testing.T) {
+	t.Parallel()
+
+	client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/me/labels") {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(
+			`{"labels":[{"id":"INBOX","name":"INBOX","type":"system"},` +
+				`{"id":"Label_7","name":"processed","type":"user"}]}`,
+		)); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	})
+
+	labels, err := client.ListLabels(context.Background(), "me")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(labels) != 2 {
+		t.Fatalf("expected 2 labels, got %d", len(labels))
+	}
+	if labels[1].Id != "Label_7" || labels[1].Name != "processed" {
+		t.Errorf("unexpected user label: %+v", labels[1])
+	}
+}
+
+func TestListLabels_EmptyUserId(t *testing.T) {
+	t.Parallel()
+
+	if _, err := NewClient().ListLabels(context.Background(), ""); err == nil {
+		t.Fatal("expected error for empty user id")
+	}
+}
+
+func TestCreateLabel(t *testing.T) {
+	t.Parallel()
+
+	client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if !strings.HasSuffix(r.URL.Path, "/me/labels") {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.MarshalWrite(w, &label.Label{
+			Id:   "Label_7",
+			Name: "processed",
+			Type: "user",
+		}); err != nil {
+			t.Errorf("marshal: %v", err)
+		}
+	})
+
+	created, err := client.CreateLabel(context.Background(), "me", &label.Label{Name: "processed"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// The id is what every other call names it by, and it is not the name.
+	if created.Id != "Label_7" {
+		t.Errorf("expected id 'Label_7', got %q", created.Id)
+	}
+}
+
+func TestCreateLabel_ArgumentErrors(t *testing.T) {
+	t.Parallel()
+
+	client := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.MarshalWrite(w, &label.Label{Id: "Label_7", Name: "processed"}); err != nil {
+			t.Errorf("marshal: %v", err)
+		}
+	})
+
+	testCases := []struct {
+		name   string
+		userId string
+		label  *label.Label
+	}{
+		{name: "empty user id", label: &label.Label{Name: "processed"}},
+		{name: "nil label", userId: "me"},
+		{name: "no name", userId: "me", label: &label.Label{}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := client.CreateLabel(context.Background(), testCase.userId, testCase.label); err == nil {
+				t.Errorf("%s: was accepted", testCase.name)
+			}
+		})
 	}
 }
