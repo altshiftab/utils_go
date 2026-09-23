@@ -1,14 +1,21 @@
 package http_logger
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json/v2"
 	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 
+	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor"
+	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
 	"github.com/altshiftab/utils_go/pkg/log/entry_size_guard"
 	"github.com/altshiftab/utils_go/pkg/log/http_logger/http_logger_config"
+	"github.com/altshiftab/utils_go/pkg/schema"
 )
 
 func logRecord(t *testing.T, buffer *bytes.Buffer) map[string]any {
@@ -137,5 +144,58 @@ func TestNewLogLevelFilters(t *testing.T) {
 	logger.Warn("emitted")
 	if buffer.Len() == 0 {
 		t.Error("the warn record was not written")
+	}
+}
+
+// Cloud Logging reads the referrer from a field it builds itself, separately from the rest of the
+// entry. A service that declares a query parameter secret would otherwise publish it there on every
+// request made from the page whose address carries it.
+func TestNewWithGcpMasksTheReferer(t *testing.T) {
+	t.Parallel()
+
+	const token = "zhhjetavkELn1GOhywaXHdOatMAmhMro6ksgHu2XP7o" //nolint:gosec // G101: a stand-in, not a token.
+	const pageUrl = "https://example.com/verification?token=" + token
+
+	request, err := http.ReadRequest(bufio.NewReader(strings.NewReader(
+		"GET /api/order/consented HTTP/1.1\r\nHost: example.com\r\nReferer: " + pageUrl + "\r\n\r\n",
+	)))
+	if err != nil {
+		t.Fatalf("read request: %v", err)
+	}
+
+	extractor := http_context_extractor.New(
+		http_context_extractor_config.WithMaskedUrlParams(
+			&schema.Url{Path: "/verification", Query: "token"},
+		),
+	)
+
+	var buffer bytes.Buffer
+	logger := New(
+		http_logger_config.WithWriter(&buffer),
+		http_logger_config.WithGcp(true),
+		http_logger_config.WithHttpContextExtractor(extractor),
+	)
+
+	logger.InfoContext(
+		altshiftHttpContext.WithHttpContextValue(
+			t.Context(),
+			&altshiftHttpTypes.HttpContext{Request: request},
+		),
+		"An HTTP response was served.",
+	)
+
+	logged := buffer.String()
+	if strings.Contains(logged, token) {
+		t.Errorf("the token reached the log: %s", logged)
+	}
+
+	record := logRecord(t, &buffer)
+	httpRequest, ok := record["httpRequest"].(map[string]any)
+	if !ok {
+		t.Fatalf("no httpRequest in the entry: %s", logged)
+	}
+	referer, _ := httpRequest["referer"].(string)
+	if !strings.Contains(referer, "/verification") {
+		t.Errorf("httpRequest.referer lost the referring page: %q", referer)
 	}
 }

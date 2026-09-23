@@ -133,3 +133,53 @@ func TestHandleWithHttpContextNoProjectId(t *testing.T) {
 		t.Errorf("did not expect trace attribute without a project id, got attrs %#v", attrs)
 	}
 }
+
+// Cloud Logging reads the referrer from a field this extractor builds itself, so it is the one
+// place a service's URL masking has to be handed in rather than inherited.
+func TestNewWithMaskUrl(t *testing.T) {
+	t.Parallel()
+
+	const referer = "https://example.com/verification?token=SECRET"
+
+	extractor := New(http_context_extractor_config.WithMaskUrl(func(string) string {
+		return "https://example.com/verification?token=(MASKED)"
+	}))
+	if extractor.MaskUrl == nil {
+		t.Fatal("WithMaskUrl did not reach the extractor")
+	}
+
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/order/consented", nil)
+	request.Header.Set("Referer", referer)
+
+	record := &slog.Record{}
+	ctx := altshiftHttpContext.WithHttpContextValue(
+		context.Background(),
+		&altshiftHttpTypes.HttpContext{Request: request},
+	)
+
+	if err := extractor.Handle(ctx, record); err != nil {
+		t.Fatalf("handle: %v", err)
+	}
+
+	var found, masked bool
+	record.Attrs(func(attr slog.Attr) bool {
+		if attr.Key != "httpRequest" {
+			return true
+		}
+		for _, field := range attr.Value.Resolve().Group() {
+			if field.Key == "referer" {
+				found = true
+				masked = field.Value.String() != referer
+				return false
+			}
+		}
+		return true
+	})
+
+	if !found {
+		t.Fatal("no httpRequest.referer in the record")
+	}
+	if !masked {
+		t.Error("httpRequest.referer was written unmasked")
+	}
+}

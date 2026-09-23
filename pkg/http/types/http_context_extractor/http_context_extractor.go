@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -15,12 +16,16 @@ import (
 	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
 	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/authorization"
+	csp "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/integrity_policy"
+	"github.com/altshiftab/utils_go/pkg/http/types/reporting_api"
 	"github.com/altshiftab/utils_go/pkg/iso3166"
 	altshiftJson "github.com/altshiftab/utils_go/pkg/json"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jws"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/claims/session_claims"
 	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
+	"github.com/altshiftab/utils_go/pkg/net/types/domain_parts"
 	"github.com/altshiftab/utils_go/pkg/schema"
 	schemaUtils "github.com/altshiftab/utils_go/pkg/schema/utils"
 	"github.com/altshiftab/utils_go/pkg/utils"
@@ -280,40 +285,50 @@ func pathMatches(pattern, incoming string) bool {
 	return pattern == incoming
 }
 
-func urlMatchesPattern(pattern *schema.Url, incoming *schema.Url) (bool, []string) {
+// urlMatchesPattern says whether a pattern applies to a URL and, where it does, which of the
+// parameters it declares that URL carries.
+//
+// The third result asks for the whole query to be replaced instead. It is returned for a query that
+// cannot be read: a declared parameter may well be in there, and a query nothing can parse is one
+// nothing can vouch for, so the safe reading of it is that it holds a secret.
+func urlMatchesPattern(pattern *schema.Url, incoming *schema.Url) (bool, []string, bool) {
 	if pattern == nil || incoming == nil {
-		return false, nil
+		return false, nil, false
 	}
 
 	if pattern.Domain != "" && pattern.Domain != incoming.Domain {
-		return false, nil
+		return false, nil, false
 	}
 	if !pathMatches(pattern.Path, incoming.Path) {
-		return false, nil
+		return false, nil, false
 	}
 	if pattern.RegisteredDomain != "" && pattern.RegisteredDomain != incoming.RegisteredDomain {
-		return false, nil
+		return false, nil, false
 	}
 	if pattern.Subdomain != "" && pattern.Subdomain != incoming.Subdomain {
-		return false, nil
+		return false, nil, false
 	}
 	if pattern.TopLevelDomain != "" && pattern.TopLevelDomain != incoming.TopLevelDomain {
-		return false, nil
+		return false, nil, false
 	}
 
 	if pattern.Query == "" {
-		return true, nil
+		return true, nil, false
 	}
 
+	// The pattern is the service's own declaration rather than anything a client sent. One that
+	// cannot be read names no parameters, and so masks nothing.
 	patternQuery, err := url.ParseQuery(pattern.Query)
 	if err != nil {
-		return false, nil
+		return false, nil, false
 	}
 
-	incomingQuery, err := url.ParseQuery(incoming.Query)
-	if err != nil {
-		return false, nil
-	}
+	// ParseQuery hands back the pairs it did read alongside the error, and a browser will send a
+	// query it rejects -- a stray percent sign in an unrelated parameter is enough, and the page
+	// still opens, because URL.Query() drops the pair it cannot read and keeps the rest. The pairs
+	// that did read are masked by name; the ones that did not are covered by replacing the whole
+	// query, since bailing here would leave the credential in the log in full.
+	incomingQuery, incomingErr := url.ParseQuery(incoming.Query)
 
 	var paramsToMask []string
 	for paramName := range patternQuery {
@@ -322,7 +337,7 @@ func urlMatchesPattern(pattern *schema.Url, incoming *schema.Url) (bool, []strin
 		}
 	}
 
-	return true, paramsToMask
+	return true, paramsToMask, incomingErr != nil
 }
 
 func (e *Extractor) maskUrl(urlStruct *schema.Url) {
@@ -331,12 +346,45 @@ func (e *Extractor) maskUrl(urlStruct *schema.Url) {
 	}
 
 	paramsToMask := make(map[string]struct{})
+	maskWholeQuery := false
 	for _, maskedUrlParam := range e.MaskedUrlParams {
-		if matches, params := urlMatchesPattern(maskedUrlParam, urlStruct); matches {
+		if matches, params, whole := urlMatchesPattern(maskedUrlParam, urlStruct); matches {
+			if whole {
+				maskWholeQuery = true
+			}
 			for _, param := range params {
 				paramsToMask[param] = struct{}{}
 			}
 		}
+	}
+
+	// A query that could not be read, on a path something was declared secret for. Which parameter
+	// holds what is unknowable, so the whole of it goes.
+	if maskWholeQuery {
+		replaceQuery := func(urlStr string) string {
+			if urlStr == "" {
+				return urlStr
+			}
+
+			// Parse does not read the query -- only Query() and ParseQuery do -- so a query
+			// neither of those accepts still parses here, and is replaced wholesale.
+			parsedUrl, err := url.Parse(urlStr)
+			if err != nil || parsedUrl.RawQuery == "" {
+				return urlStr
+			}
+
+			parsedUrl.RawQuery = maskedValue
+
+			return parsedUrl.String()
+		}
+
+		urlStruct.Full = replaceQuery(urlStruct.Full)
+		urlStruct.Original = replaceQuery(urlStruct.Original)
+		if urlStruct.Query != "" {
+			urlStruct.Query = maskedValue
+		}
+
+		return
 	}
 
 	if len(paramsToMask) == 0 {
@@ -390,6 +438,91 @@ func (e *Extractor) maskUrl(urlStruct *schema.Url) {
 	}
 }
 
+// parseUrlString derives the schema URL a pattern is matched against from a URL written as a
+// string, the way ParseHttp derives it from a request. A reported URL arrives as a string, and a
+// pattern scoped by Domain or RegisteredDomain has to match it exactly as it matches a request.
+func parseUrlString(raw string) *schema.Url {
+	parsedUrl, err := url.Parse(raw)
+	if err != nil {
+		return nil
+	}
+
+	hostname := parsedUrl.Hostname()
+
+	var port int
+	if portString := parsedUrl.Port(); portString != "" {
+		port, _ = strconv.Atoi(portString)
+	}
+
+	schemaUrl := &schema.Url{
+		Domain:   hostname,
+		Fragment: parsedUrl.Fragment,
+		Full:     raw,
+		Original: raw,
+		Path:     parsedUrl.Path,
+		Port:     port,
+		Query:    parsedUrl.RawQuery,
+		Scheme:   parsedUrl.Scheme,
+	}
+
+	if domainParts := domain_parts.New(hostname); domainParts != nil {
+		schemaUrl.RegisteredDomain = domainParts.RegisteredDomain
+		schemaUrl.Subdomain = domainParts.Subdomain
+		schemaUrl.TopLevelDomain = domainParts.TopLevelDomain
+	}
+
+	return schemaUrl
+}
+
+// MaskUrlString applies the configured URL parameter masks to a URL written as a string, returning
+// it with the declared parameters replaced.
+//
+// A URL carrying no query cannot carry a masked parameter, which disposes of the empty string and
+// of the sentinels a violation report uses in place of a URL -- "inline", "eval", "wasm-eval",
+// "trusted-types-policy" -- without naming them.
+func (e *Extractor) MaskUrlString(raw string) string {
+	if raw == "" || len(e.MaskedUrlParams) == 0 || !strings.Contains(raw, "?") {
+		return raw
+	}
+
+	schemaUrl := parseUrlString(raw)
+	if schemaUrl == nil {
+		return raw
+	}
+
+	e.maskUrl(schemaUrl)
+
+	return schemaUrl.Full
+}
+
+// maskUrlStringPointer is the same for an optional field, which a report uses for the members a
+// browser may leave out. A nil stays nil: the field was absent, and saying otherwise would report
+// something the browser did not send.
+func (e *Extractor) maskUrlStringPointer(raw *string) *string {
+	if raw == nil {
+		return nil
+	}
+
+	masked := e.MaskUrlString(*raw)
+
+	return &masked
+}
+
+// urlInTextPattern finds the URLs written into a free-text message -- the one a violation report is
+// logged under names the URL that was blocked.
+var urlInTextPattern = regexp.MustCompile(`https?://[^\s"'<>]+`)
+
+// maskUrlsInText masks every URL appearing in a line of free text. A slog record's message is a
+// plain field a handler can rewrite, unlike its attributes, so this is the only reach the extractor
+// has into what a message says.
+func (e *Extractor) maskUrlsInText(text string) string {
+	if text == "" || len(e.MaskedUrlParams) == 0 || !strings.Contains(text, "?") {
+		return text
+	}
+
+	return urlInTextPattern.ReplaceAllStringFunc(text, e.MaskUrlString)
+}
+
 type Extractor struct {
 	ReplaceableMessages    map[string]struct{}
 	MaskedUrlParams        []*schema.Url
@@ -412,7 +545,7 @@ func (e *Extractor) headersToMaskForUrl(u *schema.Url) map[string]struct{} {
 			if u == nil {
 				continue
 			}
-			if matches, _ := urlMatchesPattern(entry.Url, u); !matches {
+			if matches, _, _ := urlMatchesPattern(entry.Url, u); !matches {
 				continue
 			}
 		}
@@ -424,6 +557,95 @@ func (e *Extractor) headersToMaskForUrl(u *schema.Url) map[string]struct{} {
 		}
 	}
 	return result
+}
+
+// maskCspViolationBody returns a copy of a violation body with every URL it names masked.
+func (e *Extractor) maskCspViolationBody(body *csp.CSPViolationReportBody) *csp.CSPViolationReportBody {
+	if body == nil {
+		return nil
+	}
+
+	masked := *body
+	masked.DocumentURL = e.MaskUrlString(body.DocumentURL)
+	masked.BlockedURL = e.MaskUrlString(body.BlockedURL)
+	masked.Referrer = e.maskUrlStringPointer(body.Referrer)
+	masked.SourceFile = e.maskUrlStringPointer(body.SourceFile)
+
+	return &masked
+}
+
+// maskIntegrityViolationBody is the same for an integrity violation.
+func (e *Extractor) maskIntegrityViolationBody(
+	body *integrity_policy.IntegrityViolationReportBody,
+) *integrity_policy.IntegrityViolationReportBody {
+	if body == nil {
+		return nil
+	}
+
+	masked := *body
+	masked.DocumentUrl = e.MaskUrlString(body.DocumentUrl)
+	masked.BlockedUrl = e.MaskUrlString(body.BlockedUrl)
+
+	return &masked
+}
+
+// maskReports copies a batch of reports, masking the document URL each one names and whatever URLs
+// its body names, the latter through the given function.
+func maskReports[T any](
+	e *Extractor,
+	reports []*reporting_api.Report[T],
+	maskBody func(T) T,
+) []*reporting_api.Report[T] {
+	if len(reports) == 0 {
+		return reports
+	}
+
+	masked := make([]*reporting_api.Report[T], len(reports))
+	for index, report := range reports {
+		if report == nil {
+			continue
+		}
+
+		maskedReport := *report
+		maskedReport.URL = e.MaskUrlString(report.URL)
+		maskedReport.Body = maskBody(report.Body)
+		masked[index] = &maskedReport
+	}
+
+	return masked
+}
+
+// maskReporting returns a copy of what a browser reported, with every URL in it masked.
+//
+// A copy, never the original: ParseHttpContext takes the reporting straight off the HTTP context by
+// pointer, and that context belongs to the request, which is logged again by the access line the
+// mux writes when it is done. Masking in place would reach back into request state.
+func (e *Extractor) maskReporting(reporting *schema.HttpReporting) *schema.HttpReporting {
+	if reporting == nil || len(e.MaskedUrlParams) == 0 {
+		return reporting
+	}
+
+	masked := &schema.HttpReporting{
+		CspViolations:       maskReports(e, reporting.CspViolations, e.maskCspViolationBody),
+		IntegrityViolations: maskReports(e, reporting.IntegrityViolations, e.maskIntegrityViolationBody),
+	}
+
+	// The envelope the deprecated report-uri directive posts, which names the same URLs under the
+	// hyphenated spelling the previous specification gave them.
+	if envelope := reporting.CspReport; envelope != nil {
+		maskedEnvelope := *envelope
+		if report := envelope.CspReport; report != nil {
+			maskedReport := *report
+			maskedReport.DocumentURI = e.MaskUrlString(report.DocumentURI)
+			maskedReport.BlockedUri = e.MaskUrlString(report.BlockedUri)
+			maskedReport.Referrer = e.maskUrlStringPointer(report.Referrer)
+			maskedReport.SourceFile = e.maskUrlStringPointer(report.SourceFile)
+			maskedEnvelope.CspReport = &maskedReport
+		}
+		masked.CspReport = &maskedEnvelope
+	}
+
+	return masked
 }
 
 func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
@@ -450,22 +672,47 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 		}
 
 		if base != nil {
-			// Mask URL query parameters if configured. Re-render the message
-			// afterwards so the masked URL is reflected there too — ParseHttpContext
-			// builds base.Message from the unmasked URL.
-			if baseUrl := base.Url; baseUrl != nil && len(e.MaskedUrlParams) > 0 {
-				e.maskUrl(baseUrl)
+			maskedHeaders := e.headersToMaskForUrl(base.Url)
+
+			// Mask URL query parameters if configured. The declared parameters are masked
+			// wherever a URL carrying them appears in the entry, not only in the URL of the
+			// request itself: a page whose address is a credential hands that address to
+			// everything it goes on to request, as the Referer, and to everything it reports.
+			if len(e.MaskedUrlParams) > 0 {
+				if baseUrl := base.Url; baseUrl != nil {
+					e.maskUrl(baseUrl)
+				}
+
+				if ecsHttp := base.Http; ecsHttp != nil {
+					if request := ecsHttp.Request; request != nil {
+						if referrer := request.Referrer; referrer != "" {
+							if masked := e.MaskUrlString(referrer); masked != referrer {
+								request.Referrer = masked
+
+								// The header line is rendered separately, from the request's own
+								// headers, and would otherwise still carry what was just masked.
+								if maskedHeaders == nil {
+									maskedHeaders = make(map[string]struct{})
+								}
+								maskedHeaders[http.CanonicalHeaderKey("Referer")] = struct{}{}
+							}
+						}
+
+						request.Reporting = e.maskReporting(request.Reporting)
+					}
+				}
+
+				// Re-rendered last, so it reflects every masked field -- ParseHttpContext builds
+				// the message from the unmasked URL and the unmasked referrer alike.
 				base.Message = schemaUtils.MakeHttpMessage(base)
 			}
-
-			maskedHeaders := e.headersToMaskForUrl(base.Url)
 
 			if baseUrl := base.Url; baseUrl != nil && len(e.MaskedRequestBodyUrls) > 0 {
 				if ecsHttp := base.Http; ecsHttp != nil {
 					if request := ecsHttp.Request; request != nil {
 						if body := request.Body; body != nil && body.Content != "" {
 							for _, pattern := range e.MaskedRequestBodyUrls {
-								if matches, _ := urlMatchesPattern(pattern, baseUrl); matches {
+								if matches, _, _ := urlMatchesPattern(pattern, baseUrl); matches {
 									body.Content = maskedValue
 									break
 								}
@@ -480,7 +727,7 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 					if response := ecsHttp.Response; response != nil {
 						if body := response.Body; body != nil && body.Content != "" {
 							for _, pattern := range e.MaskedResponseBodyUrls {
-								if matches, _ := urlMatchesPattern(pattern, baseUrl); matches {
+								if matches, _, _ := urlMatchesPattern(pattern, baseUrl); matches {
 									body.Content = maskedValue
 									break
 								}
@@ -634,6 +881,13 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 					record.Message = base.Message
 				}
 			}
+
+			// A message the caller wrote is not built from the URL and so escapes the masking
+			// above -- the one a violation report is logged under names the URL that was blocked.
+			// The message is a plain field; a record's attributes cannot be rewritten this way,
+			// which is why this reaches only what a message says.
+			record.Message = e.maskUrlsInText(record.Message)
+
 			base.Message = ""
 
 			baseMap, err := altshiftJson.ObjectToMap(base)

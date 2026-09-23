@@ -16,6 +16,9 @@ import (
 
 type Extractor struct {
 	ProjectId string
+	// MaskUrl, when set, is applied to every URL the entry carries. ParseHttp populates no URL
+	// field but the referrer, so that is what it reaches today.
+	MaskUrl func(string) string
 }
 
 func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
@@ -28,6 +31,12 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 			if projectId := e.ProjectId; projectId != "" {
 				if traceId := logEntry.TraceId; traceId != "" {
 					logEntry.Trace = fmt.Sprintf("projects/%s/traces/%s", projectId, logEntry.TraceId)
+				}
+			}
+
+			if maskUrl := e.MaskUrl; maskUrl != nil {
+				if httpRequest := logEntry.HttpRequest; httpRequest != nil {
+					httpRequest.Referer = maskUrl(httpRequest.Referer)
 				}
 			}
 
@@ -44,5 +53,7 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 }
 
 func New(options ...http_context_extractor_config.Option) *Extractor {
-	return &Extractor{ProjectId: http_context_extractor_config.New(options...).ProjectId}
+	config := http_context_extractor_config.New(options...)
+
+	return &Extractor{ProjectId: config.ProjectId, MaskUrl: config.MaskUrl}
 }

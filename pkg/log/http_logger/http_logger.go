@@ -48,6 +48,13 @@ func New(options ...http_logger_config.Option) *altshiftErrorLogger.Logger {
 		gcpExtractor := config.GcpHttpContextExtractor
 		if gcpExtractor == nil {
 			gcpExtractor = gcpHttpContextExtractor.New()
+
+			// Cloud Logging's own referrer field is built separately from the rest of the entry,
+			// and so escapes the masking the HTTP extractor applies. An extractor the caller
+			// supplied is left as it was given.
+			if httpContextExtractor != nil {
+				gcpExtractor.MaskUrl = httpContextExtractor.MaskUrlString
+			}
 		}
 
 		extractors = append(extractors, gcpExtractor)

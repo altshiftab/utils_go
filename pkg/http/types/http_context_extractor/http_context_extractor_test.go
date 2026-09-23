@@ -11,7 +11,10 @@ import (
 
 	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
 	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	csp "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/integrity_policy"
+	"github.com/altshiftab/utils_go/pkg/http/types/reporting_api"
 	altshiftSchemaTypes "github.com/altshiftab/utils_go/pkg/schema"
 )
 
@@ -1023,7 +1026,7 @@ func TestUrlMatchesPattern_PathPrefix(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			gotMatch, gotParams := urlMatchesPattern(pattern, tc.incoming)
+			gotMatch, gotParams, _ := urlMatchesPattern(pattern, tc.incoming)
 			if gotMatch != tc.wantMatch {
 				t.Errorf("match: got %v, want %v", gotMatch, tc.wantMatch)
 			}
@@ -1190,4 +1193,352 @@ func TestNew(t *testing.T) {
 			t.Errorf("replaceable messages: got %v", extractor.ReplaceableMessages)
 		}
 	})
+}
+
+// The token stands in for a credential carried in a query parameter -- the address of a page that
+// is itself the proof of who is asking.
+const maskingTestToken = "zhhjetavkELn1GOhywaXHdOatMAmhMro6ksgHu2XP7o" //nolint:gosec // G101: a stand-in, not a token.
+
+// verificationUrl is that page's address, as a browser reports it and as a Referer carries it.
+const verificationUrl = "https://dd.example.com/verification?token=" + maskingTestToken
+
+// tokenExtractor is configured the way a service declaring a secret query parameter configures it.
+func tokenExtractor() *Extractor {
+	return &Extractor{
+		MaskedUrlParams: []*altshiftSchemaTypes.Url{{Path: "/verification", Query: "token"}},
+	}
+}
+
+// recordText renders everything a record says -- its message and every attribute, however nested --
+// so a test can ask whether a secret survived anywhere in it.
+func recordText(t *testing.T, record *slog.Record) string {
+	t.Helper()
+
+	var builder strings.Builder
+	builder.WriteString(record.Message)
+
+	var writeAttr func(slog.Attr)
+	writeAttr = func(attr slog.Attr) {
+		value := attr.Value.Resolve()
+		if value.Kind() == slog.KindGroup {
+			for _, inner := range value.Group() {
+				writeAttr(inner)
+			}
+			return
+		}
+		builder.WriteString(" ")
+		builder.WriteString(value.String())
+	}
+
+	record.Attrs(func(attr slog.Attr) bool {
+		writeAttr(attr)
+		return true
+	})
+
+	return builder.String()
+}
+
+func TestExtractor_MaskUrlString(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		extractor *Extractor
+		raw       string
+		want      string
+	}{
+		{
+			name:      "a declared parameter is masked",
+			extractor: tokenExtractor(),
+			raw:       verificationUrl,
+			want:      "https://dd.example.com/verification?token=%28MASKED%29",
+		},
+		{
+			name:      "another page's query is left alone",
+			extractor: tokenExtractor(),
+			raw:       "https://dd.example.com/orders?token=" + maskingTestToken,
+			want:      "https://dd.example.com/orders?token=" + maskingTestToken,
+		},
+		{
+			name: "a pattern scoped by domain matches the reported host",
+			extractor: &Extractor{MaskedUrlParams: []*altshiftSchemaTypes.Url{
+				{Domain: "dd.example.com", Path: "/verification", Query: "token"},
+			}},
+			raw:  verificationUrl,
+			want: "https://dd.example.com/verification?token=%28MASKED%29",
+		},
+		{
+			name: "a pattern scoped by another domain does not",
+			extractor: &Extractor{MaskedUrlParams: []*altshiftSchemaTypes.Url{
+				{Domain: "other.example.com", Path: "/verification", Query: "token"},
+			}},
+			raw:  verificationUrl,
+			want: verificationUrl,
+		},
+		{
+			name: "a pattern scoped by registered domain matches",
+			extractor: &Extractor{MaskedUrlParams: []*altshiftSchemaTypes.Url{
+				{RegisteredDomain: "example.com", Path: "/verification", Query: "token"},
+			}},
+			raw:  verificationUrl,
+			want: "https://dd.example.com/verification?token=%28MASKED%29",
+		},
+		{
+			// What a violation report puts where a URL would go when what it blocked was not one.
+			name:      "the inline sentinel is not a url",
+			extractor: tokenExtractor(),
+			raw:       "inline",
+			want:      "inline",
+		},
+		{
+			name:      "the eval sentinel is not a url",
+			extractor: tokenExtractor(),
+			raw:       "eval",
+			want:      "eval",
+		},
+		{
+			name:      "the trusted types sentinel is not a url",
+			extractor: tokenExtractor(),
+			raw:       "trusted-types-policy",
+			want:      "trusted-types-policy",
+		},
+		{
+			name:      "an empty string",
+			extractor: tokenExtractor(),
+			raw:       "",
+			want:      "",
+		},
+		{
+			name:      "a url with no query",
+			extractor: tokenExtractor(),
+			raw:       "https://dd.example.com/verification",
+			want:      "https://dd.example.com/verification",
+		},
+		{
+			name:      "an extractor declaring nothing masks nothing",
+			extractor: &Extractor{},
+			raw:       verificationUrl,
+			want:      verificationUrl,
+		},
+		{
+			// A stray percent sign in an unrelated parameter makes the query unreadable. The
+			// declared one is still in there, and still opens the page, so the whole query goes
+			// rather than none of it.
+			name:      "a query that cannot be read is replaced whole",
+			extractor: tokenExtractor(),
+			raw:       verificationUrl + "&next=%zz",
+			want:      "https://dd.example.com/verification?" + maskedValue,
+		},
+		{
+			// The same, for the separator Go stopped accepting.
+			name:      "a semicolon separated query is replaced whole",
+			extractor: tokenExtractor(),
+			raw:       verificationUrl + ";next=1",
+			want:      "https://dd.example.com/verification?" + maskedValue,
+		},
+		{
+			// Unreadable, but on a path nothing was declared secret for.
+			name:      "an undeclared path keeps its unreadable query",
+			extractor: tokenExtractor(),
+			raw:       "https://dd.example.com/orders?token=" + maskingTestToken + "&next=%zz",
+			want:      "https://dd.example.com/orders?token=" + maskingTestToken + "&next=%zz",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := testCase.extractor.MaskUrlString(testCase.raw); got != testCase.want {
+				t.Errorf("MaskUrlString(%q) = %q, want %q", testCase.raw, got, testCase.want)
+			}
+		})
+	}
+}
+
+// A report names the page it is about. Masking it must not reach back into the struct the endpoint
+// attached to the request, which is logged a second time by the access line the mux writes.
+func TestExtractor_MaskReporting_DoesNotMutateItsInput(t *testing.T) {
+	t.Parallel()
+
+	referrer := verificationUrl
+	sourceFile := verificationUrl
+	reporting := &altshiftSchemaTypes.HttpReporting{
+		CspViolations: []*reporting_api.Report[*csp.CSPViolationReportBody]{
+			{
+				URL: verificationUrl,
+				Body: &csp.CSPViolationReportBody{
+					DocumentURL: verificationUrl,
+					BlockedURL:  "trusted-types-policy",
+					Referrer:    &referrer,
+					SourceFile:  &sourceFile,
+				},
+			},
+		},
+		IntegrityViolations: []*reporting_api.Report[*integrity_policy.IntegrityViolationReportBody]{
+			{
+				URL:  verificationUrl,
+				Body: &integrity_policy.IntegrityViolationReportBody{DocumentUrl: verificationUrl, BlockedUrl: verificationUrl},
+			},
+		},
+		CspReport: &csp.ReportEnvelope{
+			CspReport: &csp.Report{DocumentURI: verificationUrl, BlockedUri: verificationUrl, Referrer: &referrer},
+		},
+	}
+
+	masked := tokenExtractor().maskReporting(reporting)
+
+	if masked == reporting {
+		t.Fatal("maskReporting returned its input rather than a copy")
+	}
+
+	// Every URL the copy names is masked.
+	for _, got := range []string{
+		masked.CspViolations[0].URL,
+		masked.CspViolations[0].Body.DocumentURL,
+		*masked.CspViolations[0].Body.Referrer,
+		*masked.CspViolations[0].Body.SourceFile,
+		masked.IntegrityViolations[0].URL,
+		masked.IntegrityViolations[0].Body.DocumentUrl,
+		masked.IntegrityViolations[0].Body.BlockedUrl,
+		masked.CspReport.CspReport.DocumentURI,
+		masked.CspReport.CspReport.BlockedUri,
+		*masked.CspReport.CspReport.Referrer,
+	} {
+		if strings.Contains(got, maskingTestToken) {
+			t.Errorf("a reported url kept the token: %q", got)
+		}
+	}
+
+	// And the original is untouched, so whatever logs it next still logs what arrived.
+	for _, got := range []string{
+		reporting.CspViolations[0].URL,
+		reporting.CspViolations[0].Body.DocumentURL,
+		reporting.IntegrityViolations[0].Body.DocumentUrl,
+		reporting.CspReport.CspReport.DocumentURI,
+		referrer,
+		sourceFile,
+	} {
+		if !strings.Contains(got, maskingTestToken) {
+			t.Errorf("maskReporting mutated the reporting it was given: %q", got)
+		}
+	}
+
+	// What was never a URL is left as the browser wrote it.
+	if masked.CspViolations[0].Body.BlockedURL != "trusted-types-policy" {
+		t.Errorf("blocked url = %q, want it unchanged", masked.CspViolations[0].Body.BlockedURL)
+	}
+}
+
+func TestExtractor_MaskReporting_Empty(t *testing.T) {
+	t.Parallel()
+
+	if got := tokenExtractor().maskReporting(nil); got != nil {
+		t.Errorf("maskReporting(nil) = %v, want nil", got)
+	}
+
+	// An extractor declaring nothing hands back exactly what it was given.
+	reporting := &altshiftSchemaTypes.HttpReporting{}
+	if got := (&Extractor{}).maskReporting(reporting); got != reporting {
+		t.Error("an extractor declaring no masks should return its input unchanged")
+	}
+}
+
+// The page hands its address to everything it goes on to request, as the Referer, and that is a
+// request of its own with a log entry of its own.
+func TestExtractor_Handle_MasksReferer(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.ReadRequest(bufio.NewReader(strings.NewReader(
+		"GET /api/order/consented HTTP/1.1\r\nHost: dd.example.com\r\nReferer: " + verificationUrl + "\r\n\r\n",
+	)))
+	if err != nil {
+		t.Fatalf("read request: %v", err)
+	}
+
+	record := &slog.Record{Message: "An HTTP response was served."}
+	ctx := altshiftHttpContext.WithHttpContextValue(
+		context.Background(),
+		&altshiftHttpTypes.HttpContext{Request: request},
+	)
+
+	if err := tokenExtractor().Handle(ctx, record); err != nil {
+		t.Fatalf("handle: %v", err)
+	}
+
+	text := recordText(t, record)
+	if strings.Contains(text, maskingTestToken) {
+		t.Errorf("the referer carried the token into the entry: %s", text)
+	}
+	if !strings.Contains(text, "/verification") {
+		t.Errorf("the referring page was lost from the entry: %s", text)
+	}
+}
+
+func TestExtractor_Handle_MasksReporting(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.ReadRequest(bufio.NewReader(strings.NewReader(
+		"POST /api/report/csp-report-to HTTP/1.1\r\nHost: dd.example.com\r\n\r\n",
+	)))
+	if err != nil {
+		t.Fatalf("read request: %v", err)
+	}
+
+	record := &slog.Record{Message: "CSP violations were reported."}
+	ctx := altshiftHttpContext.WithHttpContextValue(
+		context.Background(),
+		&altshiftHttpTypes.HttpContext{
+			Request: request,
+			Reporting: &altshiftSchemaTypes.HttpReporting{
+				CspViolations: []*reporting_api.Report[*csp.CSPViolationReportBody]{
+					{URL: verificationUrl, Body: &csp.CSPViolationReportBody{DocumentURL: verificationUrl}},
+				},
+			},
+		},
+	)
+
+	if err := tokenExtractor().Handle(ctx, record); err != nil {
+		t.Fatalf("handle: %v", err)
+	}
+
+	text := recordText(t, record)
+	if strings.Contains(text, maskingTestToken) {
+		t.Errorf("the reported document url carried the token into the entry: %s", text)
+	}
+	if !strings.Contains(text, "/verification") {
+		t.Errorf("the reported page was lost from the entry: %s", text)
+	}
+}
+
+// The message a violation is logged under names the URL that was blocked, and is written by the
+// caller rather than built from the request.
+func TestExtractor_Handle_MasksMessageUrls(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.ReadRequest(bufio.NewReader(strings.NewReader(
+		"POST /api/report/csp-report-to HTTP/1.1\r\nHost: dd.example.com\r\n\r\n",
+	)))
+	if err != nil {
+		t.Fatalf("read request: %v", err)
+	}
+
+	record := &slog.Record{
+		Message: `The page's settings blocked a script at ` + verificationUrl + ` from being executed`,
+	}
+	ctx := altshiftHttpContext.WithHttpContextValue(
+		context.Background(),
+		&altshiftHttpTypes.HttpContext{Request: request},
+	)
+
+	if err := tokenExtractor().Handle(ctx, record); err != nil {
+		t.Fatalf("handle: %v", err)
+	}
+
+	if strings.Contains(record.Message, maskingTestToken) {
+		t.Errorf("the message kept the token: %s", record.Message)
+	}
+	if !strings.Contains(record.Message, "/verification") {
+		t.Errorf("the message lost the page it was about: %s", record.Message)
+	}
 }
