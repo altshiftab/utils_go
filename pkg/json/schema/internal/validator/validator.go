@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"unicode/utf8"
 
@@ -219,7 +220,7 @@ func ValidateThen(arg schema.PartSchema, instance any, state *schema.ValidationS
 	if err == nil {
 		state.Notes.AddNotes(subState.Notes)
 	}
-	return withKeywordLocation(err, "then")
+	return WithKeywordLocation(err, "then")
 }
 
 // ValidateElse implements the else keyword.
@@ -238,7 +239,7 @@ func ValidateElse(arg schema.PartSchema, instance any, state *schema.ValidationS
 	if err == nil {
 		state.Notes.AddNotes(subState.Notes)
 	}
-	return withKeywordLocation(err, "else")
+	return WithKeywordLocation(err, "else")
 }
 
 // ValidateDependentSchemas implements the dependentSchemas keyword.
@@ -256,7 +257,7 @@ func ValidateDependentSchemas(arg schema.PartMapSchema, instance any, state *sch
 			continue
 		}
 		if err := s.ValidateInPlaceSchema(instance, subState); err != nil {
-			schema.AddError(&topErr, err, "dependentSchemas/"+name)
+			schema.AddError(&topErr, err, "dependentSchemas/"+escapePointerToken(name))
 		} else {
 			if !subState.Notes.IsEmpty() {
 				keepNotes = append(keepNotes, subState.Notes)
@@ -352,15 +353,21 @@ func validateItemSchema(s *schema.Schema, val any, idx int, keywordLocation stri
 	state.PushInstanceToken(strconv.Itoa(idx))
 	err := s.ValidateSubSchema(val, state)
 	if err != nil {
-		err = withKeywordLocation(schema.EnsureInstanceLocation(err, state.InstancePointer()), keywordLocation)
+		err = WithKeywordLocation(schema.EnsureInstanceLocation(err, state.InstancePointer()), keywordLocation)
 	}
 	state.PopInstanceToken()
 	return err
 }
 
-// withKeywordLocation prefixes the keyword location of the validation errors in err with
+// escapePointerToken escapes a schema key for use as a JSON Pointer reference token, per RFC 6901
+// section 4: "~" as "~0" and "/" as "~1".
+func escapePointerToken(token string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(token, "~", "~0"), "/", "~1")
+}
+
+// WithKeywordLocation prefixes the keyword location of the validation errors in err with
 // keywordLocation, as properties does for the subschema it applies.
-func withKeywordLocation(err error, keywordLocation string) error {
+func WithKeywordLocation(err error, keywordLocation string) error {
 	if err == nil {
 		return nil
 	}
@@ -557,7 +564,7 @@ func ValidateProperties(arg schema.PartMapSchema, instance any, state *schema.Va
 		if err := s.ValidateSubSchema(f, state); err != nil {
 			// Ensure nested errors carry instance location pointer.
 			err = schema.EnsureInstanceLocation(err, state.InstancePointer())
-			schema.AddError(&topErr, err, "properties/"+name)
+			schema.AddError(&topErr, err, "properties/"+escapePointerToken(name))
 		}
 		state.PopInstanceToken()
 
@@ -611,7 +618,7 @@ func ValidatePatternProperties(arg schema.PartMapSchema, instance any, state *sc
 				state.PushInstanceToken(jsonName)
 				if err := r.s.ValidateSubSchema(vf, state); err != nil {
 					err = schema.EnsureInstanceLocation(err, state.InstancePointer())
-					schema.AddError(&topErr, err, "patternProperties/"+name)
+					schema.AddError(&topErr, err, "patternProperties/"+escapePointerToken(r.re.String()))
 				}
 				state.PopInstanceToken()
 
@@ -664,7 +671,7 @@ func ValidateAdditionalProperties(arg schema.PartSchema, instance any, state *sc
 				if isFalseSchema {
 					if validationError, ok := errors.AsType[*schema.ValidationError](err); ok {
 						validationError.Message = fmt.Sprintf("unknown property %q", name)
-						validationError.KeywordLocation = "#"
+						validationError.KeywordLocation = ""
 					}
 				}
 				err = schema.EnsureInstanceLocation(err, state.InstancePointer())
@@ -689,9 +696,14 @@ func ValidatePropertyNames(arg schema.PartSchema, instance any, state *schema.Va
 	}
 	var topErr error
 	for name := range names.byExactName {
+		// The subschema is one, so the keyword location stops at the keyword; which name failed is
+		// said by the instance location.
+		state.PushInstanceToken(name)
 		if err := arg.S.ValidateSubSchema(name, state); err != nil {
-			schema.AddError(&topErr, err, "propertyNames/"+name)
+			err = schema.EnsureInstanceLocation(err, state.InstancePointer())
+			schema.AddError(&topErr, err, "propertyNames")
 		}
+		state.PopInstanceToken()
 	}
 	return topErr
 }
@@ -791,7 +803,7 @@ func ValidateUnevaluatedProperties(arg schema.PartSchema, instance any, state *s
 			state.PushInstanceToken(name)
 			if err := arg.S.ValidateSubSchema(vf, state); err != nil {
 				err = schema.EnsureInstanceLocation(err, state.InstancePointer())
-				schema.AddError(&topErr, err, "unevaluatedProperties/"+name)
+				schema.AddError(&topErr, err, "unevaluatedProperties")
 			}
 			state.PopInstanceToken()
 		}
@@ -1423,7 +1435,7 @@ func ValidateDependencies(arg schema.PartMapArrayOrSchema, instance any, state *
 
 		if as.Schema != nil {
 			if err := as.Schema.ValidateInPlaceSchema(instance, subState); err != nil {
-				schema.AddError(&topErr, err, "dependencies/"+name)
+				schema.AddError(&topErr, err, "dependencies/"+escapePointerToken(name))
 			} else {
 				if !subState.Notes.IsEmpty() {
 					keepNotes = append(keepNotes, subState.Notes)

@@ -25,7 +25,10 @@ type ValidationError struct {
 	// Basic output fields per JSON Schema output format (basic):
 	// https://json-schema.org/draft/2020-12/json-schema-core.html#name-output-formats
 	// These are the canonical fields consumers should use.
-	Message          string `json:"error"`
+	Message string `json:"error"`
+	// KeywordLocation and InstanceLocation are JSON Pointers in their string form (RFC 6901
+	// section 5), as JSON Schema's output format requires: "/properties/a/type", "/a", and the empty
+	// string for the root.
 	KeywordLocation  string `json:"keywordLocation"`
 	InstanceLocation string `json:"instanceLocation"`
 }
@@ -33,11 +36,10 @@ type ValidationError struct {
 // Error returns the error message that a user should see.
 // This implements the error interface.
 func (ve *ValidationError) Error() string {
-	kl := ve.KeywordLocation
-	if kl == "" {
-		kl = "#"
+	if ve.KeywordLocation == "" {
+		return ve.Message
 	}
-	return fmt.Sprintf("%s: %s", kl, ve.Message)
+	return fmt.Sprintf("%s: %s", ve.KeywordLocation, ve.Message)
 }
 
 // ValidationErrors is a collection of ValidationError values.
@@ -106,46 +108,26 @@ func AddError(perr *error, err error, loc string) {
 
 	//nolint:errorlint // Validation errors are aggregated, not wrapped; direct type matching is deliberate.
 	if ve, ok := err.(*ValidationError); ok {
-		// Build a combined keywordLocation by prefixing the provided loc
-		// to any existing keywordLocation, using JSON Pointer rules.
-		// Start from existing pointer tail (without leading '#').
-		tail := ""
-		if ve.KeywordLocation != "" {
-			tl := ve.KeywordLocation
-			if strings.HasPrefix(tl, "#/") {
-				tail = tl[2:]
-			} else if tl == "#" {
-				tail = ""
-			} else if strings.HasPrefix(tl, "#") {
-				tail = tl[1:]
-			} else {
-				// Not a pointer, treat as raw tail
-				tail = tl
-			}
-		}
+		// Prefix the provided loc to the existing keywordLocation, a JSON Pointer relative to the
+		// schema the error came from.
+		tail := strings.TrimPrefix(ve.KeywordLocation, "/")
 
-		// Compose: loc (if any) + tail (if any)
 		var composed string
 		switch {
 		case loc == "" && tail == "":
-			composed = "#"
+			composed = ""
 		case loc == "":
-			composed = "#/" + tail
+			composed = "/" + tail
 		case tail == "":
-			composed = "#/" + loc
+			composed = "/" + loc
 		default:
-			composed = "#/" + loc + "/" + tail
+			composed = "/" + loc + "/" + tail
 		}
 
 		nev := &ValidationError{
-			Message:         ve.Message,
-			KeywordLocation: composed,
-			InstanceLocation: func() string {
-				if ve.InstanceLocation == "" {
-					return "#"
-				}
-				return ve.InstanceLocation
-			}(),
+			Message:          ve.Message,
+			KeywordLocation:  composed,
+			InstanceLocation: ve.InstanceLocation,
 		}
 		AddValidationErrorStruct(perr, nev)
 		return

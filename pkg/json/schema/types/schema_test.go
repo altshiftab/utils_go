@@ -298,10 +298,10 @@ func TestInstancePointer(t *testing.T) {
 		tokens []string
 		want   string
 	}{
-		{name: "empty", tokens: nil, want: "#"},
-		{name: "simple", tokens: []string{"a", "b"}, want: "#/a/b"},
-		{name: "escapes slash", tokens: []string{"a/b"}, want: "#/a~1b"},
-		{name: "escapes tilde", tokens: []string{"a~b"}, want: "#/a~0b"},
+		{name: "empty", tokens: nil, want: ""},
+		{name: "simple", tokens: []string{"a", "b"}, want: "/a/b"},
+		{name: "escapes slash", tokens: []string{"a/b"}, want: "/a~1b"},
+		{name: "escapes tilde", tokens: []string{"a~b"}, want: "/a~0b"},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {

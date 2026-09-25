@@ -166,36 +166,114 @@ func TestValidateKeywordLocation(t *testing.T) {
 			name:                     "items under properties",
 			schema:                   `{"type": "object", "properties": {"roles": {"type": "array", "items": {"enum": ["a"]}}}}`,
 			instance:                 map[string]any{"roles": []any{"a", "b"}},
-			expectedKeywordLocation:  "#/properties/roles/items/enum",
-			expectedInstanceLocation: "#/roles/1",
+			expectedKeywordLocation:  "/properties/roles/items/enum",
+			expectedInstanceLocation: "/roles/1",
 		},
 		{
 			name:                     "prefixItems",
 			schema:                   `{"type": "array", "prefixItems": [{"type": "string"}, {"type": "integer"}]}`,
 			instance:                 []any{"a", "b"},
-			expectedKeywordLocation:  "#/prefixItems/1/type",
-			expectedInstanceLocation: "#/1",
+			expectedKeywordLocation:  "/prefixItems/1/type",
+			expectedInstanceLocation: "/1",
 		},
 		{
 			name:                     "items after prefixItems",
 			schema:                   `{"type": "array", "prefixItems": [{"type": "string"}], "items": {"type": "integer"}}`,
 			instance:                 []any{"a", "b"},
-			expectedKeywordLocation:  "#/items/type",
-			expectedInstanceLocation: "#/1",
+			expectedKeywordLocation:  "/items/type",
+			expectedInstanceLocation: "/1",
+		},
+		{
+			name:                     "type at the root",
+			schema:                   `{"type": "string"}`,
+			instance:                 float64(5),
+			expectedKeywordLocation:  "/type",
+			expectedInstanceLocation: "",
+		},
+		{
+			name:                     "allOf at the root",
+			schema:                   `{"allOf": [{"type": "string"}]}`,
+			instance:                 float64(5),
+			expectedKeywordLocation:  "/allOf/0/type",
+			expectedInstanceLocation: "",
+		},
+		{
+			name:                     "required",
+			schema:                   `{"type": "object", "properties": {"a": {"type": "object", "required": ["name"]}}}`,
+			instance:                 map[string]any{"a": map[string]any{}},
+			expectedKeywordLocation:  "/properties/a/required",
+			expectedInstanceLocation: "/a",
+		},
+		{
+			name:                     "dynamicRef",
+			schema:                   `{"$id": "https://example.com/root", "$dynamicAnchor": "node", "type": "object", "properties": {"next": {"$dynamicRef": "#node"}}}`,
+			instance:                 map[string]any{"next": float64(5)},
+			expectedKeywordLocation:  "/properties/next/$dynamicRef/type",
+			expectedInstanceLocation: "/next",
+		},
+		{
+			name:                     "false at the root",
+			schema:                   `false`,
+			instance:                 float64(1),
+			expectedKeywordLocation:  "",
+			expectedInstanceLocation: "",
+		},
+		{
+			name:                     "false under properties",
+			schema:                   `{"properties": {"a": false}}`,
+			instance:                 map[string]any{"a": float64(1)},
+			expectedKeywordLocation:  "/properties/a",
+			expectedInstanceLocation: "/a",
+		},
+		{
+			name:                     "false under items",
+			schema:                   `{"items": false}`,
+			instance:                 []any{float64(1)},
+			expectedKeywordLocation:  "/items",
+			expectedInstanceLocation: "/0",
+		},
+		{
+			// JSON-Schema-Test-Suite output-tests/draft2020-12/content/escape.json.
+			name:                     "escaped property name",
+			schema:                   `{"properties": {"~a/b": {"type": "number"}}}`,
+			instance:                 map[string]any{"~a/b": "foobar"},
+			expectedKeywordLocation:  "/properties/~0a~1b/type",
+			expectedInstanceLocation: "/~0a~1b",
+		},
+		{
+			name:                     "patternProperties names the pattern",
+			schema:                   `{"patternProperties": {"^x/": {"type": "number"}}}`,
+			instance:                 map[string]any{"x/a": "foobar"},
+			expectedKeywordLocation:  "/patternProperties/^x~1/type",
+			expectedInstanceLocation: "/x~1a",
+		},
+		{
+			name:                     "unevaluatedProperties",
+			schema:                   `{"properties": {"a": true}, "unevaluatedProperties": {"type": "number"}}`,
+			instance:                 map[string]any{"a": 1, "b": "foobar"},
+			expectedKeywordLocation:  "/unevaluatedProperties/type",
+			expectedInstanceLocation: "/b",
+		},
+		{
+			name:                     "propertyNames",
+			schema:                   `{"propertyNames": {"maxLength": 2}}`,
+			instance:                 map[string]any{"abc": 1},
+			expectedKeywordLocation:  "/propertyNames/maxLength",
+			expectedInstanceLocation: "/abc",
 		},
 		{
 			name:                     "then",
 			schema:                   `{"if": {"type": "string"}, "then": {"minLength": 2}, "else": {"type": "integer"}}`,
 			instance:                 "a",
-			expectedKeywordLocation:  "#/then/minLength",
-			expectedInstanceLocation: "#",
+			expectedKeywordLocation:  "/then/minLength",
+			expectedInstanceLocation: "",
 		},
 		{
 			name:                     "else",
 			schema:                   `{"if": {"type": "string"}, "then": {"minLength": 2}, "else": {"type": "integer"}}`,
 			instance:                 true,
-			expectedKeywordLocation:  "#/else/type",
-			expectedInstanceLocation: "#",
+			expectedKeywordLocation:  "/else/type",
+			expectedInstanceLocation: "",
 		},
 	}
 
@@ -221,5 +299,61 @@ func TestValidateKeywordLocation(t *testing.T) {
 				t.Errorf("instance location = %q, expected %q", got.InstanceLocation, testCase.expectedInstanceLocation)
 			}
 		})
+	}
+}
+
+// TestValidateSpecOutputExample validates the instance of the Basic output example in JSON Schema
+// 2020-12 core section 12.4.2 and expects the locations of its failing leaves.
+func TestValidateSpecOutputExample(t *testing.T) {
+	t.Parallel()
+
+	s, err := New([]byte(`{
+		"$id": "https://example.com/polygon",
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"$defs": {
+			"point": {
+				"type": "object",
+				"properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+				"additionalProperties": false,
+				"required": ["x", "y"]
+			}
+		},
+		"type": "array",
+		"items": {"$ref": "#/$defs/point"},
+		"minItems": 3
+	}`))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	instance := []any{
+		map[string]any{"x": 2.5, "y": 1.3},
+		map[string]any{"x": 1.0, "z": 6.7},
+	}
+
+	validateError, ok := errors.AsType[*ValidateError](s.Validate(instance))
+	if !ok {
+		t.Fatal("expected a ValidateError")
+	}
+
+	got := map[[2]string]bool{}
+	for _, validationError := range validateError.Errors {
+		got[[2]string{validationError.KeywordLocation, validationError.InstanceLocation}] = true
+	}
+
+	testCases := []struct {
+		name             string
+		keywordLocation  string
+		instanceLocation string
+	}{
+		{name: "required", keywordLocation: "/items/$ref/required", instanceLocation: "/1"},
+		{name: "additionalProperties", keywordLocation: "/items/$ref/additionalProperties", instanceLocation: "/1/z"},
+		{name: "minItems", keywordLocation: "/minItems", instanceLocation: ""},
+	}
+
+	for _, testCase := range testCases {
+		if !got[[2]string{testCase.keywordLocation, testCase.instanceLocation}] {
+			t.Errorf("%s: no error at keyword %q, instance %q; got %v", testCase.name, testCase.keywordLocation, testCase.instanceLocation, got)
+		}
 	}
 }

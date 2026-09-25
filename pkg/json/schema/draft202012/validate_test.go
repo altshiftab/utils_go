@@ -201,12 +201,12 @@ func TestValidateArrayKeywords(t *testing.T) {
 	t.Parallel()
 	runValidationCases(t, []validationCase{
 		{name: "items ok", schemaJSON: `{"items": {"type": "string"}}`, instanceJSON: `["a", "b"]`},
-		{name: "items fail", schemaJSON: `{"items": {"type": "string"}}`, instanceJSON: `["a", 5]`, wantErr: true, wantInstanceLocation: "#/1"},
+		{name: "items fail", schemaJSON: `{"items": {"type": "string"}}`, instanceJSON: `["a", 5]`, wantErr: true, wantInstanceLocation: "/1"},
 		{name: "prefixItems ok", schemaJSON: `{"prefixItems": [{"type": "string"}, {"type": "integer"}]}`, instanceJSON: `["a", 5]`},
-		{name: "prefixItems fail", schemaJSON: `{"prefixItems": [{"type": "string"}, {"type": "integer"}]}`, instanceJSON: `[5, "a"]`, wantErr: true, wantInstanceLocation: "#/0"},
+		{name: "prefixItems fail", schemaJSON: `{"prefixItems": [{"type": "string"}, {"type": "integer"}]}`, instanceJSON: `[5, "a"]`, wantErr: true, wantInstanceLocation: "/0"},
 		{name: "prefixItems shorter instance ok", schemaJSON: `{"prefixItems": [{"type": "string"}, {"type": "integer"}]}`, instanceJSON: `["a"]`},
 		{name: "prefixItems then items", schemaJSON: `{"prefixItems": [{"type": "string"}], "items": {"type": "integer"}}`, instanceJSON: `["a", 1, 2]`},
-		{name: "prefixItems then items fail", schemaJSON: `{"prefixItems": [{"type": "string"}], "items": {"type": "integer"}}`, instanceJSON: `["a", 1, "b"]`, wantErr: true, wantInstanceLocation: "#/2"},
+		{name: "prefixItems then items fail", schemaJSON: `{"prefixItems": [{"type": "string"}], "items": {"type": "integer"}}`, instanceJSON: `["a", 1, "b"]`, wantErr: true, wantInstanceLocation: "/2"},
 		{name: "maxItems ok", schemaJSON: `{"maxItems": 2}`, instanceJSON: `[1, 2]`},
 		{name: "maxItems fail", schemaJSON: `{"maxItems": 2}`, instanceJSON: `[1, 2, 3]`, wantErr: true},
 		{name: "minItems ok", schemaJSON: `{"minItems": 2}`, instanceJSON: `[1, 2]`},
@@ -223,7 +223,7 @@ func TestValidateArrayKeywords(t *testing.T) {
 		{name: "maxContains ok", schemaJSON: `{"contains": {"type": "string"}, "maxContains": 2}`, instanceJSON: `["a", "b", 1]`},
 		{name: "maxContains fail", schemaJSON: `{"contains": {"type": "string"}, "maxContains": 1}`, instanceJSON: `["a", "b"]`, wantErr: true, wantErrContains: `"maxContains"`},
 		{name: "unevaluatedItems ok", schemaJSON: `{"prefixItems": [{"type": "string"}], "unevaluatedItems": {"type": "integer"}}`, instanceJSON: `["a", 1]`},
-		{name: "unevaluatedItems fail", schemaJSON: `{"prefixItems": [{"type": "string"}], "unevaluatedItems": {"type": "integer"}}`, instanceJSON: `["a", "b"]`, wantErr: true, wantInstanceLocation: "#/1"},
+		{name: "unevaluatedItems fail", schemaJSON: `{"prefixItems": [{"type": "string"}], "unevaluatedItems": {"type": "integer"}}`, instanceJSON: `["a", "b"]`, wantErr: true, wantInstanceLocation: "/1"},
 		{name: "unevaluatedItems skips items", schemaJSON: `{"items": {"type": "string"}, "unevaluatedItems": {"type": "integer"}}`, instanceJSON: `["a", "b"]`},
 	})
 }
@@ -232,9 +232,9 @@ func TestValidateObjectKeywords(t *testing.T) {
 	t.Parallel()
 	runValidationCases(t, []validationCase{
 		{name: "properties ok", schemaJSON: `{"properties": {"a": {"type": "integer"}}}`, instanceJSON: `{"a": 1}`},
-		{name: "properties fail", schemaJSON: `{"properties": {"a": {"type": "integer"}}}`, instanceJSON: `{"a": "x"}`, wantErr: true, wantInstanceLocation: "#/a"},
+		{name: "properties fail", schemaJSON: `{"properties": {"a": {"type": "integer"}}}`, instanceJSON: `{"a": "x"}`, wantErr: true, wantInstanceLocation: "/a"},
 		{name: "properties missing ok", schemaJSON: `{"properties": {"a": {"type": "integer"}}}`, instanceJSON: `{}`},
-		{name: "nested properties location", schemaJSON: `{"properties": {"a": {"properties": {"b": {"type": "integer"}}}}}`, instanceJSON: `{"a": {"b": "x"}}`, wantErr: true, wantInstanceLocation: "#/a/b"},
+		{name: "nested properties location", schemaJSON: `{"properties": {"a": {"properties": {"b": {"type": "integer"}}}}}`, instanceJSON: `{"a": {"b": "x"}}`, wantErr: true, wantInstanceLocation: "/a/b"},
 		{name: "required ok", schemaJSON: `{"required": ["a"]}`, instanceJSON: `{"a": 1}`},
 		{name: "required fail", schemaJSON: `{"required": ["a", "b"]}`, instanceJSON: `{"a": 1}`, wantErr: true, wantErrContains: `missing required property "b"`},
 		{name: "additionalProperties false ok", schemaJSON: `{"properties": {"a": {}}, "additionalProperties": false}`, instanceJSON: `{"a": 1}`},
@@ -242,7 +242,7 @@ func TestValidateObjectKeywords(t *testing.T) {
 		{name: "additionalProperties schema ok", schemaJSON: `{"additionalProperties": {"type": "string"}}`, instanceJSON: `{"a": "x"}`},
 		{name: "additionalProperties schema fail keeps message", schemaJSON: `{"additionalProperties": {"type": "string"}}`, instanceJSON: `{"a": 5}`, wantErr: true, wantErrContains: `instance has type "integer", want "string"`},
 		{name: "patternProperties ok", schemaJSON: `{"patternProperties": {"^x_": {"type": "integer"}}}`, instanceJSON: `{"x_a": 1, "other": "s"}`},
-		{name: "patternProperties fail", schemaJSON: `{"patternProperties": {"^x_": {"type": "integer"}}}`, instanceJSON: `{"x_a": "s"}`, wantErr: true, wantInstanceLocation: "#/x_a"},
+		{name: "patternProperties fail", schemaJSON: `{"patternProperties": {"^x_": {"type": "integer"}}}`, instanceJSON: `{"x_a": "s"}`, wantErr: true, wantInstanceLocation: "/x_a"},
 		{name: "patternProperties with additionalProperties", schemaJSON: `{"patternProperties": {"^x_": {}}, "additionalProperties": false}`, instanceJSON: `{"x_a": 1}`},
 		{name: "propertyNames ok", schemaJSON: `{"propertyNames": {"maxLength": 3}}`, instanceJSON: `{"ab": 1}`},
 		{name: "propertyNames fail", schemaJSON: `{"propertyNames": {"maxLength": 3}}`, instanceJSON: `{"abcd": 1}`, wantErr: true},

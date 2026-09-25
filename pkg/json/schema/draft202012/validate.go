@@ -73,7 +73,11 @@ var clearDynamicAnchorKeyword = schema.Keyword{
 func validateRef(arg schema.PartString, instance any, state *schema.ValidationState) error {
 	for _, part := range state.Schema.Parts {
 		if part.Keyword == &resolvedRefKeyword {
-			return part.Value.(schema.PartSchema).S.ValidateInPlaceSchema(instance, state)
+			// The keyword location follows the evaluation path, which passes through the reference.
+			return validator.WithKeywordLocation(
+				part.Value.(schema.PartSchema).S.ValidateInPlaceSchema(instance, state),
+				"$ref",
+			)
 		}
 	}
 	// This should never happen.
@@ -114,7 +118,7 @@ func validateDynamicRef(arg schema.PartString, instance any, state *schema.Valid
 		}
 	}
 
-	return s.ValidateInPlaceSchema(instance, state)
+	return validator.WithKeywordLocation(s.ValidateInPlaceSchema(instance, state), "$dynamicRef")
 }
 
 // validationData is data specific to the draft used for validation.

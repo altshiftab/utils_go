@@ -803,8 +803,9 @@ func (s *Schema) ValidateInPlaceSchema(instance any, state *ValidationState) err
 		}
 		subState.Index = i
 		if err := p.Keyword.Validate(p.Value, instance, subState); err != nil {
-			// Prefix with the current keyword name only if the error lacks any location.
-			if hasAnyLocation(err) {
+			// Prefix with the current keyword name only if the error lacks any location. A boolean
+			// schema has no keyword: its location is the subschema's own.
+			if hasAnyLocation(err) || p.Keyword.Name == BoolKeyword.Name {
 				AddError(&topErr, err, "")
 			} else {
 				AddError(&topErr, err, p.Keyword.Name)
@@ -834,8 +835,9 @@ func (s *Schema) ValidateSubSchema(instance any, state *ValidationState) error {
 		}
 		subState.Index = i
 		if err := p.Keyword.Validate(p.Value, instance, subState); err != nil {
-			// Prefix with the current keyword name only if the error lacks any location.
-			if hasAnyLocation(err) {
+			// Prefix with the current keyword name only if the error lacks any location. A boolean
+			// schema has no keyword: its location is the subschema's own.
+			if hasAnyLocation(err) || p.Keyword.Name == BoolKeyword.Name {
 				AddError(&topErr, err, "")
 			} else {
 				AddError(&topErr, err, p.Keyword.Name)
@@ -1131,15 +1133,15 @@ func (vs *ValidationState) PopInstanceToken() {
 	}
 }
 
-// InstancePointer returns the current instance location as a JSON Pointer
-// string starting with '#'.
+// InstancePointer returns the current instance location as a JSON Pointer in its string form:
+// empty for the root, otherwise starting with '/'.
 func (vs *ValidationState) InstancePointer() string {
 	if len(vs.InstancePath) == 0 {
-		return "#"
+		return ""
 	}
 	// Escape per RFC 6901
 	b := make([]byte, 0, 2*len(vs.InstancePath))
-	b = append(b, '#', '/')
+	b = append(b, '/')
 	for i, t := range vs.InstancePath {
 		if i > 0 {
 			b = append(b, '/')
@@ -1159,17 +1161,18 @@ func (vs *ValidationState) InstancePointer() string {
 	return string(b)
 }
 
-// EnsureInstanceLocation sets InstanceLocation on validation errors if empty.
+// EnsureInstanceLocation sets InstanceLocation on validation errors that have none yet, which is
+// also how an error at the root of what reported it reads.
 func EnsureInstanceLocation(err error, ptr string) error {
 	switch e := err.(type) { //nolint:errorlint // Validation errors are aggregated, not wrapped; direct type matching is deliberate.
 	case *ValidationError:
-		if e.InstanceLocation == "" || e.InstanceLocation == "#" {
+		if e.InstanceLocation == "" {
 			e.InstanceLocation = ptr
 		}
 		return e
 	case *ValidationErrors:
 		for _, ve := range e.Errs {
-			if ve.InstanceLocation == "" || ve.InstanceLocation == "#" {
+			if ve.InstanceLocation == "" {
 				ve.InstanceLocation = ptr
 			}
 		}

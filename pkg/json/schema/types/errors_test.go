@@ -23,12 +23,12 @@ func TestValidationErrorError(t *testing.T) {
 		{
 			name:            "no keyword location",
 			validationError: &ValidationError{Message: "boom"},
-			want:            "#: boom",
+			want:            "boom",
 		},
 		{
 			name:            "with keyword location",
-			validationError: &ValidationError{Message: "boom", KeywordLocation: "#/properties/a"},
-			want:            "#/properties/a: boom",
+			validationError: &ValidationError{Message: "boom", KeywordLocation: "/properties/a"},
+			want:            "/properties/a: boom",
 		},
 	}
 	for _, testCase := range testCases {
@@ -53,14 +53,14 @@ func TestValidationErrorsError(t *testing.T) {
 			validationErrors: &ValidationErrors{
 				Errs: []*ValidationError{{Message: "one"}},
 			},
-			want: "#: one",
+			want: "one",
 		},
 		{
 			name: "multiple joined",
 			validationErrors: &ValidationErrors{
 				Errs: []*ValidationError{{Message: "one"}, {Message: "two"}},
 			},
-			want: "#: one\n#: two",
+			want: "one\ntwo",
 		},
 	}
 	for _, testCase := range testCases {
@@ -109,35 +109,35 @@ func TestAddError(t *testing.T) {
 			name:                "validation error into nil",
 			add:                 &ValidationError{Message: "boom"},
 			loc:                 "minimum",
-			wantErrText:         "#/minimum: boom",
-			wantKeywordLocation: "#/minimum",
+			wantErrText:         "/minimum: boom",
+			wantKeywordLocation: "/minimum",
 		},
 		{
 			name:                "prefixes existing location",
-			add:                 &ValidationError{Message: "boom", KeywordLocation: "#/type"},
+			add:                 &ValidationError{Message: "boom", KeywordLocation: "/type"},
 			loc:                 "properties/a",
-			wantErrText:         "#/properties/a/type: boom",
-			wantKeywordLocation: "#/properties/a/type",
+			wantErrText:         "/properties/a/type: boom",
+			wantKeywordLocation: "/properties/a/type",
 		},
 		{
 			name:                "empty location keeps existing",
-			add:                 &ValidationError{Message: "boom", KeywordLocation: "#/type"},
+			add:                 &ValidationError{Message: "boom", KeywordLocation: "/type"},
 			loc:                 "",
-			wantErrText:         "#/type: boom",
-			wantKeywordLocation: "#/type",
+			wantErrText:         "/type: boom",
+			wantKeywordLocation: "/type",
 		},
 		{
 			name:        "collects into validation errors",
 			initial:     &ValidationError{Message: "first"},
 			add:         &ValidationError{Message: "second"},
 			loc:         "",
-			wantErrText: "#: first\n#: second",
+			wantErrText: "first\nsecond",
 		},
 		{
 			name:        "flattens validation errors",
 			add:         &ValidationErrors{Errs: []*ValidationError{{Message: "a"}, {Message: "b"}}},
 			loc:         "allOf/0",
-			wantErrText: "#/allOf/0: a\n#/allOf/0: b",
+			wantErrText: "/allOf/0: a\n/allOf/0: b",
 		},
 		{
 			name:        "non-validation error replaces validation error",
@@ -151,7 +151,7 @@ func TestAddError(t *testing.T) {
 			initial:     &ValidationError{Message: "kept"},
 			add:         nil,
 			loc:         "ignored",
-			wantErrText: "#: kept",
+			wantErrText: "kept",
 		},
 	}
 	for _, testCase := range testCases {
