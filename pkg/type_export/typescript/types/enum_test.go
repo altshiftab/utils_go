@@ -87,3 +87,42 @@ func TestRenderEnumTagOnNamedType(t *testing.T) {
 		t.Fatalf("err = %v, expected %v", err, typeExportErrors.ErrEnumTagOnNamedType)
 	}
 }
+
+type tsSliceOnly struct {
+	Roles []tsRole `json:"roles"`
+}
+
+type tsPointerSliceOnly struct {
+	Roles *[]tsRole `json:"roles,omitzero"`
+}
+
+type tsMapOnly struct {
+	ByName map[string]tsRole `json:"by_name"`
+}
+
+func TestRenderEnumReachedOnlyThroughContainer(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		targetType reflect.Type
+		expected   []string
+	}{
+		{name: "slice", targetType: reflect.TypeFor[tsSliceOnly](), expected: []string{"roles: TsRole[];", "export type TsRole = "}},
+		{name: "pointer to slice", targetType: reflect.TypeFor[tsPointerSliceOnly](), expected: []string{"roles?: TsRole[];", "export type TsRole = "}},
+		{name: "map value", targetType: reflect.TypeFor[tsMapOnly](), expected: []string{"by_name: { [key: string]: TsRole };", "export type TsRole = "}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			out := renderTS(t, testCase.targetType)
+			for _, expected := range testCase.expected {
+				if !strings.Contains(out, expected) {
+					t.Errorf("expected %q in:\n%s", expected, out)
+				}
+			}
+		})
+	}
+}

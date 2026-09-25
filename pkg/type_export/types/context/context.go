@@ -90,6 +90,36 @@ func (g *Context) makeUniqueAnonymousIdentifier() string {
 	return fmt.Sprintf("Anonymous%d", g.anonymousCount)
 }
 
+// registerTypeAlias declares a named non-struct type, such as `type Role string`, the first time it
+// is met, so that it is rendered once and referred to by name.
+func (g *Context) registerTypeAlias(reflectType reflect.Type) {
+	if reflectType.Name() == "" || reflectType.Kind() == reflect.Struct {
+		return
+	}
+	if isPrimitive(reflectType.Kind()) && !isPrimitiveAlias(reflectType) {
+		return
+	}
+	if _, ok := g.TypeDeclarations[reflectType]; ok {
+		return
+	}
+
+	typeName, _ := altshiftReflect.GetTypeName(reflectType)
+	identifier := title(typeName)
+	if identifier == "" {
+		identifier = g.makeUniqueAnonymousIdentifier()
+	}
+
+	identifier = g.makeUniqueIdentifier(identifier)
+	g.usedQualifiedNames[identifier] = struct{}{}
+
+	typeDeclaration := &type_declaration.TypeAliasDeclaration{
+		Identifier:  identifier,
+		ReflectType: reflectType,
+	}
+	g.TypeDeclarations[reflectType] = typeDeclaration
+	g.TypeDeclarationsInOrder = append(g.TypeDeclarationsInOrder, typeDeclaration)
+}
+
 func (g *Context) populateProperties(
 	interfaceDeclaration *type_declaration.InterfaceDeclaration,
 	structType reflect.Type,
@@ -156,26 +186,17 @@ func (g *Context) populateProperties(
 		default:
 		}
 
-		useTypeAlias := directType.Name() != "" && (!isPrimitive(directType.Kind()) || isPrimitiveAlias(directType))
-
-		if useTypeAlias {
-			if _, ok := g.TypeDeclarations[directType]; !ok {
-				typeName, _ := altshiftReflect.GetTypeName(directType)
-				identifier := title(typeName)
-				if identifier == "" {
-					identifier = g.makeUniqueAnonymousIdentifier()
-				}
-
-				identifier = g.makeUniqueIdentifier(identifier)
-				g.usedQualifiedNames[identifier] = struct{}{}
-
-				typeDeclaration := &type_declaration.TypeAliasDeclaration{
-					Identifier:  identifier,
-					ReflectType: directType,
-				}
-				g.TypeDeclarations[directType] = typeDeclaration
-				g.TypeDeclarationsInOrder = append(g.TypeDeclarationsInOrder, typeDeclaration)
-			}
+		g.registerTypeAlias(directType)
+		// The elements of a slice, an array or a map are rendered by name as well, so a named type
+		// reached only through one needs its declaration as much as a field of that type does.
+		//exhaustive:ignore
+		switch directType.Kind() {
+		case reflect.Slice, reflect.Array:
+			g.registerTypeAlias(altshiftReflect.RemoveIndirection(directType.Elem()))
+		case reflect.Map:
+			g.registerTypeAlias(altshiftReflect.RemoveIndirection(directType.Key()))
+			g.registerTypeAlias(altshiftReflect.RemoveIndirection(directType.Elem()))
+		default:
 		}
 
 		interfaceDeclaration.Properties = append(
