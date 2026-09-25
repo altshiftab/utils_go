@@ -151,3 +151,75 @@ func TestNewFromTypeEnum(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateKeywordLocation(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                     string
+		schema                   string
+		instance                 any
+		expectedKeywordLocation  string
+		expectedInstanceLocation string
+	}{
+		{
+			name:                     "items under properties",
+			schema:                   `{"type": "object", "properties": {"roles": {"type": "array", "items": {"enum": ["a"]}}}}`,
+			instance:                 map[string]any{"roles": []any{"a", "b"}},
+			expectedKeywordLocation:  "#/properties/roles/items/enum",
+			expectedInstanceLocation: "#/roles/1",
+		},
+		{
+			name:                     "prefixItems",
+			schema:                   `{"type": "array", "prefixItems": [{"type": "string"}, {"type": "integer"}]}`,
+			instance:                 []any{"a", "b"},
+			expectedKeywordLocation:  "#/prefixItems/1/type",
+			expectedInstanceLocation: "#/1",
+		},
+		{
+			name:                     "items after prefixItems",
+			schema:                   `{"type": "array", "prefixItems": [{"type": "string"}], "items": {"type": "integer"}}`,
+			instance:                 []any{"a", "b"},
+			expectedKeywordLocation:  "#/items/type",
+			expectedInstanceLocation: "#/1",
+		},
+		{
+			name:                     "then",
+			schema:                   `{"if": {"type": "string"}, "then": {"minLength": 2}, "else": {"type": "integer"}}`,
+			instance:                 "a",
+			expectedKeywordLocation:  "#/then/minLength",
+			expectedInstanceLocation: "#",
+		},
+		{
+			name:                     "else",
+			schema:                   `{"if": {"type": "string"}, "then": {"minLength": 2}, "else": {"type": "integer"}}`,
+			instance:                 true,
+			expectedKeywordLocation:  "#/else/type",
+			expectedInstanceLocation: "#",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			s, err := New([]byte(testCase.schema))
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+
+			validateError, ok := errors.AsType[*ValidateError](s.Validate(testCase.instance))
+			if !ok || len(validateError.Errors) != 1 {
+				t.Fatalf("expected one validation error, got %v", validateError)
+			}
+
+			got := validateError.Errors[0]
+			if got.KeywordLocation != testCase.expectedKeywordLocation {
+				t.Errorf("keyword location = %q, expected %q", got.KeywordLocation, testCase.expectedKeywordLocation)
+			}
+			if got.InstanceLocation != testCase.expectedInstanceLocation {
+				t.Errorf("instance location = %q, expected %q", got.InstanceLocation, testCase.expectedInstanceLocation)
+			}
+		})
+	}
+}

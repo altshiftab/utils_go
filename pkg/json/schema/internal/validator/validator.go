@@ -219,7 +219,7 @@ func ValidateThen(arg schema.PartSchema, instance any, state *schema.ValidationS
 	if err == nil {
 		state.Notes.AddNotes(subState.Notes)
 	}
-	return err
+	return withKeywordLocation(err, "then")
 }
 
 // ValidateElse implements the else keyword.
@@ -238,7 +238,7 @@ func ValidateElse(arg schema.PartSchema, instance any, state *schema.ValidationS
 	if err == nil {
 		state.Notes.AddNotes(subState.Notes)
 	}
-	return err
+	return withKeywordLocation(err, "else")
 }
 
 // ValidateDependentSchemas implements the dependentSchemas keyword.
@@ -305,7 +305,7 @@ func ValidatePrefixItems(arg schema.PartSchemas, instance any, state *schema.Val
 				}
 			}
 
-			if err := validateItemSchema(s, val, i, state); err != nil {
+			if err := validateItemSchema(s, val, i, fmt.Sprintf("prefixItems/%d", i), state); err != nil {
 				return err
 			}
 		}
@@ -335,7 +335,7 @@ func ValidatePrefixItems(arg schema.PartSchemas, instance any, state *schema.Val
 				}
 			}
 
-			if err := validateItemSchema(s, val, i, state); err != nil {
+			if err := validateItemSchema(s, val, i, fmt.Sprintf("prefixItems/%d", i), state); err != nil {
 				return err
 			}
 		}
@@ -346,14 +346,28 @@ func ValidatePrefixItems(arg schema.PartSchemas, instance any, state *schema.Val
 
 // validateItemSchema validates one array element against a subschema,
 // tracking the element index in the instance location.
-func validateItemSchema(s *schema.Schema, val any, idx int, state *schema.ValidationState) error {
+// validateItemSchema validates one item against s, the subschema at keywordLocation relative to the
+// schema the keyword belongs to, so that an error names both the item and the keyword it failed.
+func validateItemSchema(s *schema.Schema, val any, idx int, keywordLocation string, state *schema.ValidationState) error {
 	state.PushInstanceToken(strconv.Itoa(idx))
 	err := s.ValidateSubSchema(val, state)
 	if err != nil {
-		err = schema.EnsureInstanceLocation(err, state.InstancePointer())
+		err = withKeywordLocation(schema.EnsureInstanceLocation(err, state.InstancePointer()), keywordLocation)
 	}
 	state.PopInstanceToken()
 	return err
+}
+
+// withKeywordLocation prefixes the keyword location of the validation errors in err with
+// keywordLocation, as properties does for the subschema it applies.
+func withKeywordLocation(err error, keywordLocation string) error {
+	if err == nil {
+		return nil
+	}
+
+	var located error
+	schema.AddError(&located, err, keywordLocation)
+	return located
 }
 
 // ValidateItems implements the items keyword.
@@ -376,7 +390,7 @@ func ValidateItems(arg schema.PartSchema, instance any, state *schema.Validation
 		}
 
 		for ; idx < len(a); idx++ {
-			if err := validateItemSchema(arg.S, a[idx], idx, state); err != nil {
+			if err := validateItemSchema(arg.S, a[idx], idx, "items", state); err != nil {
 				return err
 			}
 		}
@@ -394,7 +408,7 @@ func ValidateItems(arg schema.PartSchema, instance any, state *schema.Validation
 
 		for ; idx < ln; idx++ {
 			e := v.Index(idx).Interface()
-			if err := validateItemSchema(arg.S, e, idx, state); err != nil {
+			if err := validateItemSchema(arg.S, e, idx, "items", state); err != nil {
 				return err
 			}
 		}
@@ -718,7 +732,7 @@ func ValidateUnevaluatedItems(arg schema.PartSchema, instance any, state *schema
 			if slices.Contains(contains, idx) {
 				continue
 			}
-			if err := validateItemSchema(arg.S, a[idx], idx, state); err != nil {
+			if err := validateItemSchema(arg.S, a[idx], idx, "unevaluatedItems", state); err != nil {
 				return err
 			}
 		}
@@ -739,7 +753,7 @@ func ValidateUnevaluatedItems(arg schema.PartSchema, instance any, state *schema
 				continue
 			}
 			e := v.Index(idx).Interface()
-			if err := validateItemSchema(arg.S, e, idx, state); err != nil {
+			if err := validateItemSchema(arg.S, e, idx, "unevaluatedItems", state); err != nil {
 				return err
 			}
 		}
