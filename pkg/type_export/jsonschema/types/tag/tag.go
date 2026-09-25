@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	typeExportErrors "github.com/altshiftab/utils_go/pkg/type_export/errors"
 )
 
 type Tag struct {
@@ -24,7 +26,9 @@ type Tag struct {
 	MaxItems             *int
 	MinItems             *int
 	Format               string
-	OtherOptions         []string
+	// Enum lists the values a string field, or each item of a string slice, may take. Values keep
+	// their case; only the keyword is matched case-insensitively.
+	Enum []string
 }
 
 func New(tagString string) (*Tag, error) {
@@ -48,14 +52,20 @@ func New(tagString string) (*Tag, error) {
 	tag.Name = elements[0]
 
 	for _, option := range elements[1:] {
-		option = strings.ToLower(strings.TrimSpace(option))
-		switch option {
+		option = strings.TrimSpace(option)
+		switch strings.ToLower(option) {
 		case "optional":
 			tag.Optional = true
 		default:
 			key, value, ok := strings.Cut(option, ":")
 			if ok {
-				switch strings.ToLower(key) {
+				switch strings.ToLower(strings.TrimSpace(key)) {
+				case "enum":
+					if value == "" {
+						return nil, altshiftErrors.NewWithTrace(empty_error.New("enum value"), tagString)
+					}
+					tag.Enum = append(tag.Enum, value)
+					continue
 				case "format":
 					tag.Format = value
 					continue
@@ -112,7 +122,10 @@ func New(tagString string) (*Tag, error) {
 					continue
 				}
 			}
-			tag.OtherOptions = append(tag.OtherOptions, option)
+			return nil, altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: %s", typeExportErrors.ErrUnknownTagOption, option),
+				tagString,
+			)
 		}
 	}
 

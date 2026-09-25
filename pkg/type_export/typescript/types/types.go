@@ -9,6 +9,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	typeExportErrors "github.com/altshiftab/utils_go/pkg/type_export/errors"
 	typeExportContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/enum"
 	"github.com/altshiftab/utils_go/pkg/type_export/types/shape"
 	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
 
@@ -205,7 +206,15 @@ func (c *Context) getUnderlyingTypeScriptType(reflectType reflect.Type) (Type, e
 		reflect.Float64:
 		typeScriptType = Number
 	case reflect.String:
-		typeScriptType = String
+		enumValues, err := enum.Values(reflectType)
+		if err != nil {
+			return nil, fmt.Errorf("enum values: %w", err)
+		}
+		if enumValues != nil {
+			typeScriptType = NewStringUnion(enumValues)
+		} else {
+			typeScriptType = String
+		}
 	case reflect.Bool:
 		typeScriptType = Boolean
 	case reflect.Map:
@@ -410,6 +419,19 @@ func (t *InterfaceDeclaration) String() (string, error) {
 					}
 					mapType.IndexType = &TypeParameter{Identifier: fieldShape.Param}
 				}
+			}
+		}
+
+		if schemaTag != nil && len(schemaTag.Enum) > 0 {
+			isSlice, err := enum.TagIsSlice(field.Type)
+			if err != nil {
+				return "", fmt.Errorf("enum tag is slice (%s): %w", identifier, err)
+			}
+			union := NewStringUnion(schemaTag.Enum)
+			if isSlice {
+				typeScriptType = &ArrayType{ItemsType: union}
+			} else {
+				typeScriptType = union
 			}
 		}
 

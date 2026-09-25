@@ -4,6 +4,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
@@ -13,6 +14,7 @@ import (
 	typeExportErrors "github.com/altshiftab/utils_go/pkg/type_export/errors"
 	"github.com/altshiftab/utils_go/pkg/type_export/jsonschema/types/tag"
 	typeExportContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/enum"
 	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
@@ -58,6 +60,14 @@ func isTime(t reflect.Type) bool {
 // GetJSONSchemaType returns a JSON Schema fragment describing the provided type.
 func (c *Context) GetJSONSchemaType(reflectType reflect.Type) (map[string]any, error) {
 	reflectType = altshiftReflect.RemoveIndirection(reflectType)
+
+	enumValues, err := enum.Values(reflectType)
+	if err != nil {
+		return nil, fmt.Errorf("enum values: %w", err)
+	}
+	if enumValues != nil {
+		return map[string]any{"type": schemaTypeString, "enum": toAnySlice(enumValues)}, nil
+	}
 
 	//exhaustive:ignore
 	switch kind := reflectType.Kind(); kind {
@@ -132,6 +142,10 @@ func makeNullable(propertySchema map[string]any) map[string]any {
 		if t != schemaTypeNull {
 			propertySchema["type"] = []any{t, schemaTypeNull}
 		}
+		// An enum is checked against the value too, so null must be among its members.
+		if enumValues, ok := propertySchema["enum"].([]any); ok && !slices.Contains(enumValues, any(nil)) {
+			propertySchema["enum"] = append(enumValues, nil)
+		}
 	case []any:
 		hasNull := false
 		for _, x := range t {
@@ -153,6 +167,37 @@ func makeNullable(propertySchema map[string]any) map[string]any {
 	}
 
 	return propertySchema
+}
+
+// toAnySlice converts values to the []any a schema map holds.
+func toAnySlice(values []string) []any {
+	anyValues := make([]any, 0, len(values))
+	for _, value := range values {
+		anyValues = append(anyValues, value)
+	}
+	return anyValues
+}
+
+// applyEnumTag sets the enum a field's tag lists on its schema, or on its items for a slice.
+func applyEnumTag(propertySchema map[string]any, fieldType reflect.Type, jsonschemaTag *tag.Tag) error {
+	isSlice, err := enum.TagIsSlice(fieldType)
+	if err != nil {
+		return err
+	}
+
+	target := propertySchema
+	if isSlice {
+		items, ok := propertySchema["items"].(map[string]any)
+		if !ok {
+			return altshiftErrors.NewWithTrace(nil_error.New("items schema"))
+		}
+		target = items
+	} else if jsonschemaTag.MinLength == nil {
+		delete(target, "minLength")
+	}
+
+	target["enum"] = toAnySlice(jsonschemaTag.Enum)
+	return nil
 }
 
 // additionalPropertiesMarkerName is the blank field a struct says through what holds for the object
@@ -259,10 +304,13 @@ func (c *Context) buildInterfaceSchema(interfaceDeclaration *type_declaration.In
 			return nil, altshiftErrors.New(fmt.Errorf("get json schema type: %w", err), fieldType)
 		}
 
+		_, hasEnum := propertySchema["enum"]
 		if t, ok := propertySchema["type"].(string); ok {
 			switch t {
 			case schemaTypeString:
-				propertySchema["minLength"] = 1
+				if !hasEnum {
+					propertySchema["minLength"] = 1
+				}
 			case schemaTypeArray:
 				propertySchema["minItems"] = 1
 			}
@@ -299,6 +347,12 @@ func (c *Context) buildInterfaceSchema(interfaceDeclaration *type_declaration.In
 						propertySchema["maxItems"] = *maxItems
 					}
 				}
+			}
+		}
+
+		if jsonschemaTag != nil && len(jsonschemaTag.Enum) > 0 {
+			if err := applyEnumTag(propertySchema, fieldType, jsonschemaTag); err != nil {
+				return nil, fmt.Errorf("apply enum tag (%s): %w", identifier, err)
 			}
 		}
 

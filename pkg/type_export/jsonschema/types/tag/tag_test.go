@@ -1,7 +1,12 @@
 package tag
 
 import (
+	"errors"
+	"slices"
 	"testing"
+
+	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	typeExportErrors "github.com/altshiftab/utils_go/pkg/type_export/errors"
 )
 
 func TestNewEmpty(t *testing.T) {
@@ -96,15 +101,6 @@ func TestNewValidationConstraints(t *testing.T) {
 	if tag.Format != "email" {
 		t.Errorf("Format = %q, want %q", tag.Format, "email")
 	}
-
-	// Regression: minitems/maxitems must NOT also leak into OtherOptions.
-	// Before the bug fix, those cases lacked a `continue` and their raw
-	// option string was appended to OtherOptions.
-	for _, opt := range tag.OtherOptions {
-		if opt == "minitems:2" || opt == "maxitems:8" {
-			t.Errorf("minitems/maxitems leaked into OtherOptions: %q", opt)
-		}
-	}
 }
 
 func TestNewInvalidNumeric(t *testing.T) {
@@ -130,26 +126,74 @@ func TestNewInvalidNumeric(t *testing.T) {
 	}
 }
 
-func TestNewUnknownOptionFallsToOtherOptions(t *testing.T) {
+func TestNewUnknownOption(t *testing.T) {
 	t.Parallel()
 
-	tag, err := New("f,unknown_flag,custom:value")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if tag == nil {
-		t.Fatal("expected non-nil tag")
+	testCases := []struct {
+		name      string
+		tagString string
+	}{
+		{name: "unknown flag", tagString: "f,unknown_flag"},
+		{name: "unknown key and value", tagString: "f,custom:value"},
+		{name: "misspelled keyword", tagString: "f,enun:2"},
 	}
 
-	want := map[string]bool{"unknown_flag": true, "custom:value": true}
-	got := map[string]bool{}
-	for _, opt := range tag.OtherOptions {
-		got[opt] = true
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			tag, err := New(testCase.tagString)
+			if !errors.Is(err, typeExportErrors.ErrUnknownTagOption) {
+				t.Fatalf("err = %v, expected %v", err, typeExportErrors.ErrUnknownTagOption)
+			}
+			if tag != nil {
+				t.Errorf("tag = %+v, expected nil", tag)
+			}
+		})
 	}
-	for k := range want {
-		if !got[k] {
-			t.Errorf("missing %q in OtherOptions: %v", k, tag.OtherOptions)
-		}
+}
+
+func TestNewEnum(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		tagString string
+		expected  []string
+	}{
+		{name: "one value", tagString: "f,enum:a", expected: []string{"a"}},
+		{name: "several values", tagString: "f,enum:a,enum:b,enum:c", expected: []string{"a", "b", "c"}},
+		{name: "case preserved", tagString: "f,enum:BankID", expected: []string{"BankID"}},
+		{name: "keyword case-insensitive", tagString: "f,ENUM:x", expected: []string{"x"}},
+		{name: "value with a colon", tagString: "f,enum:a:b", expected: []string{"a:b"}},
+		{name: "with other options", tagString: "f,optional,enum:a,format:uuid", expected: []string{"a"}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			tag, err := New(testCase.tagString)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tag == nil {
+				t.Fatal("expected non-nil tag")
+			}
+			if !slices.Equal(tag.Enum, testCase.expected) {
+				t.Errorf("Enum = %v, expected %v", tag.Enum, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestNewEnumEmptyValue(t *testing.T) {
+	t.Parallel()
+
+	if _, err := New("f,enum:"); err == nil {
+		t.Fatal("expected an error for an empty enum value")
+	} else if _, ok := errors.AsType[*empty_error.Error](err); !ok {
+		t.Fatalf("err = %v, expected an empty error", err)
 	}
 }
 

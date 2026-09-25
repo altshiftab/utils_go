@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	altshiftUtils "github.com/altshiftab/utils_go/pkg/utils"
@@ -60,4 +61,45 @@ func (a *ArrayType) String() (string, error) {
 	}
 
 	return fmt.Sprintf("%s[]", typeStr), nil
+}
+
+// EnumType is a string limited to a fixed set of values: a text column carrying a CHECK.
+type EnumType struct {
+	Values []string
+}
+
+func (e *EnumType) String() (string, error) { return string(Text), nil }
+
+// quoteLiteral quotes value as a SQL string literal.
+func quoteLiteral(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+}
+
+// CheckConstraint renders the CHECK limiting column to values: IN for a scalar, containment for an
+// array, whose literal is cast to columnType so that a column typed citext[] compares as one.
+func CheckConstraint(column string, columnType string, values []string, isArray bool) string {
+	literals := make([]string, 0, len(values))
+	for _, value := range values {
+		literals = append(literals, quoteLiteral(value))
+	}
+	joined := strings.Join(literals, ", ")
+
+	if isArray {
+		return fmt.Sprintf("CHECK (%s <@ ARRAY[%s]::%s)", column, joined, columnType)
+	}
+	return fmt.Sprintf("CHECK (%s IN (%s))", column, joined)
+}
+
+// enumCheck returns the values postgresType limits a column to, and whether the column is an array
+// of them; nil when it limits nothing.
+func enumCheck(postgresType Type) ([]string, bool) {
+	switch typed := postgresType.(type) {
+	case *EnumType:
+		return typed.Values, false
+	case *ArrayType:
+		if enumType, ok := typed.ItemsType.(*EnumType); ok {
+			return enumType.Values, true
+		}
+	}
+	return nil, false
 }

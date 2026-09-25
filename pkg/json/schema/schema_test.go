@@ -108,3 +108,46 @@ func TestNewFromType(t *testing.T) {
 		})
 	}
 }
+
+type schemaTestRole string
+
+func (schemaTestRole) EnumValues() []string { return []string{"admin", "dd"} }
+
+func TestNewFromTypeEnum(t *testing.T) {
+	t.Parallel()
+	type account struct {
+		Roles []schemaTestRole `json:"roles"`
+		Kind  *string          `json:"kind" jsonschema:"kind,enum:bankid,enum:passport"`
+	}
+
+	s, err := NewFromType[account]()
+	if err != nil {
+		t.Fatalf("NewFromType: %v", err)
+	}
+
+	testCases := []struct {
+		name     string
+		instance any
+		wantErr  bool
+	}{
+		{name: "valid", instance: map[string]any{"roles": []any{"admin", "dd"}, "kind": "bankid"}},
+		{name: "null kind", instance: map[string]any{"roles": []any{"dd"}, "kind": nil}},
+		{name: "unknown role", instance: map[string]any{"roles": []any{"this_is_not_a_valid_role"}, "kind": "bankid"}, wantErr: true},
+		{name: "unknown kind", instance: map[string]any{"roles": []any{"dd"}, "kind": "not_a_type"}, wantErr: true},
+		{name: "kind in another case", instance: map[string]any{"roles": []any{"dd"}, "kind": "BankID"}, wantErr: true},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			err := s.Validate(testCase.instance)
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("Validate(%v): error %v, wantErr %t", testCase.instance, err, testCase.wantErr)
+			}
+			if err != nil {
+				if _, ok := errors.AsType[*ValidateError](err); !ok {
+					t.Errorf("error is not a ValidateError: %v", err)
+				}
+			}
+		})
+	}
+}

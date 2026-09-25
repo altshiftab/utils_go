@@ -14,6 +14,7 @@ import (
 	postgresErrors "github.com/altshiftab/utils_go/pkg/type_export/postgres/errors"
 	"github.com/altshiftab/utils_go/pkg/type_export/postgres/types/tag"
 	typeExportContext "github.com/altshiftab/utils_go/pkg/type_export/types/context"
+	"github.com/altshiftab/utils_go/pkg/type_export/types/enum"
 	"github.com/altshiftab/utils_go/pkg/type_export/types/type_declaration"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
@@ -232,7 +233,15 @@ func (c *Context) GetPostgresType(reflectType reflect.Type) (Type, error) {
 	case reflect.Float64:
 		postgresType = DoublePrecision
 	case reflect.String:
-		postgresType = Text
+		enumValues, err := enum.Values(reflectType)
+		if err != nil {
+			return nil, fmt.Errorf("enum values: %w", err)
+		}
+		if enumValues != nil {
+			postgresType = &EnumType{Values: enumValues}
+		} else {
+			postgresType = Text
+		}
 	case reflect.Bool:
 		postgresType = Boolean
 	case reflect.Slice, reflect.Array:
@@ -508,6 +517,10 @@ func (t *InterfaceDeclaration) String() (string, error) {
 			if check := postgresTag.Check; check != "" {
 				attributes = append(attributes, fmt.Sprintf("CHECK (%s)", check))
 			}
+		}
+
+		if enumValues, isArray := enumCheck(postgresType); enumValues != nil {
+			attributes = append(attributes, CheckConstraint(identifier, typeString, enumValues, isArray))
 		}
 
 		if !optional {

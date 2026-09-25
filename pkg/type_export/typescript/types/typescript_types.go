@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json/v2"
 	"fmt"
 	"strings"
 
@@ -73,6 +74,28 @@ func (u UnionType) String() (string, error) {
 		tsTypes = append(tsTypes, typeStr)
 	}
 	return strings.Join(tsTypes, " | "), nil
+}
+
+// StringLiteralType is a string literal type, such as "admin".
+type StringLiteralType struct {
+	Value string
+}
+
+func (s *StringLiteralType) String() (string, error) {
+	quoted, err := json.Marshal(s.Value)
+	if err != nil {
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err), s.Value)
+	}
+	return string(quoted), nil
+}
+
+// NewStringUnion returns the union of the string literal types of values.
+func NewStringUnion(values []string) *UnionType {
+	types := make([]Type, 0, len(values))
+	for _, value := range values {
+		types = append(types, &StringLiteralType{Value: value})
+	}
+	return &UnionType{Types: types}
 }
 
 type MapType struct {
