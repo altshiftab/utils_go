@@ -14,6 +14,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	authenticatorPkg "github.com/altshiftab/utils_go/pkg/interfaces/authenticator"
+	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token"
 )
 
@@ -144,6 +145,47 @@ func TestParse(t *testing.T) {
 		}
 		if responseError.ServerError != nil {
 			t.Fatalf("a malformed token is not a server error: %#v", responseError.ServerError)
+		}
+	})
+
+	t.Run("verification error is 401", func(t *testing.T) {
+		t.Parallel()
+
+		testCases := []struct {
+			name string
+			err  error
+		}{
+			{
+				name: "unknown key id",
+				err:  fmt.Errorf("%w: %w", altshiftErrors.ErrVerificationError, altshiftJwkErrors.ErrUnknownKeyId),
+			},
+			{
+				name: "signature not verifying",
+				err:  fmt.Errorf("%w: verifier verify: bad signature", altshiftErrors.ErrVerificationError),
+			},
+			{
+				name: "algorithm mismatch",
+				err:  fmt.Errorf("%w: %w", altshiftErrors.ErrVerificationError, mismatch_error.New("alg", "RS256", "ES256")),
+			},
+		}
+
+		for _, testCase := range testCases {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				parser, err := New(tokenExtractor("tok", nil), authenticatorReturning(nil, testCase.err))
+				if err != nil {
+					t.Fatalf("new: %v", err)
+				}
+				_, responseError := parser.Parse(newRequest(t))
+				if responseError == nil || responseError.ProblemDetail == nil ||
+					responseError.ProblemDetail.Status != http.StatusUnauthorized {
+					t.Fatalf("expected 401, got %#v", responseError)
+				}
+				if responseError.ServerError != nil {
+					t.Fatalf("a refused credential is not a server error: %#v", responseError.ServerError)
+				}
+			})
 		}
 	})
 

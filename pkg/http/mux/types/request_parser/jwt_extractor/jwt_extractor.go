@@ -98,6 +98,9 @@ func (p *Parser[T]) Parse(request *http.Request) (*authenticated_token.Token, *m
 			err,
 			altshiftCryptoErrors.ErrSignatureMismatch,
 			altshiftErrors.ErrValidationError,
+			// A token signed by a key the set does not hold, or not verifying under the one it
+			// names, is a credential refused, not a service fault.
+			altshiftErrors.ErrVerificationError,
 			// A token that will not parse is a token the client sent wrong, the
 			// same as one that will not verify. Left out, it falls through to
 			// the server error below and is answered 500 -- so anything at all
