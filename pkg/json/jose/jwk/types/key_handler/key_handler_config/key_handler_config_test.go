@@ -3,6 +3,7 @@ package key_handler_config
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
@@ -48,5 +49,29 @@ func TestNew(t *testing.T) {
 	}
 	if !fc.SkipErrorOnStatus {
 		t.Errorf("SkipErrorOnStatus = false, want true")
+	}
+}
+
+func TestWithUnknownKeyIdRefetchInterval(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		options  []Option
+		expected time.Duration
+	}{
+		{name: "default", expected: DefaultUnknownKeyIdRefetchInterval},
+		{name: "set", options: []Option{WithUnknownKeyIdRefetchInterval(time.Second)}, expected: time.Second},
+		{name: "zero", options: []Option{WithUnknownKeyIdRefetchInterval(0)}, expected: 0},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := New(testCase.options...).UnknownKeyIdRefetchInterval; got != testCase.expected {
+				t.Errorf("UnknownKeyIdRefetchInterval = %v, expected %v", got, testCase.expected)
+			}
+		})
 	}
 }

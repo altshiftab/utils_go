@@ -7,9 +7,11 @@ import (
 	"crypto/rand"
 	"encoding/json/v2"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,6 +19,7 @@ import (
 	altshiftCryptoEcdsa "github.com/altshiftab/utils_go/pkg/crypto/ecdsa"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	ecKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key/ec"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler/key_handler_config"
 )
 
 // ecJwk generates a P-256 key pair and returns its JWK map (with the given kid)
@@ -251,4 +254,133 @@ func TestHandler_GetNamedVerifier_FetchError(t *testing.T) {
 	if _, err := handler.GetNamedVerifier(context.Background(), "key-1"); err == nil {
 		t.Fatal("expected fetch error but got nil")
 	}
+}
+
+// newRotatingServer serves whichever key set was last stored, with the given max-age, counting the
+// requests received.
+func newRotatingServer(t *testing.T, maxAge string, keys []map[string]any) (*httptest.Server, *atomic.Pointer[[]byte], *atomic.Int64) {
+	t.Helper()
+
+	var body atomic.Pointer[[]byte]
+	setKeys(t, &body, keys)
+
+	var hits atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "max-age="+maxAge)
+		_, _ = w.Write(*body.Load())
+	}))
+	t.Cleanup(server.Close)
+
+	return server, &body, &hits
+}
+
+func setKeys(t *testing.T, body *atomic.Pointer[[]byte], keys []map[string]any) {
+	t.Helper()
+
+	data, err := json.Marshal(map[string]any{"keys": keys})
+	if err != nil {
+		t.Fatalf("marshal jwks: %v", err)
+	}
+	body.Store(&data)
+}
+
+func TestHandler_GetNamedVerifier_RotatedKey(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		interval     time.Duration
+		expectFound  bool
+		expectedHits int64
+	}{
+		{name: "refetched for an unknown key id", interval: 0, expectFound: true, expectedHits: 2},
+		{name: "not refetched within the interval", interval: time.Hour, expectFound: false, expectedHits: 1},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			firstKey, _ := ecJwk(t, "key-1")
+			secondKey, _ := ecJwk(t, "key-2")
+			server, body, hits := newRotatingServer(t, "3600", []map[string]any{firstKey})
+
+			handler, err := New(
+				mustParseURL(t, server.URL),
+				key_handler_config.WithUnknownKeyIdRefetchInterval(testCase.interval),
+			)
+			if err != nil {
+				t.Fatalf("new handler: %v", err)
+			}
+
+			if verifier, err := handler.GetNamedVerifier(t.Context(), "key-1"); err != nil || verifier == nil {
+				t.Fatalf("key-1: verifier = %v, err = %v", verifier, err)
+			}
+
+			// The set rotates while the cached copy is still fresh.
+			setKeys(t, body, []map[string]any{firstKey, secondKey})
+
+			verifier, err := handler.GetNamedVerifier(t.Context(), "key-2")
+			if err != nil {
+				t.Fatalf("key-2: %v", err)
+			}
+			if found := verifier != nil; found != testCase.expectFound {
+				t.Errorf("key-2 found = %v, expected %v", found, testCase.expectFound)
+			}
+			if got := hits.Load(); got != testCase.expectedHits {
+				t.Errorf("fetches = %d, expected %d", got, testCase.expectedHits)
+			}
+		})
+	}
+}
+
+func TestHandler_GetNamedVerifier_UnknownKidRateLimited(t *testing.T) {
+	t.Parallel()
+
+	keyMap, _ := ecJwk(t, "key-1")
+	server, _, hits := newRotatingServer(t, "3600", []map[string]any{keyMap})
+
+	handler, err := New(mustParseURL(t, server.URL))
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	for i := range 10 {
+		verifier, err := handler.GetNamedVerifier(t.Context(), fmt.Sprintf("made-up-%d", i))
+		if err != nil || verifier != nil {
+			t.Fatalf("made-up-%d: verifier = %v, err = %v", i, verifier, err)
+		}
+	}
+
+	if got := hits.Load(); got != 1 {
+		t.Errorf("fetches = %d, expected 1 within the default interval", got)
+	}
+}
+
+func TestHandler_GetNamedVerifier_ConcurrentRefresh(t *testing.T) {
+	t.Parallel()
+
+	keyMap, _ := ecJwk(t, "key-1")
+	// max-age=0 expires the set at once, so every call refreshes it while others read it.
+	server, _, _ := newRotatingServer(t, "0", []map[string]any{keyMap})
+
+	handler, err := New(mustParseURL(t, server.URL))
+	if err != nil {
+		t.Fatalf("new handler: %v", err)
+	}
+
+	var waitGroup sync.WaitGroup
+	for range 16 {
+		waitGroup.Go(func() {
+			for range 20 {
+				if verifier, err := handler.GetNamedVerifier(t.Context(), "key-1"); err != nil || verifier == nil {
+					t.Errorf("verifier = %v, err = %v", verifier, err)
+					return
+				}
+			}
+		})
+	}
+	waitGroup.Wait()
 }
