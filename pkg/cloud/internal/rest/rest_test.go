@@ -3,6 +3,7 @@ package rest
 import (
 	"context"
 	"encoding/json/v2"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -90,6 +91,36 @@ func TestSendJson(t *testing.T) {
 	}
 	if value.Name != "value-updated" {
 		t.Errorf("expected name 'value-updated', got %q", value.Name)
+	}
+}
+
+func TestSendBytes(t *testing.T) {
+	t.Parallel()
+
+	server := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("expected PUT, got %s", r.Method)
+		}
+		if contentType := r.Header.Get("Content-Type"); contentType != "text/csv" {
+			t.Errorf("Content-Type = %q, want text/csv", contentType)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read body: %v", err)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.MarshalWrite(w, &testValue{Name: string(body)}); err != nil {
+			t.Errorf("encode: %v", err)
+		}
+	})
+
+	value, err := SendBytes[testValue](context.Background(), http.MethodPut, server.URL, []byte("a,b\n1,2\n"), "text/csv", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if value.Name != "a,b\n1,2\n" {
+		t.Errorf("echoed body = %q", value.Name)
 	}
 }
 

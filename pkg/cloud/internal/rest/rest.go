@@ -58,6 +58,38 @@ func SendJson[T any, B any](
 	return value, nil
 }
 
+// SendBytes performs a request with the given method and a raw body of the
+// given content type, and returns the decoded, nil-checked JSON response.
+func SendBytes[T any](
+	ctx context.Context,
+	method string,
+	urlString string,
+	body []byte,
+	contentType string,
+	options []fetch_config.Option,
+) (*T, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context err: %w", err)
+	}
+
+	options = append(
+		slices.Clip(options),
+		fetch_config.WithMethod(method),
+		fetch_config.WithBody(body),
+		fetch_config.WithHeaders(map[string]string{"Content-Type": contentType}),
+	)
+	_, value, err := altshiftHttpUtils.FetchJson[*T](ctx, urlString, options...)
+	if err != nil {
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+	}
+
+	if value == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("response value"))
+	}
+
+	return value, nil
+}
+
 // Do performs a request with the given method, ignoring the response body.
 func Do(ctx context.Context, method string, urlString string, options []fetch_config.Option) error {
 	if err := ctx.Err(); err != nil {
