@@ -17,6 +17,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_history_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_messages_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/filter"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/forwarding_address"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/history"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/label"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
@@ -116,6 +117,15 @@ func (c *Client) filtersUrl(userId string, filterId string) string {
 	u.Path += url.PathEscape(userId) + "/settings/filters"
 	if filterId != "" {
 		u.Path += "/" + url.PathEscape(filterId)
+	}
+	return u.String()
+}
+
+func (c *Client) forwardingAddressesUrl(userId string, forwardingEmail string) string {
+	u := *c.baseUrl
+	u.Path += url.PathEscape(userId) + "/settings/forwardingAddresses"
+	if forwardingEmail != "" {
+		u.Path += "/" + url.PathEscape(forwardingEmail)
 	}
 	return u.String()
 }
@@ -557,4 +567,93 @@ func (c *Client) DeleteFilter(ctx context.Context, userId string, filterId strin
 	}
 
 	return rest.Do(ctx, http.MethodDelete, c.filtersUrl(userId, filterId), c.fetchOptions(options))
+}
+
+type listForwardingAddressesResponse struct {
+	ForwardingAddresses []*forwarding_address.ForwardingAddress `json:"forwardingAddresses"`
+}
+
+// CreateForwardingAddress registers a forwarding address for the given user. An address outside the
+// user's domain comes back pending, and Gmail mails it a confirmation that someone there has to act on.
+func (c *Client) CreateForwardingAddress(
+	ctx context.Context,
+	userId string,
+	f *forwarding_address.ForwardingAddress,
+	options ...fetch_config.Option,
+) (*forwarding_address.ForwardingAddress, error) {
+	if userId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
+	}
+	if f == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("forwarding address"))
+	}
+
+	return rest.SendJson[forwarding_address.ForwardingAddress](
+		ctx,
+		http.MethodPost,
+		c.forwardingAddressesUrl(userId, ""),
+		f,
+		c.fetchOptions(options),
+	)
+}
+
+// GetForwardingAddress retrieves the forwarding address forwardingEmail for the given user.
+func (c *Client) GetForwardingAddress(
+	ctx context.Context,
+	userId string,
+	forwardingEmail string,
+	options ...fetch_config.Option,
+) (*forwarding_address.ForwardingAddress, error) {
+	if userId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
+	}
+	if forwardingEmail == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("forwarding email"))
+	}
+
+	return rest.GetJson[forwarding_address.ForwardingAddress](
+		ctx,
+		c.forwardingAddressesUrl(userId, forwardingEmail),
+		c.fetchOptions(options),
+	)
+}
+
+// ListForwardingAddresses retrieves all forwarding addresses for the given user.
+func (c *Client) ListForwardingAddresses(
+	ctx context.Context,
+	userId string,
+	options ...fetch_config.Option,
+) ([]*forwarding_address.ForwardingAddress, error) {
+	if userId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
+	}
+
+	response, err := rest.GetJson[listForwardingAddressesResponse](
+		ctx,
+		c.forwardingAddressesUrl(userId, ""),
+		c.fetchOptions(options),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.ForwardingAddresses, nil
+}
+
+// DeleteForwardingAddress deletes the forwarding address forwardingEmail for the given user, and revokes
+// its verification.
+func (c *Client) DeleteForwardingAddress(
+	ctx context.Context,
+	userId string,
+	forwardingEmail string,
+	options ...fetch_config.Option,
+) error {
+	if userId == "" {
+		return altshiftErrors.NewWithTrace(empty_error.New("user id"))
+	}
+	if forwardingEmail == "" {
+		return altshiftErrors.NewWithTrace(empty_error.New("forwarding email"))
+	}
+
+	return rest.Do(ctx, http.MethodDelete, c.forwardingAddressesUrl(userId, forwardingEmail), c.fetchOptions(options))
 }
