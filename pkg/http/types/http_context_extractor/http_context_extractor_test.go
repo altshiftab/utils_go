@@ -224,6 +224,12 @@ func TestExtractNormalizedHeaders(t *testing.T) {
 			avoidParts: []string{"signature"},
 		},
 		{
+			name:       "X-Goog-Api-Key masked",
+			header:     http.Header{"X-Goog-Api-Key": {"AIzaSyExampleExampleExampleExample0000"}},
+			wantParts:  []string{"X-Goog-Api-Key: (MASKED)\r\n"},
+			avoidParts: []string{"AIzaSyExampleExampleExampleExample0000"},
+		},
+		{
 			name: "Authorization Bearer with JWS",
 			header: http.Header{
 				"Authorization": {"Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIn0.Q70dVMtrOQzEFmGOxPAKbNOUSQMISCLhEDfGpMG0WM4"},

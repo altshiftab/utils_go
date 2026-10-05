@@ -121,6 +121,10 @@ func extractNormalizedHeaders(host string, header http.Header, maskedHeaders map
 				value = maskCookieHeader(value)
 			} else if name == "X-Goog-Iap-Jwt-Assertion" {
 				value = maskJws(value)
+			} else if name == "X-Goog-Api-Key" {
+				// A Google API key, as the Gemini client and others send it. It is
+				// opaque rather than a JWS, so nothing of it is kept.
+				value = maskedValue
 			}
 
 			headerStrings = append(headerStrings, fmt.Sprintf("%s: %s\r\n", name, value))
