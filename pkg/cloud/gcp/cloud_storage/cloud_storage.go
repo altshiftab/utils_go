@@ -275,6 +275,67 @@ func (c *Client) DeleteObject(ctx context.Context, bucketName string, objectName
 	return nil
 }
 
+// CopyObject copies an object to another name, in the same bucket or another
+// one, and returns the copy's metadata.
+//
+// The copy happens inside Cloud Storage: the bytes never travel to the caller
+// and back, which is what makes it the right way to move an object between
+// buckets rather than a download followed by an insert. It is a copy and not a
+// move -- the source is left alone, so a caller that wants a move deletes the
+// source once the copy has returned, and a failure between the two leaves two
+// copies rather than none.
+//
+// An existing destination is replaced, which is what makes a retry safe: the
+// same source copied again writes the same bytes.
+func (c *Client) CopyObject(
+	ctx context.Context,
+	sourceBucketName string,
+	sourceObjectName string,
+	destinationBucketName string,
+	destinationObjectName string,
+	options ...fetch_config.Option,
+) (*object.Object, error) {
+	if sourceBucketName == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("source bucket name"))
+	}
+	if sourceObjectName == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("source object name"))
+	}
+	if destinationBucketName == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("destination bucket name"))
+	}
+	if destinationObjectName == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("destination object name"))
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context err: %w", err)
+	}
+
+	source := "b/" + sourceBucketName + "/o/" + sourceObjectName
+	destination := "b/" + destinationBucketName + "/o/" + destinationObjectName
+
+	u := *c.baseUrl
+	u.RawPath = u.Path +
+		"b/" + url.PathEscape(sourceBucketName) + "/o/" + url.PathEscape(sourceObjectName) +
+		"/copyTo/" +
+		"b/" + url.PathEscape(destinationBucketName) + "/o/" + url.PathEscape(destinationObjectName)
+	u.Path += source + "/copyTo/" + destination
+	urlString := u.String()
+
+	options = append(append(c.config.FetchOptions, options...), fetch_config.WithMethod(http.MethodPost))
+
+	_, copiedObject, err := altshiftHttpUtils.FetchJson[*object.Object](ctx, urlString, options...)
+	if err != nil {
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+	}
+	if copiedObject == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("copied object"))
+	}
+
+	return copiedObject, nil
+}
+
 // InsertObject uploads an object to a bucket using a multipart upload.
 // The metadata should have at least its Name field set. The data parameter contains
 // the object content, and contentType specifies its MIME type.

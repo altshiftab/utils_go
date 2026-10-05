@@ -332,6 +332,110 @@ func TestListObjects_NilQuery(t *testing.T) {
 	}
 }
 
+func TestCopyObject(t *testing.T) {
+	t.Parallel()
+
+	path := ""
+
+	client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		path = r.URL.Path
+
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(`{"name":"moved.eml","bucket":"destination"}`)); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	})
+
+	copied, err := client.CopyObject(
+		context.Background(), "landing", "reply.eml", "destination", "moved.eml",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Both halves in one path is the whole of the call: a copy naming the wrong
+	// destination silently writes somewhere else.
+	if want := "/b/landing/o/reply.eml/copyTo/b/destination/o/moved.eml"; !strings.Contains(path, want) {
+		t.Errorf("path = %q, want it to contain %q", path, want)
+	}
+	if copied == nil || copied.Name != "moved.eml" {
+		t.Errorf("copied = %+v, want the destination object", copied)
+	}
+}
+
+// TestCopyObject_EscapesNames covers a name that is not a single path segment.
+// An object name may contain slashes, and an unescaped one would address a
+// different object than the caller asked for.
+func TestCopyObject_EscapesNames(t *testing.T) {
+	t.Parallel()
+
+	escaped := ""
+
+	client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		escaped = r.URL.EscapedPath()
+
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(`{"name":"b/c.eml"}`)); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	})
+
+	if _, err := client.CopyObject(
+		context.Background(), "landing", "a/b.eml", "destination", "b/c.eml",
+	); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(escaped, "a%2Fb.eml") || !strings.Contains(escaped, "b%2Fc.eml") {
+		t.Errorf("escaped path = %q, want both names escaped", escaped)
+	}
+}
+
+func TestCopyObject_RefusesMissingArguments(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                  string
+		sourceBucketName      string
+		sourceObjectName      string
+		destinationBucketName string
+		destinationObjectName string
+	}{
+		{name: "no source bucket", sourceObjectName: "o", destinationBucketName: "d", destinationObjectName: "o"},
+		{name: "no source object", sourceBucketName: "s", destinationBucketName: "d", destinationObjectName: "o"},
+		{name: "no destination bucket", sourceBucketName: "s", sourceObjectName: "o", destinationObjectName: "o"},
+		{name: "no destination object", sourceBucketName: "s", sourceObjectName: "o", destinationBucketName: "d"},
+	}
+
+	// Against the test server rather than NewClient: a client pointed at the
+	// real API fails on the network whether the guards are there or not.
+	client := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(`{"name":"copied"}`)); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	})
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := client.CopyObject(
+				context.Background(),
+				testCase.sourceBucketName,
+				testCase.sourceObjectName,
+				testCase.destinationBucketName,
+				testCase.destinationObjectName,
+			); err == nil {
+				t.Errorf("%s: was accepted", testCase.name)
+			}
+		})
+	}
+}
+
 func TestDeleteObject(t *testing.T) {
 	t.Parallel()
 
