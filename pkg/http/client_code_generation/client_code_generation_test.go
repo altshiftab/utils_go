@@ -144,6 +144,56 @@ func TestRenderJson(t *testing.T) {
 	}
 }
 
+// A plain CBOR body is encoded by the generated client. It was not, once: the
+// content type said CBOR and the body was the object, which the encoder beside
+// it would have turned into bytes had anything asked it to.
+func TestRenderCbor(t *testing.T) {
+	t.Parallel()
+
+	endpoints := []*endpointPkg.Endpoint{
+		{
+			Method: "POST",
+			Path:   "/api/upload",
+			BodyLoader: &body_loader.Loader{
+				ContentType: "application/cbor",
+			},
+			Hint: &endpointPkg.Hint{
+				InputType:         reflect.TypeFor[coseUploadInput](),
+				OutputType:        reflect.TypeFor[uploadOutput](),
+				OutputContentType: "application/json",
+			},
+		},
+	}
+
+	output, err := Render(endpoints, nil)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+
+	for _, expected := range []string{
+		`import {encode as cborEncode} from "@altshiftab/utils/cbor";`,
+		"input: CoseUploadInput",
+		"const data = cborEncode(input);",
+		`"Content-Type": "application/cbor",`,
+		"body: data,",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Errorf("expected output to contain %q, got:\n%s", expected, output)
+		}
+	}
+
+	// Nothing here is signed or encrypted, so neither apparatus is imported.
+	for _, unexpected := range []string{
+		`from "@altshiftab/utils/cose"`,
+		`from "jose"`,
+		"serverJwk",
+	} {
+		if strings.Contains(output, unexpected) {
+			t.Errorf("expected no %q for a plain cbor client, got:\n%s", unexpected, output)
+		}
+	}
+}
+
 func TestRenderCose(t *testing.T) {
 	t.Parallel()
 

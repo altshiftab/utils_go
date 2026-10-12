@@ -29,7 +29,10 @@ type GlobalTemplateInput struct {
 	CseServerPublicJwk       string
 	UseEncryption            bool
 	UseCose                  bool
-	HasBinaryOutput          bool
-	AuthenticationMode       template_options.AuthenticationMode
-	AcceptBaseUrlArgument    bool
+	// UseCbor is whether any endpoint carries a plain CBOR body, which needs the
+	// encoder imported even where nothing is signed or encrypted.
+	UseCbor               bool
+	HasBinaryOutput       bool
+	AuthenticationMode    template_options.AuthenticationMode
+	AcceptBaseUrlArgument bool
 }

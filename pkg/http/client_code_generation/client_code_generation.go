@@ -56,6 +56,7 @@ func endpointContentType(endpoint *endpointPkg.Endpoint) string {
 }
 
 const (
+	contentTypeCbor = "application/cbor"
 	contentTypeCose = "application/cose"
 	contentTypeJose = "application/jose"
 )
@@ -298,7 +299,7 @@ func makeTemplateInput(
 		templateInputs = append(
 			templateInputs,
 			&clientCodeGenerationTypes.TemplateInput{
-				Name: endpointPkg.OperationName(method, path),
+				Name:                      endpointPkg.OperationName(method, path),
 				InputType:                 typescriptInputType,
 				UrlInputType:              typescriptUrlInputType,
 				ReturnType:                typescriptOutputType,
@@ -337,6 +338,7 @@ func Render(
 
 	var useEncryption bool
 	var useCose bool
+	var useCbor bool
 	var hasBinaryOutput bool
 	for _, templateInput := range templateInputs {
 		// Determine if any endpoint requires encryption (either request or response)
@@ -345,6 +347,9 @@ func Render(
 		}
 		if templateInput.ContentType == contentTypeCose {
 			useCose = true
+		}
+		if templateInput.ContentType == contentTypeCbor {
+			useCbor = true
 		}
 		if templateInput.BinaryOutput {
 			hasBinaryOutput = true
@@ -368,6 +373,7 @@ func Render(
 			CseKeyAlgorithmCurve:     templateOptions.CseKeyAlgorithmCurve,
 			UseEncryption:            useEncryption,
 			UseCose:                  useCose,
+			UseCbor:                  useCbor,
 			HasBinaryOutput:          hasBinaryOutput,
 			AuthenticationMode:       templateOptions.AuthenticationMode,
 			AcceptBaseUrlArgument:    templateOptions.AcceptBaseUrlArgument,

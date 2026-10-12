@@ -9,8 +9,10 @@
 import type {JWK} from "jose";
 import {compactDecrypt, CompactEncrypt, exportJWK, generateKeyPair, importJWK} from "jose";
 {{- end }}
-{{- if .Globals.UseCose }}
+{{- if or .Globals.UseCose .Globals.UseCbor }}
 import {encode as cborEncode} from "@altshiftab/utils/cbor";
+{{- end }}
+{{- if .Globals.UseCose }}
 import {encrypt as coseEncrypt} from "@altshiftab/utils/cose";
 {{- end }}
 {{- if .Globals.HasBinaryOutput }}
@@ -113,7 +115,12 @@ export async function {{ .Endpoint.Name }}(
         keyIdentifier: new TextEncoder().encode(serverJwk.kid),
     });
         {{- else }}
-    const data = {{ if or (eq .Endpoint.ContentType "application/json") (hasSuffix .Endpoint.ContentType "+json") }}JSON.stringify(input){{ else if $formInput }}input{{ else }}(input as any){{ end }};
+    {{- /*
+        A CBOR body is encoded rather than handed over as it stands: the content type says what the
+        bytes are, and sending an object under it would be sending something else. The COSE branch
+        above encodes too, which is why nothing but a plain CBOR body reaches here.
+    */}}
+    const data = {{ if or (eq .Endpoint.ContentType "application/json") (hasSuffix .Endpoint.ContentType "+json") }}JSON.stringify(input){{ else if eq .Endpoint.ContentType "application/cbor" }}cborEncode(input){{ else if $formInput }}input{{ else }}(input as any){{ end }};
         {{- end }}
     {{- end }}
     {{- if .Endpoint.BinaryOutput }}
