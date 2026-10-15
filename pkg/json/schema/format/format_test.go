@@ -106,6 +106,7 @@ func TestTimeFormat(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Per-format table tests are intentionally parallel in structure.
 func TestDurationFormat(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
@@ -352,11 +353,25 @@ func TestURIFormat(t *testing.T) {
 		{name: "https URL", instance: "https://example.com/path", wantErr: false},
 		{name: "mailto URI", instance: "mailto:user@example.com", wantErr: false},
 		{name: "URL with query and fragment", instance: "https://example.com/path?q=1#frag", wantErr: false},
+		// The path cases below are written other than as url.URL would escape
+		// them, so that the parsed URL carries a RawPath to be checked.
+		{name: "percent-encoded reserved characters in path", instance: "http://www.fsb.ru/fsb/press/message/single.htm%21id%3D10440866%40fsbMessage.html", wantErr: false},
+		{name: "percent-encoded sub-delim in path", instance: "https://example.com/a%3Db", wantErr: false},
+		{name: "exclamation mark in path", instance: "https://example.com/a!b", wantErr: false},
+		{name: "apostrophe in path", instance: "https://example.com/a'b", wantErr: false},
+		{name: "asterisk in path", instance: "https://example.com/a*b", wantErr: false},
+		{name: "colon in escaped path", instance: "https://example.com/a:b%3Dc", wantErr: false},
+		{name: "every pchar in path", instance: "https://example.com/-._~%20!$&'()*+,;=:@/", wantErr: false},
 		{name: "relative reference", instance: "/foo", wantErr: true},
 		{name: "missing scheme", instance: "example.com", wantErr: true},
 		{name: "non-ASCII in path", instance: "https://example.com/ümlaut", wantErr: true},
+		{name: "non-ASCII in escaped path", instance: "https://example.com/%3Dümlaut", wantErr: true},
 		{name: "backslash in fragment", instance: "https://example.com/#\\", wantErr: true},
 		{name: "space in path", instance: "https://example.com/a b", wantErr: true},
+		{name: "double quote in path", instance: `https://example.com/a"b`, wantErr: true},
+		{name: "pipe in escaped path", instance: "https://example.com/a%3Db|c", wantErr: true},
+		{name: "non-hex percent-encoding in path", instance: "https://example.com/a%6Gb", wantErr: true},
+		{name: "lone percent sign in path", instance: "https://example.com/a%", wantErr: true},
 		{name: "empty string", instance: "", wantErr: true},
 	}
 	for _, testCase := range testCases {
@@ -381,9 +396,12 @@ func TestURIReferenceFormat(t *testing.T) {
 		{name: "non-string instance", instance: 42, wantErr: false},
 		{name: "absolute URL", instance: "https://example.com/path", wantErr: false},
 		{name: "relative reference", instance: "/foo", wantErr: false},
+		{name: "percent-encoded relative reference", instance: "/a%3Db", wantErr: false},
+		{name: "relative reference with sub-delims", instance: "/a!b'c*d", wantErr: false},
 		{name: "fragment only", instance: "#fragment", wantErr: false},
 		{name: "empty string", instance: "", wantErr: false},
 		{name: "leading double backslash", instance: `\\server\share`, wantErr: true},
+		{name: "pipe in escaped relative reference", instance: "/a%3Db|c", wantErr: true},
 		{name: "backslash in fragment", instance: "https://example.com/#\\", wantErr: true},
 		{name: "non-ASCII in path", instance: "/ümlaut", wantErr: true},
 	}

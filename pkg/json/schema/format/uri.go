@@ -105,14 +105,19 @@ func checkURI(uri *url.URL, ui uriOrIRI) bool {
 		return true
 	}
 
-	// The testsuite expects various things to be rejected.
+	// The path is held to RFC 3986's pchar: unreserved, pct-encoded, sub-delims,
+	// ":" and "@", segments separated by "/". RawPath is only set when the path
+	// was written other than as url.URL would escape it, which is where anything
+	// outside that set can hide; a path left empty was escaped canonically and
+	// holds nothing else. A "%" in it always opens a valid escape, url.Parse
+	// having rejected any other.
 	for i := range uri.RawPath {
 		c := uri.RawPath[i]
 		if ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') {
 			continue
 		}
 		switch c {
-		case '-', '_', '.', '~', '@', '&', '=', '+', '$', '/', ';', ',', '(', ')', '#':
+		case '-', '.', '_', '~', '%', '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '@', '/':
 			continue
 		default:
 			return false
