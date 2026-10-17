@@ -136,12 +136,9 @@ func (c *Client) Acknowledge(
 
 	urlString := c.subscriptionUrl(project, subscription, "acknowledge")
 
-	// The response is an empty object; there is nothing to read and nothing to
-	// decode into.
 	options = append(
 		append(c.config.FetchOptions, options...),
 		fetch_config.WithMethod(http.MethodPost),
-		fetch_config.WithSkipReadResponseBody(true),
 	)
 	if _, _, err := altshiftHttpUtils.FetchJsonWithBody[*struct{}](
 		ctx,

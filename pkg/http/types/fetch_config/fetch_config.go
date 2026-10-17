@@ -14,9 +14,11 @@ const (
 )
 
 type Config struct {
-	Method               string
-	Headers              map[string]string
-	Body                 []byte
+	Method  string
+	Headers map[string]string
+	Body    []byte
+	// SkipReadResponseBody hands the response body to the caller unread and unclosed; the caller must close it.
+	// As with http.Client.Do, a response returned with an error has its body closed already.
 	SkipReadResponseBody bool
 	SkipErrorOnStatus    bool
 	RetryConfig          *retry_config.Config

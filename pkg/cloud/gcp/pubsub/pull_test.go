@@ -4,15 +4,18 @@ import (
 	"encoding/base64"
 	"encoding/json/v2"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync/atomic"
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/pubsub_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/types/acknowledge_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/types/message"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 // clientFor points a client at a test server standing in for the API.
@@ -202,6 +205,44 @@ func TestAcknowledge(t *testing.T) {
 	}
 	if len(gotAckIds) != 2 || gotAckIds[0] != "a" || gotAckIds[1] != "b" {
 		t.Errorf("ack ids: got %v, want [a b]", gotAckIds)
+	}
+}
+
+// TestAcknowledgeReusesConnection checks that acknowledging closes the response: over HTTP/1 an
+// unclosed body holds its connection, so a consumer acknowledging every pull would open one each time.
+func TestAcknowledgeReusesConnection(t *testing.T) {
+	t.Parallel()
+
+	var connections atomic.Int64
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			connections.Add(1)
+		}
+	}
+	server.Start()
+	defer server.Close()
+
+	// A client of its own: a parallel test closing its server closes the default transport's idle connections.
+	baseUrl, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse server url: %v", err)
+	}
+	client := pubsub.NewClient(
+		pubsub_config.WithBaseUrl(baseUrl),
+		pubsub_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())),
+	)
+	for range 3 {
+		if err := client.Acknowledge(t.Context(), "p", "s", []string{"a"}); err != nil {
+			t.Fatalf("acknowledge: %v", err)
+		}
+	}
+
+	if got := connections.Load(); got != 1 {
+		t.Errorf("connections: got %d, want 1", got)
 	}
 }
 

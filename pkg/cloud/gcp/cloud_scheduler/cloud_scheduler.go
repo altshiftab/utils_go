@@ -320,7 +320,6 @@ func (client *Client) DeleteJob(ctx context.Context, name string, options ...fet
 	options = append(
 		append(client.config.FetchOptions, options...),
 		fetch_config.WithMethod(http.MethodDelete),
-		fetch_config.WithSkipReadResponseBody(true),
 	)
 	if _, _, err := altshiftHttpUtils.Fetch(ctx, urlString, options...); err != nil {
 		return altshiftErrors.New(fmt.Errorf("fetch: %w", err), urlString)

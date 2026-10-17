@@ -3,9 +3,11 @@ package cloud_scheduler
 import (
 	"encoding/json/v2"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync/atomic"
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_scheduler/cloud_scheduler_config"
@@ -13,6 +15,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_scheduler/types/job"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_scheduler/types/list_jobs_response"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_scheduler/types/oidc_token"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 // recorder is a stand-in for the API that records what it was asked and answers with what the test
@@ -386,6 +389,45 @@ func TestDeleteJob(t *testing.T) {
 	}
 	if expected := "/v1/projects/p/locations/l/jobs/a-job"; recorded.path != expected {
 		t.Errorf("expected the path %q, got %q", expected, recorded.path)
+	}
+}
+
+// TestDeleteJobReusesConnection checks that deleting closes the response: over HTTP/1 an unclosed
+// body holds its connection, and the API answers a delete with an empty object rather than nothing.
+func TestDeleteJobReusesConnection(t *testing.T) {
+	t.Parallel()
+
+	var connections atomic.Int64
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{}`))
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			connections.Add(1)
+		}
+	}
+	server.Start()
+	t.Cleanup(server.Close)
+
+	baseUrl, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("could not parse the server url: %v", err)
+	}
+	// A client of its own: a parallel test closing its server closes the default transport's idle connections.
+	client := NewClient(
+		cloud_scheduler_config.WithBaseUrl(baseUrl),
+		cloud_scheduler_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())),
+	)
+
+	for range 3 {
+		if err := client.DeleteJob(t.Context(), "projects/p/locations/l/jobs/a-job"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+
+	if got := connections.Load(); got != 1 {
+		t.Errorf("expected 1 connection, got %d", got)
 	}
 }
 

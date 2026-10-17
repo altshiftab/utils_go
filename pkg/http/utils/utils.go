@@ -106,6 +106,16 @@ func retryWaitDuration(
 	return waitDuration, false
 }
 
+// closeResponseBody closes a response body, logging a failure rather than returning it.
+func closeResponseBody(ctx context.Context, body io.Closer) {
+	if err := body.Close(); err != nil {
+		slog.WarnContext(
+			altshiftContext.WithError(ctx, altshiftErrors.NewWithTrace(fmt.Errorf("http response body close: %w", err))),
+			"An error occurred when closing the response body.",
+		)
+	}
+}
+
 //nolint:contextcheck // The logging context is deliberately detached from the caller context (which may be cancelled) while still carrying the HTTP metadata.
 func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config.Config) (*http.Response, []byte, error) {
 	if request == nil {
@@ -176,17 +186,7 @@ func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config
 	var responseBodyData []byte
 	if !fetchConfig.SkipReadResponseBody {
 		responseBodyData, err = io.ReadAll(responseBody)
-		defer func() {
-			if err := responseBody.Close(); err != nil {
-				slog.WarnContext(
-					altshiftContext.WithError(
-						ctx,
-						altshiftErrors.NewWithTrace(fmt.Errorf("http response body close: %w", err)),
-					),
-					"An error occurred when closing the response body.",
-				)
-			}
-		}()
+		defer closeResponseBody(ctx, responseBody)
 
 		if err != nil {
 			return response, nil, altshiftErrors.NewWithTraceCtx(
@@ -211,6 +211,10 @@ func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config
 
 	if !fetchConfig.SkipErrorOnStatus {
 		if !strings.HasPrefix(strconv.Itoa(response.StatusCode), "2") {
+			// As with http.Client.Do, a body is the caller's only on success; one left unread is closed here.
+			if fetchConfig.SkipReadResponseBody {
+				closeResponseBody(ctx, responseBody)
+			}
 			return response, responseBodyData, altshiftErrors.NewWithTraceCtx(
 				ctxWithHttpContext,
 				&altshiftHttpErrors.Non2xxStatusCodeError{StatusCode: response.StatusCode},
@@ -274,6 +278,12 @@ func fetchWithRetryConfig(
 				if ctxErr := ctx.Err(); ctxErr != nil {
 					break
 				}
+			}
+
+			// The previous attempt is superseded. fetch has closed its body unless it handed it over
+			// unread, which it does only on success.
+			if fetchConfig.SkipReadResponseBody && err == nil && response != nil {
+				closeResponseBody(ctx, response.Body)
 			}
 
 			// The previous attempt consumed the request body; replay it so the

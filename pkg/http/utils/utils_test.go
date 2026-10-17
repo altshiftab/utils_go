@@ -151,6 +151,30 @@ func TestFetch_SkipReadResponseBody(t *testing.T) {
 	}
 }
 
+// As with http.Client.Do, a response that comes back with an error has its body closed, so a caller
+// returning on the error leaks nothing.
+func TestFetch_SkipReadResponseBodyClosedOnError(t *testing.T) {
+	t.Parallel()
+
+	server := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		if _, err := io.WriteString(w, "refused"); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	})
+
+	resp, _, err := Fetch(context.Background(), server.URL, fetch_config.WithSkipReadResponseBody(true))
+	if err == nil {
+		t.Fatal("Fetch: got no error for a 400")
+	}
+	if resp == nil {
+		t.Fatal("Fetch: got no response alongside the error")
+	}
+	if data, readErr := io.ReadAll(resp.Body); readErr == nil {
+		t.Errorf("body read %q, want it already closed", data)
+	}
+}
+
 func TestFetch_EmptyURL(t *testing.T) {
 	t.Parallel()
 
@@ -415,6 +439,83 @@ func TestFetch_RetryExhaustedReturnsError(t *testing.T) {
 	var non2xx *altshiftHttpErrors.Non2xxStatusCodeError
 	if !errors.As(err, &non2xx) {
 		t.Errorf("err = %v, want it to wrap *Non2xxStatusCodeError", err)
+	}
+}
+
+// bodyCollector passes requests to a real transport and keeps each response body it hands out, so a test
+// can read them afterwards and see which were closed.
+type bodyCollector struct {
+	transport http.RoundTripper
+	bodies    []io.ReadCloser
+}
+
+func (collector *bodyCollector) RoundTrip(request *http.Request) (*http.Response, error) {
+	response, err := collector.transport.RoundTrip(request)
+	if err != nil || response == nil {
+		return response, err
+	}
+	collector.bodies = append(collector.bodies, response.Body)
+	return response, nil
+}
+
+// A retry with bodies left unread has to close the attempt it replaces: the caller only ever sees the last.
+func TestFetch_RetrySkipReadResponseBodyClosesSupersededAttempts(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		options []fetch_config.Option
+	}{
+		// A 503 is an error, so fetch closes the body before the retry sees it.
+		{name: "error on status"},
+		// A 503 is no error, so the body comes back open and the retry has to close it.
+		{name: "skip error on status", options: []fetch_config.Option{fetch_config.WithSkipErrorOnStatus(true)}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var attempts atomic.Int32
+			server := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+				if attempts.Add(1) < 3 {
+					w.WriteHeader(http.StatusServiceUnavailable)
+					if _, err := io.WriteString(w, "busy"); err != nil {
+						t.Errorf("write: %v", err)
+					}
+					return
+				}
+				if _, err := io.WriteString(w, "done"); err != nil {
+					t.Errorf("write: %v", err)
+				}
+			})
+
+			collector := &bodyCollector{transport: server.Client().Transport}
+			options := append([]fetch_config.Option{
+				fetch_config.WithHttpClient(&http.Client{Transport: collector}),
+				fetch_config.WithSkipReadResponseBody(true),
+				fetch_config.WithRetryConfig(retry_config.New(retry_config.WithBaseDelay(time.Millisecond))),
+			}, testCase.options...)
+
+			resp, _, err := Fetch(context.Background(), server.URL, options...)
+			if err != nil {
+				t.Fatalf("Fetch: %v", err)
+			}
+			if len(collector.bodies) != 3 {
+				t.Fatalf("attempts = %d, want 3", len(collector.bodies))
+			}
+			for i, body := range collector.bodies[:2] {
+				if data, readErr := io.ReadAll(body); readErr == nil {
+					t.Errorf("attempt %d: body read %q, want it closed", i+1, data)
+				}
+			}
+
+			data, err := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if err != nil || string(data) != "done" {
+				t.Errorf("final body = %q, %v; want %q left open for the caller", data, err, "done")
+			}
+		})
 	}
 }
 
