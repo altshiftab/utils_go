@@ -31,32 +31,83 @@ func (cef ContextExtractorFunction) Handle(ctx context.Context, record *slog.Rec
 	return cef(ctx, record)
 }
 
+// ExtractorErrorKey is where a record says that an extractor failed on it: among
+// the log's own fields, as the size guard's truncation marker is, rather than
+// under error, which is the error the record is about. A single key, not a group,
+// so that it cannot meet another group of that name in one entry.
+const ExtractorErrorKey = "log.extractor_error"
+
+// PartialExtractionError is an extractor's failure to add some of what it would
+// have, reported with what it did add vouched for: the handler keeps the
+// extractor's fields and records the failure, where it otherwise takes them back.
+type PartialExtractionError struct {
+	Err error
+}
+
+func (e *PartialExtractionError) Error() string {
+	if e == nil || e.Err == nil {
+		return "partial extraction"
+	}
+	return e.Err.Error()
+}
+
+func (e *PartialExtractionError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 type ContextHandler struct {
 	Next       slog.Handler
 	Extractors []ContextExtractor
 }
 
+// WithAttrs returns a handler of its own, as slog requires: changing this one
+// would hand the attributes to every logger that shares it, and to every record
+// logged after, while those loggers read it from other goroutines.
 func (contextHandler *ContextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	contextHandler.Next = contextHandler.Next.WithAttrs(attrs)
-	return contextHandler
+	return &ContextHandler{Next: contextHandler.Next.WithAttrs(attrs), Extractors: contextHandler.Extractors}
 }
 
+// WithGroup returns a handler of its own, for the reason WithAttrs does.
 func (contextHandler *ContextHandler) WithGroup(name string) slog.Handler {
-	contextHandler.Next = contextHandler.Next.WithGroup(name)
-	return contextHandler
+	return &ContextHandler{Next: contextHandler.Next.WithGroup(name), Extractors: contextHandler.Extractors}
 }
 
 func (contextHandler *ContextHandler) Enabled(ctx context.Context, level slog.Level) bool {
 	return contextHandler.Next.Enabled(ctx, level)
 }
 
+// Handle runs the extractors before passing the record on. One that fails costs
+// the record what that extractor would have added, never the record itself: what
+// it did add is taken back, unless it vouches for that by returning a
+// PartialExtractionError itself, and the failure is recorded under
+// ExtractorErrorKey. The message is not taken back: an extractor may have masked
+// it, and taking that back would put back what was masked.
 func (contextHandler *ContextHandler) Handle(ctx context.Context, record slog.Record) error {
+	var extractorErrs []error
+
 	for _, extractor := range contextHandler.Extractors {
-		if extractor != nil {
-			if err := extractor.Handle(ctx, &record); err != nil {
-				return fmt.Errorf("extractor handle: %w", err)
-			}
+		if extractor == nil {
+			continue
 		}
+
+		snapshot := record.Clone()
+		if err := extractor.Handle(ctx, &record); err != nil {
+			// The extractor's own error, not one it wraps: an extractor that wraps
+			// another's partial failure in a total one of its own vouches for nothing.
+			if _, partial := err.(*PartialExtractionError); !partial { //nolint:errorlint // Deliberately not errors.As; see above.
+				message := record.Message
+				record = snapshot
+				record.Message = message
+			}
+			extractorErrs = append(extractorErrs, fmt.Errorf("extractor handle: %w", err))
+		}
+	}
+
+	if len(extractorErrs) > 0 {
+		record.AddAttrs(slog.String(ExtractorErrorKey, errors.Join(extractorErrs...).Error()))
 	}
 
 	return contextHandler.Next.Handle(ctx, record)
@@ -224,6 +275,11 @@ func (extractor *ErrorContextExtractor) Handle(ctx context.Context, record *slog
 		return nil
 	}
 
+	// A context extractor that fails costs the error its context, not its
+	// description: the failure is reported as partial, so that what was added
+	// here is kept.
+	var contextExtractorErrs []error
+
 	if logErr, ok := ctx.Value(context2.ErrorContextKey).(error); ok {
 		record.Add(slog.Group("error", extractor.MakeErrorAttrs(logErr)...))
 
@@ -231,11 +287,16 @@ func (extractor *ErrorContextExtractor) Handle(ctx context.Context, record *slog
 			if contextErrCtxPtr := contextErr.GetContext(); contextErrCtxPtr != nil {
 				contextErrCtx := *contextErrCtxPtr
 
-				var metadataRecord slog.Record
-
 				for _, contextExtractor := range extractor.ContextExtractors {
+					if contextExtractor == nil {
+						continue
+					}
+
+					// One of its own, so that a failing extractor leaves nothing behind.
+					var metadataRecord slog.Record
 					if err := contextExtractor.Handle(contextErrCtx, &metadataRecord); err != nil { //nolint:contextcheck // Deliberate: the context attached to the error is the one to extract metadata from.
-						return fmt.Errorf("context extractor handle: %w", err)
+						contextExtractorErrs = append(contextExtractorErrs, fmt.Errorf("context extractor handle: %w", err))
+						continue
 					}
 
 					var attrs []any
@@ -339,6 +400,10 @@ func (extractor *ErrorContextExtractor) Handle(ctx context.Context, record *slog
 				record.Add(slog.Group("error", slog.Group("context", slog.Group("tls", tlsAttrs...))))
 			}
 		}
+	}
+
+	if len(contextExtractorErrs) > 0 {
+		return &PartialExtractionError{Err: errors.Join(contextExtractorErrs...)}
 	}
 
 	return nil

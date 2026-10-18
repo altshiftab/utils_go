@@ -138,6 +138,31 @@ func TestMaskSetCookieHeader(t *testing.T) {
 			input: "session=; Path=/",
 			want:  "session=(MASKED); Path=/",
 		},
+		{
+			name:  "value Go will not read",
+			input: `sid=SECRET\VALUE; Path=/; HttpOnly`,
+			want:  "sid=(MASKED); Path=/; HttpOnly",
+		},
+		{
+			name:  "name Go will not read",
+			input: "s id=SECRET; Secure",
+			want:  "s id=(MASKED); Secure",
+		},
+		{
+			name:  "empty name",
+			input: "=SECRET; Path=/",
+			want:  "(MASKED); Path=/",
+		},
+		{
+			name:  "no equals sign",
+			input: "SECRETONLY",
+			want:  "(MASKED)",
+		},
+		{
+			name:  "what is not an attribute is left out",
+			input: "s id=SEC;RET; Path=/",
+			want:  "s id=(MASKED); Path=/",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -178,6 +203,16 @@ func TestMaskCookieHeader(t *testing.T) {
 			name:  "empty cookie header",
 			input: "",
 			want:  "",
+		},
+		{
+			name:  "pair Go will not read is kept by its name",
+			input: `a=x.y.z; b=SECRET\VALUE`,
+			want:  "a=x.y.(MASKED); b=(MASKED)",
+		},
+		{
+			name:  "pairs without a readable name",
+			input: "a=ok; s id=SECRET; LONE",
+			want:  "a=(MASKED); s id=(MASKED); (MASKED)",
 		},
 	}
 
@@ -1142,6 +1177,53 @@ func TestExtractor_Handle_MaskedRequestBody(t *testing.T) {
 	}
 }
 
+func TestExtractor_Handle_BodyLimit(t *testing.T) {
+	t.Parallel()
+
+	const body = "0123456789abcdefghij"
+
+	testCases := []struct {
+		name    string
+		options []http_context_extractor_config.Option
+		want    string
+	}{
+		{name: "within the default", want: body},
+		{
+			name:    "a limit of its own",
+			options: []http_context_extractor_config.Option{http_context_extractor_config.WithBodyLimit(10)},
+			want:    "0123456789... [truncated, 20 bytes in full]",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/upload", nil)
+			if err != nil {
+				t.Fatalf("new request: %v", err)
+			}
+			ctx := context.WithValue(
+				context.Background(),
+				altshiftHttpContext.HttpContextContextKey,
+				&altshiftHttpTypes.HttpContext{Request: request, RequestBody: []byte(body)},
+			)
+
+			record := &slog.Record{}
+			if err := New(tc.options...).Handle(ctx, record); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got, found := requestBodyContent(t, record)
+			if !found {
+				t.Fatal("http.request.body.content attribute not found in record")
+			}
+			if got != tc.want {
+				t.Errorf("request body content: got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 // TestExtractor_Handle_RequestIdWrongType verifies that a request id that is not a string is left
 // alone rather than added as one.
 func TestExtractor_Handle_RequestIdWrongType(t *testing.T) {
@@ -1546,5 +1628,46 @@ func TestExtractor_Handle_MasksMessageUrls(t *testing.T) {
 	}
 	if !strings.Contains(record.Message, "/verification") {
 		t.Errorf("the message lost the page it was about: %s", record.Message)
+	}
+}
+
+func TestExtractor_Handle_InvalidUtf8(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		target string
+		header http.Header
+	}{
+		{name: "a path", target: "https://example.com/%e5"},
+		{name: "a header", target: "https://example.com/p", header: http.Header{"X-Odd": {"\xe5"}}},
+		{name: "a user agent", target: "https://example.com/p", header: http.Header{"User-Agent": {"Mozilla/5.0 (caf\xe9)"}}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, tc.target, nil)
+			if err != nil {
+				t.Fatalf("new request: %v", err)
+			}
+			for name, values := range tc.header {
+				request.Header[name] = values
+			}
+			ctx := context.WithValue(
+				context.Background(),
+				altshiftHttpContext.HttpContextContextKey,
+				&altshiftHttpTypes.HttpContext{Request: request},
+			)
+
+			record := &slog.Record{}
+			if err := New().Handle(ctx, record); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if record.NumAttrs() == 0 {
+				t.Fatal("expected the exchange's attributes")
+			}
+		})
 	}
 }

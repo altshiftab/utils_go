@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	gmailMessage "github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
 	gmailMessagePart "github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message/message_part"
@@ -69,11 +71,112 @@ func DefaultHeaderExtractor(requestResponse any) string {
 	return DefaultHeaderExtractorWithMasking(requestResponse, nil, "")
 }
 
+const (
+	// DefaultBodyLimit is how much of a body is rendered. What says what an
+	// exchange was about is at its start, and a whole body -- an upload, a
+	// download -- would be copied several times over on its way into an entry.
+	// It is the size guard's string limit (entry_size_guard.DefaultStringLimit),
+	// so that a body that has been cut once is not cut again.
+	DefaultBodyLimit = 4 * 1024
+
+	maskedValue = "(MASKED)"
+)
+
+// isBinary says whether the data holds a byte that text does not, by the
+// content sniffer's own reckoning: a control character other than a tab, a line
+// feed, a form feed, a carriage return or an escape. Its signatures are not
+// consulted, since text may begin as a file format does: "BMW" begins a bitmap.
+func isBinary(data []byte) bool {
+	for _, b := range data {
+		if b <= 0x08 || b == 0x0B || (b >= 0x0E && b <= 0x1A) || (b >= 0x1C && b <= 0x1F) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// makeBody renders a body for an entry. A text body is rendered up to the limit,
+// made valid UTF-8 and marked when cut; a binary one is rendered by its size
+// alone, since made valid it would be nothing but replacement characters. Bytes
+// is the whole length either way, and only what is rendered is copied.
+func makeBody(data []byte, limit int) *schema.Body {
+	if len(data) == 0 {
+		return nil
+	}
+
+	if limit <= 0 {
+		limit = DefaultBodyLimit
+	}
+
+	body := &schema.Body{Bytes: len(data)}
+
+	// Cut at the start of a character rather than inside one, looking back no
+	// further than a character can be long: text that is not UTF-8 has no
+	// starts to find.
+	cut := min(len(data), limit)
+	for back := 0; back < utf8.UTFMax && cut > 0 && cut < len(data) && !utf8.RuneStart(data[cut]); back++ {
+		cut--
+	}
+	if cut < len(data) && !utf8.RuneStart(data[cut]) {
+		cut = min(len(data), limit)
+	}
+
+	prefix := data[:cut]
+	if isBinary(prefix) {
+		body.Content = fmt.Sprintf("[binary, %d bytes]", len(data))
+		return body
+	}
+
+	if utf8.Valid(prefix) {
+		body.Content = string(prefix)
+	} else {
+		body.Content = string(bytes.ToValidUTF8(prefix, []byte("\uFFFD")))
+	}
+
+	if cut < len(data) {
+		body.Content += fmt.Sprintf("... [truncated, %d bytes in full]", len(data))
+	}
+
+	return body
+}
+
+// maskedUrlString is the URL as a string with its password, if it has one,
+// masked. Go's own redaction is used to find it, its placeholder then swapped
+// for the one used for every other mask: a username cannot hold a colon, so the
+// first ":xxxxx@" is the password.
+func maskedUrlString(u *url.URL) string {
+	if u == nil {
+		return ""
+	}
+
+	if u.User == nil {
+		return u.String()
+	}
+
+	if _, ok := u.User.Password(); !ok {
+		return u.String()
+	}
+
+	return strings.Replace(u.Redacted(), ":xxxxx@", ":"+maskedValue+"@", 1)
+}
+
+// ParseHttp renders an exchange, with bodies rendered up to DefaultBodyLimit.
 func ParseHttp(
 	request *http.Request,
 	requestBodyData []byte,
 	response *http.Response,
 	responseBodyData []byte,
+) (*schema.Base, error) {
+	return parseHttp(request, requestBodyData, response, responseBodyData, DefaultBodyLimit)
+}
+
+func parseHttp(
+	request *http.Request,
+	requestBodyData []byte,
+	response *http.Response,
+	responseBodyData []byte,
+	bodyLimit int,
 ) (*schema.Base, error) {
 	if request == nil && len(requestBodyData) == 0 && response == nil && len(responseBodyData) == 0 {
 		return nil, nil
@@ -93,7 +196,9 @@ func ParseHttp(
 	var httpRequest *schema.HttpRequest
 	if request != nil {
 		requestUrl := request.URL
-		originalUrl := requestUrl.String()
+		// A password in the address is a credential, and is masked wherever the
+		// address is rendered.
+		originalUrl := maskedUrlString(requestUrl)
 
 		hostSource := requestUrl.Host
 		if hostSource == "" {
@@ -160,7 +265,9 @@ func ParseHttp(
 		var password string
 		if userInfo := requestUrl.User; userInfo != nil {
 			username = userInfo.Username()
-			password, _ = userInfo.Password()
+			if _, ok := userInfo.Password(); ok {
+				password = maskedValue
+			}
 		}
 
 		// TODO: Maybe I can use `parseTarget()`?
@@ -286,8 +393,8 @@ func ParseHttp(
 		if httpRequest == nil {
 			httpRequest = &schema.HttpRequest{}
 		}
-		httpRequest.Body = &schema.Body{Bytes: len(requestBodyData), Content: string(requestBodyData)}
 		httpRequest.MimeType = http.DetectContentType(requestBodyData)
+		httpRequest.Body = makeBody(requestBodyData, bodyLimit)
 	}
 
 	var httpResponse *schema.HttpResponse
@@ -302,8 +409,8 @@ func ParseHttp(
 		if httpResponse == nil {
 			httpResponse = &schema.HttpResponse{}
 		}
-		httpResponse.Body = &schema.Body{Bytes: len(responseBodyData), Content: string(responseBodyData)}
 		httpResponse.MimeType = http.DetectContentType(responseBodyData)
+		httpResponse.Body = makeBody(responseBodyData, bodyLimit)
 	}
 
 	var ecsHttp *schema.Http
@@ -421,12 +528,26 @@ func MakeHttpMessage(base *schema.Base) string {
 	)
 }
 
+// ParseHttpContext renders an exchange and what surrounds it, with bodies
+// rendered up to DefaultBodyLimit.
 func ParseHttpContext(httpContext *altshiftHttpTypes.HttpContext) (*schema.Base, error) {
+	return ParseHttpContextWithBodyLimit(httpContext, DefaultBodyLimit)
+}
+
+// ParseHttpContextWithBodyLimit is ParseHttpContext with bodies rendered up to
+// the limit; one that is not positive is DefaultBodyLimit.
+func ParseHttpContextWithBodyLimit(httpContext *altshiftHttpTypes.HttpContext, bodyLimit int) (*schema.Base, error) {
 	if httpContext == nil {
 		return nil, nil
 	}
 
-	base, err := ParseHttp(httpContext.Request, httpContext.RequestBody, httpContext.Response, httpContext.ResponseBody)
+	base, err := parseHttp(
+		httpContext.Request,
+		httpContext.RequestBody,
+		httpContext.Response,
+		httpContext.ResponseBody,
+		bodyLimit,
+	)
 	if err != nil {
 		return nil, altshiftErrors.New(fmt.Errorf("parse http: %w", err))
 	}
@@ -555,7 +676,7 @@ func ParseWhoisContext(whoisContext *altshiftWhoisTypes.WhoisContext) (*schema.B
 	}
 	var requestBody *schema.Body
 	if requestData := whoisContext.RequestData; len(requestData) > 0 {
-		requestBody = &schema.Body{Bytes: len(requestData), Content: string(requestData)}
+		requestBody = makeBody(requestData, DefaultBodyLimit)
 	}
 
 	serverAddress := whoisContext.ServerAddress
@@ -570,7 +691,7 @@ func ParseWhoisContext(whoisContext *altshiftWhoisTypes.WhoisContext) (*schema.B
 	}
 	var responseBody *schema.Body
 	if responseData := whoisContext.ResponseData; len(responseData) > 0 {
-		responseBody = &schema.Body{Bytes: len(responseData), Content: string(responseData)}
+		responseBody = makeBody(responseData, DefaultBodyLimit)
 	}
 
 	var whois *schema.Whois

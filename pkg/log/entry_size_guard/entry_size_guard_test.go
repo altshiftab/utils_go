@@ -128,6 +128,36 @@ func TestWrite(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:        "the essentials are kept under slog's own names",
+			entryLimit:  512,
+			stringLimit: 64,
+			entry: func() map[string]any {
+				entry := map[string]any{
+					"time":  "2026-08-13T12:00:00Z",
+					"level": "WARN",
+					"msg":   "An error occurred when fetching a feed.",
+					"error": map[string]any{"message": "unexpected status: 403 Forbidden"},
+				}
+				for i := range 64 {
+					entry[strings.Repeat("k", 8)+string(rune('a'+i%26))+string(rune('a'+i/26))] = strings.Repeat("v", 32)
+				}
+				return entry
+			}(),
+			check: func(t *testing.T, written map[string]any) {
+				t.Helper()
+
+				if written[TruncatedKey] != true {
+					t.Errorf("missing %q marker: %v", TruncatedKey, written)
+				}
+				if written["time"] != "2026-08-13T12:00:00Z" || written["level"] != "WARN" || written["msg"] != "An error occurred when fetching a feed." {
+					t.Errorf("essentials missing: %v", written)
+				}
+				if errorMessage, _ := written["error"].(map[string]any)["message"].(string); errorMessage != "unexpected status: 403 Forbidden" {
+					t.Errorf("error message: got %q", errorMessage)
+				}
+			},
+		},
 	}
 
 	for _, testCase := range testCases {

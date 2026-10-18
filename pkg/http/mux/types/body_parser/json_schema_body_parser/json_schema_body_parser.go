@@ -55,9 +55,10 @@ func (p *Parser[T]) Parse(request *http.Request, body []byte) (T, *response_erro
 	if err := schema.Validate(data); err != nil {
 		// Neither the body nor the schema is among the values. An error value is rendered into
 		// error.input.value, where no masking reaches it, and the body is already in the same
-		// entry under http.request.body.content, where the configured masking does apply. The
-		// schema is a static object, the same on every failure. What the client needs to know is
-		// in the problem detail below.
+		// entry under http.request.body.content, where the configured masking does apply -- its
+		// start, up to the extractor's body limit, with the error's JSON pointers saying where in
+		// it the fault lies. The schema is a static object, the same on every failure. What the
+		// client needs to know is in the problem detail below.
 		wrappedErr := altshiftErrors.New(fmt.Errorf("validate (input): %w", err))
 
 		if validateError, ok := errors.AsType[*altshiftJsonSchema.ValidateError](err); ok {

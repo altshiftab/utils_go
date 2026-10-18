@@ -13,6 +13,7 @@ type Config struct {
 	MaskedHeaders          []*MaskedHeader
 	MaskedRequestBodyUrls  []*schema.Url
 	MaskedResponseBodyUrls []*schema.Url
+	BodyLimit              int
 }
 
 type Option func(*Config)
@@ -64,5 +65,14 @@ func WithMaskedRequestBodyUrls(urlPatterns ...*schema.Url) Option {
 func WithMaskedResponseBodyUrls(urlPatterns ...*schema.Url) Option {
 	return func(config *Config) {
 		config.MaskedResponseBodyUrls = urlPatterns
+	}
+}
+
+// WithBodyLimit sets how much of a request's or a response's body is rendered,
+// in bytes; what is past it is left out and said to be. One that is not
+// positive leaves the default.
+func WithBodyLimit(bodyLimit int) Option {
+	return func(config *Config) {
+		config.BodyLimit = bodyLimit
 	}
 }

@@ -8,11 +8,14 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json/v2"
 	"errors"
+	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net"
 	"net/url"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -198,31 +201,100 @@ func TestContextHandlerHandleRunsExtractors(t *testing.T) {
 func TestContextHandlerHandleExtractorError(t *testing.T) {
 	t.Parallel()
 
-	next := &recordingHandler{}
-	ch := &ContextHandler{
-		Next: next,
-		Extractors: []ContextExtractor{
-			ContextExtractorFunction(func(context.Context, *slog.Record) error {
-				return errBoom
-			}),
+	adding := func(key string) ContextExtractor {
+		return ContextExtractorFunction(func(_ context.Context, record *slog.Record) error {
+			record.Add(key, "yes")
+			return nil
+		})
+	}
+	failingAfterAdding := func(key string, err error) ContextExtractor {
+		return ContextExtractorFunction(func(_ context.Context, record *slog.Record) error {
+			record.Add(key, "yes")
+			return err
+		})
+	}
+	failingAfterMasking := ContextExtractorFunction(func(_ context.Context, record *slog.Record) error {
+		record.Message = "Blocked https://host/p?token=(MASKED)"
+		record.Add("masked", "yes")
+		return errBoom
+	})
+
+	testCases := []struct {
+		name        string
+		extractors  []ContextExtractor
+		wantPresent []string
+		wantAbsent  []string
+		wantError   string
+		wantMessage string
+	}{
+		{
+			name:        "a failing extractor's fields are taken back, the record kept",
+			extractors:  []ContextExtractor{adding("before"), failingAfterAdding("failed", errBoom), adding("after")},
+			wantPresent: []string{"before", "after"},
+			wantAbsent:  []string{"failed"},
+			wantError:   "extractor handle: boom",
+		},
+		{
+			name:        "a partial failure keeps what was vouched for",
+			extractors:  []ContextExtractor{failingAfterAdding("partial", &PartialExtractionError{Err: errBoom})},
+			wantPresent: []string{"partial"},
+			wantError:   "extractor handle: boom",
+		},
+		{
+			name:       "a partial failure wrapped in a total one is taken back",
+			extractors: []ContextExtractor{failingAfterAdding("wrapped", fmt.Errorf("total: %w", &PartialExtractionError{Err: errBoom}))},
+			wantAbsent: []string{"wrapped"},
+			wantError:  "extractor handle: total: boom",
+		},
+		{
+			name:        "a message masked by a failing extractor stays masked",
+			extractors:  []ContextExtractor{failingAfterMasking},
+			wantAbsent:  []string{"masked"},
+			wantError:   "extractor handle: boom",
+			wantMessage: "Blocked https://host/p?token=(MASKED)",
+		},
+		{
+			name:        "no failure, no mark",
+			extractors:  []ContextExtractor{adding("before")},
+			wantPresent: []string{"before"},
+			wantAbsent:  []string{ExtractorErrorKey},
 		},
 	}
 
-	record := slog.NewRecord(time.Now(), slog.LevelInfo, "m", 0)
-	err := ch.Handle(context.Background(), record)
-	if err == nil {
-		t.Fatal("expected error from failing extractor")
-	}
-	if next.called {
-		t.Fatal("next handler must not be called when an extractor fails")
-	}
-	if !errorContains(err, "extractor handle") {
-		t.Fatalf("expected wrapped error, got %v", err)
-	}
-}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 
-func errorContains(err error, substr string) bool {
-	return err != nil && bytes.Contains([]byte(err.Error()), []byte(substr))
+			next := &recordingHandler{}
+			ch := &ContextHandler{Next: next, Extractors: testCase.extractors}
+
+			record := slog.NewRecord(time.Now(), slog.LevelInfo, "Blocked https://host/p?token=SECRET", 0)
+			if err := ch.Handle(context.Background(), record); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !next.called {
+				t.Fatal("next handler was not called")
+			}
+			if testCase.wantMessage != "" && next.record.Message != testCase.wantMessage {
+				t.Errorf("expected the message %q, got %q", testCase.wantMessage, next.record.Message)
+			}
+
+			got := recordAttrs(next.record)
+			for _, key := range testCase.wantPresent {
+				if _, ok := got[key]; !ok {
+					t.Errorf("expected %q in %#v", key, got)
+				}
+			}
+			for _, key := range testCase.wantAbsent {
+				if _, ok := got[key]; ok {
+					t.Errorf("expected no %q in %#v", key, got)
+				}
+			}
+			if testCase.wantError != "" && got[ExtractorErrorKey] != testCase.wantError {
+				t.Errorf("expected %s %q, got %v", ExtractorErrorKey, testCase.wantError, got[ExtractorErrorKey])
+			}
+		})
+	}
 }
 
 func TestContextHandlerEnabledDelegates(t *testing.T) {
@@ -253,6 +325,82 @@ func TestContextHandlerWithGroupAndAttrs(t *testing.T) {
 	if got := dig(t, m, "g", "a"); got != "b" {
 		t.Fatalf("g.a = %v, want b", got)
 	}
+}
+
+func TestContextHandlerDerivedLoggerLeavesItsParentAlone(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		derive func(*slog.Logger) *slog.Logger
+		path   []string
+		// extractedPath is where the extractor's attribute lands: inside a
+		// group the logger was derived with, as every later attribute does.
+		extractedPath []string
+	}{
+		{
+			name:          "with attributes",
+			derive:        func(logger *slog.Logger) *slog.Logger { return logger.With("episode_id", "1") },
+			path:          []string{"episode_id"},
+			extractedPath: []string{"extracted"},
+		},
+		{
+			name:          "with a group",
+			derive:        func(logger *slog.Logger) *slog.Logger { return logger.WithGroup("rule").With("name", "oisd_big") },
+			path:          []string{"rule", "name"},
+			extractedPath: []string{"rule", "extracted"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			buf := &bytes.Buffer{}
+			parent := slog.New(&ContextHandler{
+				Next: slog.NewJSONHandler(buf, &slog.HandlerOptions{ReplaceAttr: dropTime}),
+				Extractors: []ContextExtractor{
+					ContextExtractorFunction(func(_ context.Context, record *slog.Record) error {
+						record.Add("extracted", "yes")
+						return nil
+					}),
+				},
+			})
+
+			testCase.derive(parent).Info("child")
+			childLine := parseJSON(t, bytes.NewBuffer(bytes.Clone(buf.Bytes())))
+			buf.Reset()
+			parent.Info("parent")
+			parentLine := parseJSON(t, buf)
+
+			if got := dig(t, childLine, testCase.path...); got == nil {
+				t.Errorf("expected %v on the derived logger's line, got %#v", testCase.path, childLine)
+			}
+			if got := dig(t, childLine, testCase.extractedPath...); got != "yes" {
+				t.Errorf("expected the extractors to run for the derived logger, got %#v", childLine)
+			}
+			if _, ok := parentLine[testCase.path[0]]; ok {
+				t.Errorf("expected nothing of the derived logger on the parent's line, got %#v", parentLine)
+			}
+		})
+	}
+}
+
+// TestContextHandlerDeriveWhileLogging is for the race detector: deriving a
+// logger must not write to the handler other goroutines are logging through.
+func TestContextHandlerDeriveWhileLogging(t *testing.T) {
+	t.Parallel()
+
+	parent := slog.New(&ContextHandler{Next: slog.NewJSONHandler(io.Discard, nil)})
+
+	var group sync.WaitGroup
+	for i := range 8 {
+		group.Go(func() {
+			parent.With("i", i).Info("derived")
+			parent.Info("parent")
+		})
+	}
+	group.Wait()
 }
 
 func TestMakeErrorAttrs(t *testing.T) {
@@ -635,5 +783,47 @@ func TestHandleContextError(t *testing.T) {
 	m := logWithError(t, extractor, extErr)
 	if got := dig(t, m, "error", "context", "extracted"); got != "ctxval" {
 		t.Fatalf("error.context.extracted = %v, want ctxval", got)
+	}
+}
+
+func TestHandleContextExtractorError(t *testing.T) {
+	t.Parallel()
+
+	innerCtx := context.WithValue(context.Background(), ctxKey, "ctxval")
+	extErr := altshiftErrors.NewCtx(innerCtx, "boom")
+
+	failing := ContextExtractorFunction(func(_ context.Context, record *slog.Record) error {
+		record.Add("half", "done")
+		return errBoom
+	})
+	succeeding := ContextExtractorFunction(func(ctx context.Context, record *slog.Record) error {
+		if v, ok := ctx.Value(ctxKey).(string); ok {
+			record.Add("extracted", v)
+		}
+		return nil
+	})
+
+	extractor := &ErrorContextExtractor{ContextExtractors: []ContextExtractor{nil, failing, succeeding}}
+
+	record := slog.NewRecord(time.Now(), slog.LevelError, "m", 0)
+	err := extractor.Handle(context2.WithError(context.Background(), extErr), &record)
+	if _, ok := errors.AsType[*PartialExtractionError](err); !ok {
+		t.Fatalf("expected a partial extraction error, got %v", err)
+	}
+
+	m := logWithError(t, extractor, extErr)
+	if got := dig(t, m, "error", "message"); got != "boom" {
+		t.Errorf("error.message = %v, want boom", got)
+	}
+	if got := dig(t, m, "error", "context", "extracted"); got != "ctxval" {
+		t.Errorf("error.context.extracted = %v, want ctxval", got)
+	}
+	if errorContext, ok := dig(t, m, "error", "context").(map[string]any); ok {
+		if _, half := errorContext["half"]; half {
+			t.Errorf("expected nothing of the failing extractor, got %#v", errorContext)
+		}
+	}
+	if got, _ := m[ExtractorErrorKey].(string); !bytes.Contains([]byte(got), []byte("context extractor handle: boom")) {
+		t.Errorf("%s = %q, want the context extractor's failure", ExtractorErrorKey, got)
 	}
 }

@@ -3,6 +3,7 @@ package http_context_extractor
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"fmt"
 	"log/slog"
@@ -48,7 +49,8 @@ func maskSetCookieHeader(setCookieHeader string) string {
 
 	cookies := resp.Cookies()
 	if len(cookies) == 0 {
-		return setCookieHeader
+		// Not one Go reads, which is no reason to log its value.
+		return maskUnparsedCookie(setCookieHeader, true)
 	}
 
 	// Only the value is replaced; the cookie is reconstructed with the attributes it arrived with.
@@ -60,17 +62,69 @@ func maskSetCookieHeader(setCookieHeader string) string {
 	return cookie.String()
 }
 
+// maskCookieHeader masks each cookie's value. A pair Go would not read is kept
+// by its name, its value masked all the same, rather than left out: a header
+// logged without it would say that it was not sent.
 func maskCookieHeader(cookieHeader string) string {
-	header := http.Header{}
-	header.Add("Cookie", cookieHeader)
-	req := &http.Request{Header: header}
+	var masked []string
+	for pair := range strings.SplitSeq(cookieHeader, ";") {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
 
-	cookies := req.Cookies()
-	masked := make([]string, len(cookies))
-	for i, c := range cookies {
-		masked[i] = c.Name + "=" + maskJws(c.Value)
+		if cookies, err := http.ParseCookie(pair); err == nil && len(cookies) == 1 && cookies[0] != nil {
+			masked = append(masked, cookies[0].Name+"="+maskJws(cookies[0].Value))
+			continue
+		}
+
+		masked = append(masked, maskUnparsedCookie(pair, false))
 	}
+
 	return strings.Join(masked, "; ")
+}
+
+// setCookieAttributes are the attributes a Set-Cookie header may carry, by
+// lowercase name.
+var setCookieAttributes = map[string]struct{}{
+	"domain":      {},
+	"expires":     {},
+	"httponly":    {},
+	"max-age":     {},
+	"partitioned": {},
+	"path":        {},
+	"samesite":    {},
+	"secure":      {},
+}
+
+// maskUnparsedCookie masks a cookie Go's parser would not read by its syntax
+// alone, failing closed: the name is kept and the value masked, and with no name
+// to be found the whole of it is masked. Of what follows the first semicolon,
+// only the attributes a cookie may carry are kept, since in a cookie that does
+// not parse, part of its value may well lie past one.
+func maskUnparsedCookie(cookie string, keepAttributes bool) string {
+	nameValue, attributes, _ := strings.Cut(cookie, ";")
+
+	masked := maskedValue
+	if name, _, hasValue := strings.Cut(nameValue, "="); hasValue {
+		if name = strings.TrimSpace(name); name != "" {
+			masked = name + "=" + maskedValue
+		}
+	}
+
+	if !keepAttributes {
+		return masked
+	}
+
+	for attribute := range strings.SplitSeq(attributes, ";") {
+		attribute = strings.TrimSpace(attribute)
+		attributeName, _, _ := strings.Cut(attribute, "=")
+		if _, ok := setCookieAttributes[strings.ToLower(strings.TrimSpace(attributeName))]; ok {
+			masked += "; " + attribute
+		}
+	}
+
+	return masked
 }
 
 func maskBasicAuth(value string) string {
@@ -533,6 +587,9 @@ type Extractor struct {
 	MaskedHeaders          []*http_context_extractor_config.MaskedHeader
 	MaskedRequestBodyUrls  []*schema.Url
 	MaskedResponseBodyUrls []*schema.Url
+	// BodyLimit is how much of a body is rendered; one that is not positive is
+	// schemaUtils.DefaultBodyLimit.
+	BodyLimit int
 }
 
 func (e *Extractor) headersToMaskForUrl(u *schema.Url) map[string]struct{} {
@@ -670,7 +727,7 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 			}
 		}
 
-		base, err := schemaUtils.ParseHttpContext(httpContext)
+		base, err := schemaUtils.ParseHttpContextWithBodyLimit(httpContext, e.BodyLimit)
 		if err != nil {
 			return altshiftErrors.New(fmt.Errorf("parse http context: %w", err), httpContext)
 		}
@@ -894,7 +951,10 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 
 			base.Message = ""
 
-			baseMap, err := altshiftJson.ObjectToMap(base)
+			// Anything a client sent may be in here -- a header, a path, a user agent -- and
+			// none of it is bound to be UTF-8; a string that is not is mangled rather than
+			// failing the entry.
+			baseMap, err := altshiftJson.ObjectToMap(base, jsontext.AllowInvalidUTF8(true))
 			if err != nil {
 				return altshiftErrors.New(fmt.Errorf("object to map: %w", err), base)
 			}
@@ -923,5 +983,6 @@ func New(options ...http_context_extractor_config.Option) *Extractor {
 		MaskedHeaders:          config.MaskedHeaders,
 		MaskedRequestBodyUrls:  config.MaskedRequestBodyUrls,
 		MaskedResponseBodyUrls: config.MaskedResponseBodyUrls,
+		BodyLimit:              config.BodyLimit,
 	}
 }

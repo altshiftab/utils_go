@@ -2,6 +2,7 @@ package http_context_extractor
 
 import (
 	"context"
+	"encoding/json/jsontext"
 	"fmt"
 	"log/slog"
 
@@ -40,7 +41,8 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 				}
 			}
 
-			logEntryMap, err := altshiftJson.ObjectToMap(logEntry)
+			// A user agent or a referrer is the client's to write, and need not be UTF-8.
+			logEntryMap, err := altshiftJson.ObjectToMap(logEntry, jsontext.AllowInvalidUTF8(true))
 			if err != nil {
 				return altshiftErrors.New(fmt.Errorf("object to map: %w", err), logEntry)
 			}

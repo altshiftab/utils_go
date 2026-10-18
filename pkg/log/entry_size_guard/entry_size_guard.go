@@ -4,6 +4,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 	"io"
+	"log/slog"
 	"unicode/utf8"
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -142,8 +143,10 @@ func (w *Writer) Write(entry []byte) (int, error) {
 
 	// The entry is oversized even with truncated strings (e.g. through sheer
 	// field count); keep the essentials. The values were already truncated above.
+	// Under slog's own names, and under Cloud Logging's for an entry whose
+	// handler renamed them for it: whichever the entry has.
 	minimalEntry := make(map[string]any)
-	for _, key := range []string{"time", "severity", "message"} {
+	for _, key := range []string{slog.TimeKey, slog.LevelKey, slog.MessageKey, "severity", "message"} {
 		if value, ok := parsedEntry[key]; ok {
 			minimalEntry[key] = value
 		}

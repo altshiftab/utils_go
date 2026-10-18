@@ -183,3 +183,36 @@ func TestNewWithMaskUrl(t *testing.T) {
 		t.Error("httpRequest.referer was written unmasked")
 	}
 }
+
+func TestHandleInvalidUtf8(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		header string
+	}{
+		{name: "a user agent", header: "User-Agent"},
+		{name: "a referrer", header: "Referer"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/foo", nil)
+			request.Header[testCase.header] = []string{"caf\xe9"}
+			ctx := altshiftHttpContext.WithHttpContextValue(
+				context.Background(),
+				&altshiftHttpTypes.HttpContext{Request: request, Response: &http.Response{StatusCode: http.StatusOK}},
+			)
+
+			record := slog.NewRecord(time.Now(), slog.LevelInfo, "msg", 0)
+			if err := (&Extractor{ProjectId: "test-project"}).Handle(ctx, &record); err != nil {
+				t.Fatalf("Handle: unexpected error: %v", err)
+			}
+			if _, ok := recordAttrs(&record)["httpRequest"]; !ok {
+				t.Error("expected the httpRequest group")
+			}
+		})
+	}
+}

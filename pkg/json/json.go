@@ -23,8 +23,12 @@ func DecodeJson[T any](reader io.Reader) (T, error) {
 	return obj, err
 }
 
-func ObjectToMap(object any) (map[string]any, error) {
-	data, err := json.Marshal(object)
+// ObjectToMap converts an object to a map through its JSON form. The options are
+// the marshalling's: jsontext.AllowInvalidUTF8(true), for one, has strings that
+// are not UTF-8 mangled rather than failing the conversion, which is what an
+// object rendered for a log needs, since its strings may be anyone's bytes.
+func ObjectToMap(object any, options ...json.Options) (map[string]any, error) {
+	data, err := json.Marshal(object, options...)
 	if err != nil {
 		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err), object)
 	}
