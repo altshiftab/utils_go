@@ -517,5 +517,29 @@ func (a *TypeAliasDeclaration) ToTypeScript() (string, error) {
 			params), nil
 	}
 
-	return fmt.Sprintf("export type %s%s = %s;", a.Identifier, params, param), nil
+	declaration := fmt.Sprintf("export type %s%s = %s;", a.Identifier, params, param)
+
+	members, err := enum.Members(a.ReflectType)
+	if err != nil {
+		return "", fmt.Errorf("enum members: %w", err)
+	}
+	if members == nil {
+		return declaration, nil
+	}
+
+	// The constants share the union's name, which TypeScript keeps apart as a value and a type:
+	// Role.Admin is the value "admin", and its type is Role.
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "export const %s = {\n", a.Identifier)
+	for _, member := range members {
+		value, err := (&StringLiteralType{Value: member.Value}).String()
+		if err != nil {
+			return "", fmt.Errorf("string literal type string: %w", err)
+		}
+		fmt.Fprintf(&builder, "\t%s: %s,\n", member.Name, value)
+	}
+	builder.WriteString("} as const;\n")
+	builder.WriteString(declaration)
+
+	return builder.String(), nil
 }
