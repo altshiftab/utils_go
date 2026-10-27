@@ -22,7 +22,6 @@ func TestMaskBodyFields(t *testing.T) {
 	secrets := func(fields ...string) []*http_context_extractor_config.MaskedBodyFields {
 		return []*http_context_extractor_config.MaskedBodyFields{{Url: tokenUrl, Fields: fields}}
 	}
-	allValues := []*http_context_extractor_config.MaskedBodyFields{{Url: tokenUrl, AllValues: true, KeptNames: []string{"email_address"}}}
 
 	const (
 		json = "application/json"
@@ -80,29 +79,6 @@ func TestMaskBodyFields(t *testing.T) {
 			want:        `{"code":"(MASKED)"}`,
 		},
 		{
-			// Only the shape is kept: the names expected, nesting, and the values that say nothing.
-			name:        "all of a JSON body's values",
-			entries:     allValues,
-			contentType: json,
-			content:     `{"email_address":["a@example.com"],"x":{"n":42,"ok":true,"none":null}}`,
-			want:        `{"email_address":["(MASKED)"],"(MASKED)":{"(MASKED)":"(MASKED)","(MASKED)":true,"(MASKED)":null}}`,
-		},
-		{
-			// A client choosing the body can send the value as a name.
-			name:        "a value sent as a member name",
-			entries:     allValues,
-			contentType: json,
-			content:     `{"a@example.com":1,"b@example.com":2}`,
-			want:        `{"(MASKED)":"(MASKED)","(MASKED)":"(MASKED)"}`,
-		},
-		{
-			name:        "all of a JSON body's values, at the top",
-			entries:     allValues,
-			contentType: json,
-			content:     `"a@example.com"`,
-			want:        `"(MASKED)"`,
-		},
-		{
 			name:        "a form key, the others kept in their order",
 			entries:     secrets("client_secret", "code"),
 			contentType: form,
@@ -115,13 +91,6 @@ func TestMaskBodyFields(t *testing.T) {
 			contentType: form,
 			content:     "client%5Fsecret=s3cret",
 			want:        "client%5Fsecret=%28MASKED%29",
-		},
-		{
-			name:        "all of a form's values",
-			entries:     allValues,
-			contentType: form,
-			content:     "email_address=a%40example.com&x=1",
-			want:        "email_address=%28MASKED%29&%28MASKED%29=%28MASKED%29",
 		},
 		{
 			// url.ParseQuery reads JSON as a form with one odd key; it is no form.

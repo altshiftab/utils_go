@@ -29,8 +29,6 @@ func maskBodyFields(
 	}
 
 	fields := make(map[string]struct{})
-	keptNames := make(map[string]struct{})
-	allValues := false
 	matched := false
 	for _, entry := range entries {
 		if entry == nil {
@@ -40,15 +38,11 @@ func maskBodyFields(
 			continue
 		}
 		matched = true
-		if len(entry.Fields) == 0 && !entry.AllValues {
+		if len(entry.Fields) == 0 {
 			return maskedValue
 		}
-		allValues = allValues || entry.AllValues
 		for _, field := range entry.Fields {
 			fields[field] = struct{}{}
-		}
-		for _, name := range entry.KeptNames {
-			keptNames[name] = struct{}{}
 		}
 	}
 	if !matched {
@@ -63,9 +57,9 @@ func maskBodyFields(
 	var masked string
 	switch {
 	case mediaType == "application/json" || strings.HasSuffix(mediaType, "+json"):
-		masked, err = maskJsonFields(content, fields, allValues, keptNames)
+		masked, err = maskJsonFields(content, fields)
 	case mediaType == "application/x-www-form-urlencoded":
-		masked, err = maskFormFields(content, fields, allValues, keptNames)
+		masked, err = maskFormFields(content, fields)
 	default:
 		return maskedValue
 	}
@@ -77,13 +71,11 @@ func maskBodyFields(
 }
 
 // maskJsonFields replaces the value of every member named in fields, at any depth, with
-// maskedValue, keeping the member names, their order and the rest as they were. With allValues it
-// replaces every string and number wherever it is, and every member name not in keptNames.
-func maskJsonFields(content string, fields map[string]struct{}, allValues bool, keptNames map[string]struct{}) (string, error) {
+// maskedValue, keeping the member names, their order and the rest as they were.
+func maskJsonFields(content string, fields map[string]struct{}) (string, error) {
 	decoder := jsontext.NewDecoder(strings.NewReader(content))
 	var masked bytes.Buffer
-	// Names masked alike are no longer distinct, which is no reason to refuse to write them.
-	encoder := jsontext.NewEncoder(&masked, jsontext.AllowDuplicateNames(true))
+	encoder := jsontext.NewEncoder(&masked)
 
 	for {
 		token, err := decoder.ReadToken()
@@ -100,11 +92,7 @@ func maskJsonFields(content string, fields map[string]struct{}, allValues bool, 
 
 		if isName {
 			// Read before anything else of the decoder's, which voids the token.
-			name := token.String()
-			_, isMasked := fields[name]
-			if _, isKept := keptNames[name]; allValues && !isKept {
-				token = jsontext.String(maskedValue)
-			}
+			_, isMasked := fields[token.String()]
 			if err := encoder.WriteToken(token); err != nil {
 				return "", err
 			}
@@ -119,9 +107,6 @@ func maskJsonFields(content string, fields map[string]struct{}, allValues bool, 
 			continue
 		}
 
-		if allValues && (token.Kind() == '"' || token.Kind() == '0') {
-			token = jsontext.String(maskedValue)
-		}
 		if err := encoder.WriteToken(token); err != nil {
 			return "", err
 		}
@@ -139,10 +124,9 @@ var formKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_.\[\]-]+$`)
 // errNotForm is text that url.ParseQuery reads but that is no form.
 var errNotForm = errors.New("not a form")
 
-// maskFormFields replaces the value of every key named in fields with maskedValue, keeping the
-// pairs in their order and the rest as they were. With allValues it replaces every value, and every
-// key not in keptNames.
-func maskFormFields(content string, fields map[string]struct{}, allValues bool, keptNames map[string]struct{}) (string, error) {
+// maskFormFields replaces the value of every key named in fields with maskedValue, keeping the pairs
+// in their order and the rest as they were.
+func maskFormFields(content string, fields map[string]struct{}) (string, error) {
 	if _, err := url.ParseQuery(content); err != nil {
 		return "", err
 	}
@@ -161,14 +145,9 @@ func maskFormFields(content string, fields map[string]struct{}, allValues bool, 
 			return "", errNotForm
 		}
 
-		_, isMasked := fields[name]
-		if !isMasked && !allValues {
-			continue
+		if _, isMasked := fields[name]; isMasked {
+			pairs[i] = key + "=" + url.QueryEscape(maskedValue)
 		}
-		if _, isKept := keptNames[name]; allValues && !isKept {
-			key = url.QueryEscape(maskedValue)
-		}
-		pairs[i] = key + "=" + url.QueryEscape(maskedValue)
 	}
 
 	return strings.Join(pairs, "&"), nil

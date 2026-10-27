@@ -7,22 +7,16 @@ type MaskedHeader struct {
 	Headers []string
 }
 
-// MaskedBodyFields names, for the requests or the responses whose URL matches Url, what of their
-// bodies the log masks: the values of the members so named in a JSON body, wherever in it they
-// are, or of the keys so named in a form.
-//
-// AllValues masks every value instead, keeping only the body's shape -- which members were sent,
-// not what they said -- for a body whose fields a client chooses, where a name-by-name list can be
-// stepped around by sending the value under another. Every member name or form key but those in
-// KeptNames is masked as well: such a client can send a value as a name just as well.
+// MaskedBodyFields names, for the requests or the responses whose URL matches Url, the fields of
+// their bodies known to carry a secret, which the log masks: the values of the members so named in
+// a JSON body, wherever in it they are, or of the keys so named in a form. Everything else is
+// written out as it was sent.
 //
 // A body of another type, one that does not parse -- one cut at the body limit among them -- and
-// one matched by an entry naming no field without AllValues, is masked whole.
+// one matched by an entry naming no field, is masked whole.
 type MaskedBodyFields struct {
-	Url       *schema.Url
-	Fields    []string
-	AllValues bool
-	KeptNames []string
+	Url    *schema.Url
+	Fields []string
 }
 
 type Config struct {
