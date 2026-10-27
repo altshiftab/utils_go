@@ -744,6 +744,10 @@ type Extractor struct {
 	MaskedHeaders          []*http_context_extractor_config.MaskedHeader
 	MaskedRequestBodyUrls  []*schema.Url
 	MaskedResponseBodyUrls []*schema.Url
+	// MaskedRequestBodyFields and MaskedResponseBodyFields mask fields of a body rather than the
+	// whole of it; a body also matched by a whole-body mask is masked whole.
+	MaskedRequestBodyFields  []*http_context_extractor_config.MaskedBodyFields
+	MaskedResponseBodyFields []*http_context_extractor_config.MaskedBodyFields
 	// BodyLimit is how much of a body is rendered; one that is not positive is
 	// schemaUtils.DefaultBodyLimit.
 	BodyLimit int
@@ -955,6 +959,24 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 				}
 			}
 
+			// After the whole-body masks, which a body they masked is no longer anything to read.
+			if baseUrl := base.Url; baseUrl != nil && base.Http != nil {
+				if request := base.Http.Request; request != nil && request.Body != nil && len(e.MaskedRequestBodyFields) > 0 {
+					var contentType string
+					if httpRequest := httpContext.Request; httpRequest != nil {
+						contentType = httpRequest.Header.Get("Content-Type")
+					}
+					request.Body.Content = maskBodyFields(e.MaskedRequestBodyFields, baseUrl, request.Body.Content, contentType)
+				}
+				if response := base.Http.Response; response != nil && response.Body != nil && len(e.MaskedResponseBodyFields) > 0 {
+					var contentType string
+					if httpResponse := httpContext.Response; httpResponse != nil {
+						contentType = httpResponse.Header.Get("Content-Type")
+					}
+					response.Body.Content = maskBodyFields(e.MaskedResponseBodyFields, baseUrl, response.Body.Content, contentType)
+				}
+			}
+
 			if request := httpContext.Request; request != nil {
 				requestHost := request.Host
 				requestHeader := request.Header
@@ -1135,11 +1157,13 @@ func New(options ...http_context_extractor_config.Option) *Extractor {
 	}
 
 	return &Extractor{
-		ReplaceableMessages:    messagesMap,
-		MaskedUrlParams:        config.MaskedUrlParams,
-		MaskedHeaders:          config.MaskedHeaders,
-		MaskedRequestBodyUrls:  config.MaskedRequestBodyUrls,
-		MaskedResponseBodyUrls: config.MaskedResponseBodyUrls,
-		BodyLimit:              config.BodyLimit,
+		ReplaceableMessages:      messagesMap,
+		MaskedUrlParams:          config.MaskedUrlParams,
+		MaskedHeaders:            config.MaskedHeaders,
+		MaskedRequestBodyUrls:    config.MaskedRequestBodyUrls,
+		MaskedResponseBodyUrls:   config.MaskedResponseBodyUrls,
+		MaskedRequestBodyFields:  config.MaskedRequestBodyFields,
+		MaskedResponseBodyFields: config.MaskedResponseBodyFields,
+		BodyLimit:                config.BodyLimit,
 	}
 }

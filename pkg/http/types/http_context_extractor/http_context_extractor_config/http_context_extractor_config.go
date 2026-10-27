@@ -7,13 +7,31 @@ type MaskedHeader struct {
 	Headers []string
 }
 
+// MaskedBodyFields names, for the requests or the responses whose URL matches Url, what of their
+// bodies the log masks: the values of the members so named in a JSON body, wherever in it they
+// are, or of the keys so named in a form.
+//
+// AllValues masks every value instead, keeping only the body's shape -- which members were sent,
+// not what they said -- for a body whose fields a client chooses, where a name-by-name list can be
+// stepped around by sending the value under another.
+//
+// A body of another type, one that does not parse -- one cut at the body limit among them -- and
+// one matched by an entry naming no field without AllValues, is masked whole.
+type MaskedBodyFields struct {
+	Url       *schema.Url
+	Fields    []string
+	AllValues bool
+}
+
 type Config struct {
-	ReplaceableMessages    []string
-	MaskedUrlParams        []*schema.Url
-	MaskedHeaders          []*MaskedHeader
-	MaskedRequestBodyUrls  []*schema.Url
-	MaskedResponseBodyUrls []*schema.Url
-	BodyLimit              int
+	ReplaceableMessages      []string
+	MaskedUrlParams          []*schema.Url
+	MaskedHeaders            []*MaskedHeader
+	MaskedRequestBodyUrls    []*schema.Url
+	MaskedResponseBodyUrls   []*schema.Url
+	MaskedRequestBodyFields  []*MaskedBodyFields
+	MaskedResponseBodyFields []*MaskedBodyFields
+	BodyLimit                int
 }
 
 type Option func(*Config)
@@ -59,6 +77,18 @@ func WithMaskedHeaders(maskedHeaders ...*MaskedHeader) Option {
 func WithMaskedRequestBodyUrls(urlPatterns ...*schema.Url) Option {
 	return func(config *Config) {
 		config.MaskedRequestBodyUrls = urlPatterns
+	}
+}
+
+func WithMaskedRequestBodyFields(maskedBodyFields ...*MaskedBodyFields) Option {
+	return func(config *Config) {
+		config.MaskedRequestBodyFields = maskedBodyFields
+	}
+}
+
+func WithMaskedResponseBodyFields(maskedBodyFields ...*MaskedBodyFields) Option {
+	return func(config *Config) {
+		config.MaskedResponseBodyFields = maskedBodyFields
 	}
 }
 
