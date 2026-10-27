@@ -7,6 +7,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -586,6 +587,94 @@ func (e *Extractor) maskUrlsInText(text string) string {
 	return urlInTextPattern.ReplaceAllStringFunc(text, e.MaskUrlString)
 }
 
+// urlHeaders are the headers whose value is a URL, or the path and query of one, naming the request
+// or where it leads: what a proxy in front says the request was before it passed it on, and where a
+// response sends the client. Firebase Hosting writes X-Forwarded-Url; the others are the names other
+// proxies give the same. The request's masked parameters are in them as they are in its URL.
+var urlHeaders = []string{
+	"X-Forwarded-Url",
+	"X-Forwarded-Uri",
+	"X-Original-Url",
+	"X-Original-Uri",
+	"X-Rewrite-Url",
+	"X-Envoy-Original-Path",
+	"Location",
+	"Content-Location",
+}
+
+// maskUrlHeaders returns the header with the masked parameters masked in every URL it carries, as
+// a copy, or the header itself where none needed masking: it is the request's or response's own,
+// which the log does not get to change.
+//
+// A relative value -- a proxy writes the path and query without the host -- is matched as if on the
+// request's host, so that a pattern scoped to a domain applies to it as it does to the request.
+func (e *Extractor) maskUrlHeaders(header http.Header, requestUrl *schema.Url) http.Header {
+	if len(header) == 0 || len(e.MaskedUrlParams) == 0 {
+		return header
+	}
+
+	var masked http.Header
+	for _, name := range urlHeaders {
+		key := http.CanonicalHeaderKey(name)
+		values := header[key]
+
+		var maskedValues []string
+		for i, value := range values {
+			maskedUrl := e.maskUrlHeaderValue(value, requestUrl)
+			if maskedUrl == value {
+				continue
+			}
+
+			if maskedValues == nil {
+				maskedValues = make([]string, len(values))
+				copy(maskedValues, values)
+			}
+			maskedValues[i] = maskedUrl
+		}
+		if maskedValues == nil {
+			continue
+		}
+
+		if masked == nil {
+			// Shallow: a value is replaced by a slice of its own, never written into.
+			masked = make(http.Header, len(header))
+			maps.Copy(masked, header)
+		}
+		masked[key] = maskedValues
+	}
+
+	if masked == nil {
+		return header
+	}
+
+	return masked
+}
+
+// maskUrlHeaderValue masks one URL-bearing header value. One that does not parse is replaced
+// whole, on the reading the query masking takes of a query it cannot read: nothing can vouch for
+// what it holds.
+func (e *Extractor) maskUrlHeaderValue(raw string, requestUrl *schema.Url) string {
+	if !strings.Contains(raw, "?") {
+		return raw
+	}
+
+	schemaUrl := parseUrlString(raw)
+	if schemaUrl == nil {
+		return maskedValue
+	}
+
+	if schemaUrl.Domain == "" && requestUrl != nil {
+		schemaUrl.Domain = requestUrl.Domain
+		schemaUrl.RegisteredDomain = requestUrl.RegisteredDomain
+		schemaUrl.Subdomain = requestUrl.Subdomain
+		schemaUrl.TopLevelDomain = requestUrl.TopLevelDomain
+	}
+
+	e.maskUrl(schemaUrl)
+
+	return schemaUrl.Full
+}
+
 type Extractor struct {
 	ReplaceableMessages    map[string]struct{}
 	MaskedUrlParams        []*schema.Url
@@ -817,7 +906,7 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 					}
 
 					base.Http.Request.HttpHeaders = &schema.HttpHeaders{
-						Normalized: extractNormalizedHeaders(requestHost, requestHeader, maskedHeaders),
+						Normalized: extractNormalizedHeaders(requestHost, e.maskUrlHeaders(requestHeader, base.Url), maskedHeaders),
 					}
 
 					var (
@@ -925,7 +1014,7 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 					}
 
 					base.Http.Response.HttpHeaders = &schema.HttpHeaders{
-						Normalized: extractNormalizedHeaders("", responseHeader, maskedHeaders),
+						Normalized: extractNormalizedHeaders("", e.maskUrlHeaders(responseHeader, base.Url), maskedHeaders),
 					}
 				}
 			}

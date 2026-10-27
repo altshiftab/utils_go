@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -1572,6 +1573,118 @@ func TestExtractor_Handle_MasksReferer(t *testing.T) {
 	}
 	if !strings.Contains(text, "/verification") {
 		t.Errorf("the referring page was lost from the entry: %s", text)
+	}
+}
+
+// A proxy in front writes the request's address into a header of its own -- Firebase Hosting as
+// X-Forwarded-Url -- and a redirect writes where it sends the client into Location, so a masked
+// parameter is in those as it is in the URL.
+func TestExtractor_Handle_MasksUrlHeaders(t *testing.T) {
+	t.Parallel()
+
+	domainScoped := &Extractor{
+		MaskedUrlParams: []*altshiftSchemaTypes.Url{{Domain: "dd.example.com", Path: "/verification", Query: "token"}},
+	}
+
+	testCases := []struct {
+		name      string
+		extractor *Extractor
+		request   string
+		response  http.Header
+		wantGone  []string
+		wantKept  []string
+	}{
+		{
+			name:      "a forwarded path and query",
+			extractor: tokenExtractor(),
+			request:   "GET /verification HTTP/1.1\r\nHost: dd.example.com\r\nX-Forwarded-Url: /verification?token=" + maskingTestToken + "&lang=en\r\n\r\n",
+			wantGone:  []string{maskingTestToken},
+			wantKept:  []string{"X-Forwarded-Url: /verification?", "lang=en"},
+		},
+		{
+			name:      "a forwarded absolute url",
+			extractor: tokenExtractor(),
+			request:   "GET /verification HTTP/1.1\r\nHost: dd.example.com\r\nX-Original-Url: " + verificationUrl + "\r\n\r\n",
+			wantGone:  []string{maskingTestToken},
+			wantKept:  []string{"X-Original-Url: https://dd.example.com/verification?"},
+		},
+		{
+			name:      "a forwarded url on a path nothing is declared for",
+			extractor: tokenExtractor(),
+			request:   "GET /other HTTP/1.1\r\nHost: dd.example.com\r\nX-Forwarded-Url: /other?token=not-a-secret\r\n\r\n",
+			wantKept:  []string{"X-Forwarded-Url: /other?token=not-a-secret"},
+		},
+		{
+			// A path with a broken escape does not parse, so nothing can say what its query holds.
+			name:      "a forwarded url that does not parse",
+			extractor: tokenExtractor(),
+			request:   "GET /verification HTTP/1.1\r\nHost: dd.example.com\r\nX-Forwarded-Url: /verif%zzication?token=" + maskingTestToken + "\r\n\r\n",
+			wantGone:  []string{maskingTestToken},
+			wantKept:  []string{"X-Forwarded-Url: (MASKED)"},
+		},
+		{
+			name:      "a redirect to the page",
+			extractor: tokenExtractor(),
+			request:   "GET /api/order HTTP/1.1\r\nHost: dd.example.com\r\n\r\n",
+			response:  http.Header{"Location": {verificationUrl}},
+			wantGone:  []string{maskingTestToken},
+			wantKept:  []string{"Location: https://dd.example.com/verification?"},
+		},
+		{
+			// The relative value is matched on the request's host, as the request's URL is.
+			name:      "a pattern scoped to the request's domain",
+			extractor: domainScoped,
+			request:   "GET /verification HTTP/1.1\r\nHost: dd.example.com\r\nX-Forwarded-Url: /verification?token=" + maskingTestToken + "\r\n\r\n",
+			wantGone:  []string{maskingTestToken},
+		},
+		{
+			name:      "a pattern scoped to another domain",
+			extractor: domainScoped,
+			request:   "GET /verification HTTP/1.1\r\nHost: other.example.com\r\nX-Forwarded-Url: /verification?token=not-a-secret\r\n\r\n",
+			wantKept:  []string{"X-Forwarded-Url: /verification?token=not-a-secret"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			request, err := http.ReadRequest(bufio.NewReader(strings.NewReader(testCase.request)))
+			if err != nil {
+				t.Fatalf("%s: read request: %v", testCase.name, err)
+			}
+			requestHeaderBefore := request.Header.Clone()
+
+			httpContext := &altshiftHttpTypes.HttpContext{Request: request}
+			if testCase.response != nil {
+				httpContext.Response = &http.Response{StatusCode: http.StatusFound, Header: testCase.response}
+			}
+
+			record := &slog.Record{Message: "An HTTP response was served."}
+			ctx := altshiftHttpContext.WithHttpContextValue(context.Background(), httpContext)
+			if err := testCase.extractor.Handle(ctx, record); err != nil {
+				t.Fatalf("%s: handle: %v", testCase.name, err)
+			}
+
+			text := recordText(t, record)
+			for _, gone := range testCase.wantGone {
+				if strings.Contains(text, gone) {
+					t.Errorf("%s: %q is in the entry: %s", testCase.name, gone, text)
+				}
+			}
+			for _, kept := range testCase.wantKept {
+				if !strings.Contains(text, kept) {
+					t.Errorf("%s: %q is not in the entry: %s", testCase.name, kept, text)
+				}
+			}
+
+			// What is logged is masked; the request itself is not.
+			for name, values := range requestHeaderBefore {
+				if got := request.Header[name]; !slices.Equal(got, values) {
+					t.Errorf("%s: the request's %s header became %q", testCase.name, name, got)
+				}
+			}
+		})
 	}
 }
 
