@@ -26,7 +26,11 @@ func (p *Parser[T]) Parse(_ *http.Request, body []byte) (T, *response_error.Resp
 	)
 
 	if err := jsonv2.Unmarshal(body, &target, options); err != nil {
-		wrappedErr := altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), body)
+		// The body is not attached: the request log writes it already, with whatever of it the
+		// service declared masked, and an error is written out apart from those masks -- so a body
+		// that fails to parse would reach the log whole, an address or a password typed into it
+		// with it.
+		wrappedErr := altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err))
 
 		if _, ok := errors.AsType[*jsontext.SyntacticError](err); ok {
 			detail := "Invalid body. The body is not valid JSON."

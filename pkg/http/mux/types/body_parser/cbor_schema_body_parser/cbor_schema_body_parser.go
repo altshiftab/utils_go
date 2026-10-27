@@ -32,7 +32,9 @@ func (p *Parser[T]) Parse(_ *http.Request, body []byte) (T, *response_error.Resp
 	value, err := cbor.DecodeNoCopy(body)
 	if err != nil {
 		return zero, &response_error.ResponseError{
-			ClientError: altshiftErrors.NewWithTrace(fmt.Errorf("cbor decode: %w", err), body),
+			// Not the body, nor below what was decoded of it: the request log writes the body
+			// already, under the masks the service declared, which an error is written out apart from.
+			ClientError: altshiftErrors.NewWithTrace(fmt.Errorf("cbor decode: %w", err)),
 			ProblemDetail: problem_detail.New(
 				http.StatusBadRequest,
 				problem_detail_config.WithDetail("Malformed CBOR body."),
@@ -41,7 +43,7 @@ func (p *Parser[T]) Parse(_ *http.Request, body []byte) (T, *response_error.Resp
 	}
 
 	if err := schema.Validate(value); err != nil {
-		wrappedErr := altshiftErrors.New(fmt.Errorf("validate (input): %w", err), value, schema)
+		wrappedErr := altshiftErrors.New(fmt.Errorf("validate (input): %w", err), schema)
 
 		var validateError *cborSchema.ValidateError
 		if errors.As(err, &validateError) {

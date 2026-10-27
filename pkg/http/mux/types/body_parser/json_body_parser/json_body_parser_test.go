@@ -2,8 +2,12 @@ package json_body_parser
 
 import (
 	jsonv2 "encoding/json/v2"
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
+
+	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
 )
 
 type payload struct {
@@ -54,6 +58,39 @@ func TestParse(t *testing.T) {
 				}
 				if responseError.ProblemDetail.Status != http.StatusUnprocessableEntity {
 					t.Fatalf("expected 422, got %d", responseError.ProblemDetail.Status)
+				}
+			})
+		}
+	})
+
+	// A body that fails to parse is not attached to the error, which the log writes out apart from
+	// the masks the request log applies to the body.
+	t.Run("the body is not in the error", func(t *testing.T) {
+		t.Parallel()
+
+		const secret = "person@example.com"
+
+		testCases := []struct {
+			name string
+			body []byte
+		}{
+			{name: "type mismatch", body: []byte(`{"name":["` + secret + `"]}`)},
+			{name: "unknown member", body: []byte(`{"name":"alice","extra":"` + secret + `"}`)},
+			{name: "malformed", body: []byte(`{"name":"` + secret + `",`)},
+		}
+
+		for _, testCase := range testCases {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				_, responseError := parser.Parse(nil, testCase.body)
+				if responseError == nil || responseError.ClientError == nil {
+					t.Fatalf("%s: expected a client error, got %#v", testCase.name, responseError)
+				}
+
+				written := fmt.Sprint((&altshiftLog.ErrorContextExtractor{}).MakeErrorAttrs(responseError.ClientError))
+				if strings.Contains(written, secret) {
+					t.Errorf("%s: the body is in the error: %s", testCase.name, written)
 				}
 			})
 		}
