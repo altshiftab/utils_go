@@ -100,7 +100,7 @@ func PrivateKeyFromPem[T any](pemKey string) (T, error) {
 
 	convertedPrivateKey, err := altshiftUtils.Convert[T](privateKey)
 	if err != nil {
-		return zero, altshiftErrors.New(fmt.Errorf("convert (private key): %w", err), privateKey)
+		return zero, altshiftErrors.New(fmt.Errorf("convert (private key): %w", err), fmt.Sprintf("%T", privateKey))
 	}
 
 	return convertedPrivateKey, nil

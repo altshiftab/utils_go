@@ -217,7 +217,7 @@ func (c *Config) doRetrieveToken(ctx context.Context, v url.Values, authStyle en
 	if strings.Contains(contentType, "application/x-www-form-urlencoded") || strings.Contains(contentType, "text/plain") {
 		vals, err := url.ParseQuery(string(responseBody))
 		if err != nil {
-			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("url parse query (response body): %w", err), responseBody)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("url parse query (response body): %w", err), contentType, len(responseBody))
 		}
 
 		tokenResponse.AccessToken = vals.Get("access_token")
@@ -225,7 +225,7 @@ func (c *Config) doRetrieveToken(ctx context.Context, v url.Values, authStyle en
 		tokenResponse.RefreshToken = vals.Get("refresh_token")
 	} else {
 		if err := json.Unmarshal(responseBody, &tokenResponse); err != nil {
-			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (response body): %w", err), responseBody)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (response body): %w", err), contentType, len(responseBody))
 		}
 	}
 

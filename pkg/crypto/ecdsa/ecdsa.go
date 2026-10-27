@@ -311,7 +311,7 @@ func FromPem(pemKey string) (*Method, error) {
 
 	method, err := New(privateKey, &privateKey.PublicKey)
 	if err != nil {
-		return nil, altshiftErrors.New(fmt.Errorf("new method: %w", err), privateKey)
+		return nil, altshiftErrors.New(fmt.Errorf("new method: %w", err))
 	}
 
 	return method, nil

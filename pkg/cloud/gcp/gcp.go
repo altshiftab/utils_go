@@ -168,7 +168,7 @@ func (c *Client) credentialsFileTokenSource(ctx context.Context, data []byte, sc
 	case credentialTypeAuthorizedUser:
 		tokenSource, err := authorized_user_token_source.NewFromCredentialsFile(ctx, c.tokenUrl, &credentialsFile, options...)
 		if err != nil {
-			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("authorized user token source new: %w", err), credentialsFile)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("authorized user token source new: %w", err), credentialsFile.Type, credentialsFile.ClientID)
 		}
 
 		return token_source.NewReusable(nil, tokenSource), nil
@@ -180,7 +180,7 @@ func (c *Client) credentialsFileTokenSource(ctx context.Context, data []byte, sc
 
 		tokenSource, err := service_account_token_source.NewFromCredentialsFile(ctx, tokenUrl, &credentialsFile, scopes, options...)
 		if err != nil {
-			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("service account token source new: %w", err), credentialsFile)
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("service account token source new: %w", err), credentialsFile.Type, credentialsFile.ClientEmail, credentialsFile.PrivateKeyID)
 		}
 
 		return token_source.NewReusable(nil, tokenSource), nil
