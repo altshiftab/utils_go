@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -18,6 +19,11 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/types/reporting_api"
 	altshiftSchemaTypes "github.com/altshiftab/utils_go/pkg/schema"
 )
+
+// encodeTestPayload writes a JWS payload as a token carries it.
+func encodeTestPayload(payload string) string {
+	return base64.RawURLEncoding.EncodeToString([]byte(payload))
+}
 
 func TestMaskJws(t *testing.T) {
 	t.Parallel()
@@ -35,7 +41,34 @@ func TestMaskJws(t *testing.T) {
 		{
 			name:  "valid JWS with realistic base64 parts",
 			input: "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123signature",
-			want:  "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.(MASKED)",
+			want:  "eyJhbGciOiJIUzI1NiJ9." + encodeTestPayload(`{"sub":"(MASKED)"}`) + ".(MASKED)",
+		},
+		{
+			// The subject goes; every other claim stays, in its order.
+			name:  "a session token",
+			input: "eyJhbGciOiJFZERTQSJ9." + encodeTestPayload(`{"iss":"login","sub":"acc-1:person@example.com","exp":1,"roles":["admin"]}`) + ".c2ln",
+			want:  "eyJhbGciOiJFZERTQSJ9." + encodeTestPayload(`{"iss":"login","sub":"(MASKED)","exp":1,"roles":["admin"]}`) + ".(MASKED)",
+		},
+		{
+			name:  "a payload with no subject",
+			input: "eyJhbGciOiJFZERTQSJ9." + encodeTestPayload(`{"iss":"login","exp":1}`) + ".c2ln",
+			want:  "eyJhbGciOiJFZERTQSJ9." + encodeTestPayload(`{"iss":"login","exp":1}`) + ".(MASKED)",
+		},
+		{
+			// Only the token's own subject; a nested one belongs to some other party it names.
+			name:  "a subject nested in another claim",
+			input: "eyJhbGciOiJFZERTQSJ9." + encodeTestPayload(`{"act":{"sub":"admin-1"},"sub":"acc-1:person@example.com"}`) + ".c2ln",
+			want:  "eyJhbGciOiJFZERTQSJ9." + encodeTestPayload(`{"act":{"sub":"admin-1"},"sub":"(MASKED)"}`) + ".(MASKED)",
+		},
+		{
+			name:  "a payload that is not JSON",
+			input: "eyJhbGciOiJFZERTQSJ9." + encodeTestPayload(`not json`) + ".c2ln",
+			want:  "eyJhbGciOiJFZERTQSJ9." + encodeTestPayload(`not json`) + ".(MASKED)",
+		},
+		{
+			name:  "a payload that is a JSON array",
+			input: "eyJhbGciOiJFZERTQSJ9." + encodeTestPayload(`["sub"]`) + ".c2ln",
+			want:  "eyJhbGciOiJFZERTQSJ9." + encodeTestPayload(`["sub"]`) + ".(MASKED)",
 		},
 		{
 			name:  "invalid JWS, not enough parts",
@@ -282,7 +315,7 @@ func TestExtractNormalizedHeaders(t *testing.T) {
 			header: http.Header{
 				"Authorization": {"Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIn0.Q70dVMtrOQzEFmGOxPAKbNOUSQMISCLhEDfGpMG0WM4"},
 			},
-			wantParts:  []string{"Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIn0.(MASKED)\r\n"},
+			wantParts:  []string{"Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9." + encodeTestPayload(`{"sub":"(MASKED)","name":"John Doe"}`) + ".(MASKED)\r\n"},
 			avoidParts: []string{"Q70dVMtrOQzEFmGOxPAKbNOUSQMISCLhEDfGpMG0WM4"},
 		},
 		{
@@ -545,8 +578,9 @@ func TestExtractUnverifiedUser_AuthorizationBearer_SessionToken(t *testing.T) {
 	if user.Id != "user123" {
 		t.Errorf("user.Id = %q, want %q", user.Id, "user123")
 	}
-	if user.Email != "user@example.com" {
-		t.Errorf("user.Email = %q, want %q", user.Email, "user@example.com")
+	// The address is in the subject, and is left out of the log all the same.
+	if user.Email != "" {
+		t.Errorf("user.Email = %q, want empty", user.Email)
 	}
 	if user.Group == nil || user.Group.Id != "tenant1" || user.Group.Name != "MyTenant" {
 		t.Errorf("user.Group = %+v, want {Id: tenant1, Name: MyTenant}", user.Group)
@@ -1682,6 +1716,69 @@ func TestExtractor_Handle_MasksUrlHeaders(t *testing.T) {
 			for name, values := range requestHeaderBefore {
 				if got := request.Header[name]; !slices.Equal(got, values) {
 					t.Errorf("%s: the request's %s header became %q", testCase.name, name, got)
+				}
+			}
+		})
+	}
+}
+
+// loggedPayloadPattern finds the payload of a token the log wrote with its signature masked.
+var loggedPayloadPattern = regexp.MustCompile(`eyJ[A-Za-z0-9_-]*\.([A-Za-z0-9_-]+)\.\(MASKED\)`)
+
+// A request carrying a session, written out as the log writes it: the account is named by its id,
+// and its email address -- in the session token's subject -- is nowhere in the entry.
+func TestExtractor_Handle_SessionWithoutEmail(t *testing.T) {
+	t.Parallel()
+
+	const (
+		accountId = "acc-7f3a"
+		email     = "person@example.com"
+	)
+	token := "eyJhbGciOiJFZERTQSJ9." +
+		encodeTestPayload(`{"iss":"login","sub":"`+accountId+`:`+email+`","azp":"t1:Tenant","exp":1}`) + ".c2lnbmF0dXJl"
+
+	testCases := []struct {
+		name    string
+		request string
+	}{
+		{name: "in a cookie", request: "GET /api/whoami HTTP/1.1\r\nHost: login.example.test\r\nCookie: session=" + token + "\r\n\r\n"},
+		{name: "as a bearer token", request: "GET /api/whoami HTTP/1.1\r\nHost: login.example.test\r\nAuthorization: Bearer " + token + "\r\n\r\n"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			request, err := http.ReadRequest(bufio.NewReader(strings.NewReader(testCase.request)))
+			if err != nil {
+				t.Fatalf("%s: read request: %v", testCase.name, err)
+			}
+
+			record := &slog.Record{Message: "An HTTP response was served."}
+			ctx := altshiftHttpContext.WithHttpContextValue(context.Background(), &altshiftHttpTypes.HttpContext{Request: request})
+			if err := New().Handle(ctx, record); err != nil {
+				t.Fatalf("%s: handle: %v", testCase.name, err)
+			}
+
+			text := recordText(t, record)
+			if !strings.Contains(text, accountId) {
+				t.Errorf("%s: the account id is not in the entry: %s", testCase.name, text)
+			}
+			if strings.Contains(text, email) {
+				t.Errorf("%s: the email address is in the entry: %s", testCase.name, text)
+			}
+			// And in what the token logged with its signature masked says, decoded.
+			payloads := loggedPayloadPattern.FindAllStringSubmatch(text, -1)
+			if len(payloads) == 0 {
+				t.Fatalf("%s: no masked token in the entry: %s", testCase.name, text)
+			}
+			for _, payload := range payloads {
+				decoded, err := base64.RawURLEncoding.DecodeString(payload[1])
+				if err != nil {
+					t.Fatalf("%s: decode payload: %v", testCase.name, err)
+				}
+				if strings.Contains(string(decoded), email) {
+					t.Errorf("%s: the logged token says %s", testCase.name, decoded)
 				}
 			}
 		})

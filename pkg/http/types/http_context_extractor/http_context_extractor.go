@@ -1,6 +1,7 @@
 package http_context_extractor
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json/jsontext"
@@ -35,12 +36,73 @@ import (
 
 const maskedValue = "(MASKED)"
 
+// maskJws masks a JWS compact serialization for the log: the signature, without which it cannot be
+// presented again, and the subject in its payload. The rest of the header and the payload are kept;
+// they say what the token was and for what, which is what the log is read for.
 func maskJws(serialization string) string {
 	if parts, err := jws.Split(serialization); err == nil {
+		parts[1] = maskSubject(parts[1])
 		parts[2] = maskedValue
 		return strings.Join(parts[:], jws.Delimiter)
 	}
 	return maskedValue
+}
+
+// maskSubject masks the "sub" claim of a JWS payload, which in a session token names the person --
+// an account id and an email address -- and keeps every other claim as it was, in its order. A
+// payload that is not a base64url-encoded JSON object, or carries no subject, is returned as it
+// came: there is no claim in it to mask.
+func maskSubject(payload string) string {
+	decoded, err := base64.RawURLEncoding.DecodeString(payload)
+	if err != nil {
+		return payload
+	}
+
+	decoder := jsontext.NewDecoder(bytes.NewReader(decoded))
+	if decoder.PeekKind() != '{' {
+		return payload
+	}
+
+	var rewritten bytes.Buffer
+	encoder := jsontext.NewEncoder(&rewritten)
+
+	start, err := decoder.ReadToken()
+	if err != nil || encoder.WriteToken(start) != nil {
+		return payload
+	}
+
+	masked := false
+	for decoder.PeekKind() != '}' {
+		// Written, and read, before the value is: the decoder's next call voids the token.
+		name, err := decoder.ReadToken()
+		if err != nil || encoder.WriteToken(name) != nil {
+			return payload
+		}
+		isSubject := name.String() == "sub"
+
+		value, err := decoder.ReadValue()
+		if err != nil {
+			return payload
+		}
+
+		if isSubject {
+			err = encoder.WriteToken(jsontext.String(maskedValue))
+			masked = true
+		} else {
+			err = encoder.WriteValue(value)
+		}
+		if err != nil {
+			return payload
+		}
+	}
+
+	end, err := decoder.ReadToken()
+	if err != nil || encoder.WriteToken(end) != nil || !masked {
+		return payload
+	}
+
+	// The encoder ends a top-level value with a newline, which is no part of it.
+	return base64.RawURLEncoding.EncodeToString(bytes.TrimSuffix(rewritten.Bytes(), []byte("\n")))
 }
 
 func maskSetCookieHeader(setCookieHeader string) string {
@@ -237,14 +299,15 @@ func userFromSessionClaims(claims *session_claims.Claims) *schema.User {
 		return nil
 	}
 
-	subjectId, subjectEmailAddress, found := strings.Cut(sub, ":")
+	// A session subject is "<account id>:<email address>". The account id names the person to
+	// whoever can look it up, which is all the log needs; the address is left out of it.
+	subjectId, _, found := strings.Cut(sub, ":")
 	if !found {
 		return nil
 	}
 
 	user := &schema.User{
 		Id:         subjectId,
-		Email:      subjectEmailAddress,
 		Unverified: true,
 	}
 
