@@ -259,6 +259,18 @@ func TestExtractNormalizedHeaders(t *testing.T) {
 			avoidParts: []string{"signature"},
 		},
 		{
+			name:       "DPoP proof masked",
+			header:     http.Header{http.CanonicalHeaderKey("DPoP"): {"header.payload.signature"}},
+			wantParts:  []string{"Dpop: header.payload.(MASKED)\r\n"},
+			avoidParts: []string{"signature"},
+		},
+		{
+			name:       "Authorization DPoP with JWS",
+			header:     http.Header{"Authorization": {"DPoP header.payload.signature"}},
+			wantParts:  []string{"Authorization: DPoP header.payload.(MASKED)\r\n"},
+			avoidParts: []string{"signature"},
+		},
+		{
 			name:       "X-Goog-Api-Key masked",
 			header:     http.Header{"X-Goog-Api-Key": {"AIzaSyExampleExampleExampleExample0000"}},
 			wantParts:  []string{"X-Goog-Api-Key: (MASKED)\r\n"},

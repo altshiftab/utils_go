@@ -175,6 +175,11 @@ func extractNormalizedHeaders(host string, header http.Header, maskedHeaders map
 				value = maskCookieHeader(value)
 			} else if name == "X-Goog-Iap-Jwt-Assertion" {
 				value = maskJws(value)
+			} else if name == "Dpop" {
+				// A DPoP proof (RFC 9449), under the name Go canonicalizes "DPoP" to. Its
+				// claims say which request it was made for and are kept; the signature is
+				// what replaying it within its window takes, so it goes.
+				value = maskJws(value)
 			} else if name == "X-Goog-Api-Key" {
 				// A Google API key, as the Gemini client and others send it. It is
 				// opaque rather than a JWS, so nothing of it is kept.
