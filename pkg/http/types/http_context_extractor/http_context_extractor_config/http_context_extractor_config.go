@@ -13,7 +13,8 @@ type MaskedHeader struct {
 //
 // AllValues masks every value instead, keeping only the body's shape -- which members were sent,
 // not what they said -- for a body whose fields a client chooses, where a name-by-name list can be
-// stepped around by sending the value under another.
+// stepped around by sending the value under another. Every member name or form key but those in
+// KeptNames is masked as well: such a client can send a value as a name just as well.
 //
 // A body of another type, one that does not parse -- one cut at the body limit among them -- and
 // one matched by an entry naming no field without AllValues, is masked whole.
@@ -21,6 +22,7 @@ type MaskedBodyFields struct {
 	Url       *schema.Url
 	Fields    []string
 	AllValues bool
+	KeptNames []string
 }
 
 type Config struct {

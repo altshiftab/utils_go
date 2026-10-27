@@ -17,7 +17,7 @@ func TestCredentialFields(t *testing.T) {
 		{
 			name:      "request",
 			fields:    TokenRequestCredentialFields(),
-			wantIn:    []string{"client_secret", "code", "code_verifier", "refresh_token", "client_assertion"},
+			wantIn:    []string{"client_secret", "client_assertion", "code", "code_verifier", "refresh_token", "assertion", "username", "password"},
 			wantNotIn: []string{"grant_type", "client_id", "redirect_uri", "scope"},
 		},
 		{

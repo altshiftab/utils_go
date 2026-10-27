@@ -22,7 +22,7 @@ func TestMaskBodyFields(t *testing.T) {
 	secrets := func(fields ...string) []*http_context_extractor_config.MaskedBodyFields {
 		return []*http_context_extractor_config.MaskedBodyFields{{Url: tokenUrl, Fields: fields}}
 	}
-	allValues := []*http_context_extractor_config.MaskedBodyFields{{Url: tokenUrl, AllValues: true}}
+	allValues := []*http_context_extractor_config.MaskedBodyFields{{Url: tokenUrl, AllValues: true, KeptNames: []string{"email_address"}}}
 
 	const (
 		json = "application/json"
@@ -80,12 +80,20 @@ func TestMaskBodyFields(t *testing.T) {
 			want:        `{"code":"(MASKED)"}`,
 		},
 		{
-			// Only the shape is kept: names, nesting, and the values that say nothing.
+			// Only the shape is kept: the names expected, nesting, and the values that say nothing.
 			name:        "all of a JSON body's values",
 			entries:     allValues,
 			contentType: json,
 			content:     `{"email_address":["a@example.com"],"x":{"n":42,"ok":true,"none":null}}`,
-			want:        `{"email_address":["(MASKED)"],"x":{"n":"(MASKED)","ok":true,"none":null}}`,
+			want:        `{"email_address":["(MASKED)"],"(MASKED)":{"(MASKED)":"(MASKED)","(MASKED)":true,"(MASKED)":null}}`,
+		},
+		{
+			// A client choosing the body can send the value as a name.
+			name:        "a value sent as a member name",
+			entries:     allValues,
+			contentType: json,
+			content:     `{"a@example.com":1,"b@example.com":2}`,
+			want:        `{"(MASKED)":"(MASKED)","(MASKED)":"(MASKED)"}`,
 		},
 		{
 			name:        "all of a JSON body's values, at the top",
@@ -113,8 +121,27 @@ func TestMaskBodyFields(t *testing.T) {
 			entries:     allValues,
 			contentType: form,
 			content:     "email_address=a%40example.com&x=1",
-			want:        "email_address=%28MASKED%29&x=%28MASKED%29",
+			want:        "email_address=%28MASKED%29&%28MASKED%29=%28MASKED%29",
 		},
+		{
+			// url.ParseQuery reads JSON as a form with one odd key; it is no form.
+			name:        "JSON labelled a form",
+			entries:     secrets("access_token"),
+			contentType: form,
+			content:     `{"access_token":"at"}`,
+			want:        maskedValue,
+		},
+		{
+			// An = in a value gives the pair its separator; the key is then the JSON before it.
+			name:        "JSON with an = in it labelled a form",
+			entries:     secrets("access_token"),
+			contentType: form,
+			content:     `{"access_token":"at=1"}`,
+			want:        maskedValue,
+		},
+		{name: "a word labelled a form", entries: secrets("code"), contentType: form, content: "justaword", want: maskedValue},
+		{name: "a form with an empty pair", entries: secrets("code"), contentType: form, content: "code=c&", want: maskedValue},
+		{name: "a form key of other characters", entries: secrets("code"), contentType: form, content: "code=c&a%40b=1", want: maskedValue},
 		{name: "JSON that does not parse", entries: secrets("code"), contentType: json, content: `{"code":"c"`, want: maskedValue},
 		{
 			// A body cut at the limit is no longer whole JSON, and what was cut off may well name

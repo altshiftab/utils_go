@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
@@ -28,6 +29,7 @@ func maskBodyFields(
 	}
 
 	fields := make(map[string]struct{})
+	keptNames := make(map[string]struct{})
 	allValues := false
 	matched := false
 	for _, entry := range entries {
@@ -45,6 +47,9 @@ func maskBodyFields(
 		for _, field := range entry.Fields {
 			fields[field] = struct{}{}
 		}
+		for _, name := range entry.KeptNames {
+			keptNames[name] = struct{}{}
+		}
 	}
 	if !matched {
 		return content
@@ -58,9 +63,9 @@ func maskBodyFields(
 	var masked string
 	switch {
 	case mediaType == "application/json" || strings.HasSuffix(mediaType, "+json"):
-		masked, err = maskJsonFields(content, fields, allValues)
+		masked, err = maskJsonFields(content, fields, allValues, keptNames)
 	case mediaType == "application/x-www-form-urlencoded":
-		masked, err = maskFormFields(content, fields, allValues)
+		masked, err = maskFormFields(content, fields, allValues, keptNames)
 	default:
 		return maskedValue
 	}
@@ -72,12 +77,13 @@ func maskBodyFields(
 }
 
 // maskJsonFields replaces the value of every member named in fields, at any depth, with
-// maskedValue, or with allValues every string and number wherever it is, keeping the member names,
-// their order and the rest as they were.
-func maskJsonFields(content string, fields map[string]struct{}, allValues bool) (string, error) {
+// maskedValue, keeping the member names, their order and the rest as they were. With allValues it
+// replaces every string and number wherever it is, and every member name not in keptNames.
+func maskJsonFields(content string, fields map[string]struct{}, allValues bool, keptNames map[string]struct{}) (string, error) {
 	decoder := jsontext.NewDecoder(strings.NewReader(content))
 	var masked bytes.Buffer
-	encoder := jsontext.NewEncoder(&masked)
+	// Names masked alike are no longer distinct, which is no reason to refuse to write them.
+	encoder := jsontext.NewEncoder(&masked, jsontext.AllowDuplicateNames(true))
 
 	for {
 		token, err := decoder.ReadToken()
@@ -94,7 +100,11 @@ func maskJsonFields(content string, fields map[string]struct{}, allValues bool) 
 
 		if isName {
 			// Read before anything else of the decoder's, which voids the token.
-			_, isMasked := fields[token.String()]
+			name := token.String()
+			_, isMasked := fields[name]
+			if _, isKept := keptNames[name]; allValues && !isKept {
+				token = jsontext.String(maskedValue)
+			}
 			if err := encoder.WriteToken(token); err != nil {
 				return "", err
 			}
@@ -121,23 +131,44 @@ func maskJsonFields(content string, fields map[string]struct{}, allValues bool) 
 	return strings.TrimSuffix(masked.String(), "\n"), nil
 }
 
-// maskFormFields replaces the value of every key named in fields, or with allValues of every key,
-// with maskedValue, keeping the pairs in their order and the rest as they were.
-func maskFormFields(content string, fields map[string]struct{}, allValues bool) (string, error) {
+// formKeyPattern is what the key of a form a service exchanges is made of. Text whose keys are
+// anything else is no form, whatever its type says -- url.ParseQuery reads almost any text as one,
+// JSON and plain words included -- and is masked whole.
+var formKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_.\[\]-]+$`)
+
+// errNotForm is text that url.ParseQuery reads but that is no form.
+var errNotForm = errors.New("not a form")
+
+// maskFormFields replaces the value of every key named in fields with maskedValue, keeping the
+// pairs in their order and the rest as they were. With allValues it replaces every value, and every
+// key not in keptNames.
+func maskFormFields(content string, fields map[string]struct{}, allValues bool, keptNames map[string]struct{}) (string, error) {
 	if _, err := url.ParseQuery(content); err != nil {
 		return "", err
 	}
 
 	pairs := strings.Split(content, "&")
 	for i, pair := range pairs {
-		key, _, _ := strings.Cut(pair, "=")
+		key, _, hasValue := strings.Cut(pair, "=")
+		if !hasValue {
+			return "", errNotForm
+		}
 		name, err := url.QueryUnescape(key)
 		if err != nil {
 			return "", err
 		}
-		if _, isMasked := fields[name]; isMasked || allValues {
-			pairs[i] = key + "=" + url.QueryEscape(maskedValue)
+		if !formKeyPattern.MatchString(name) {
+			return "", errNotForm
 		}
+
+		_, isMasked := fields[name]
+		if !isMasked && !allValues {
+			continue
+		}
+		if _, isKept := keptNames[name]; allValues && !isKept {
+			key = url.QueryEscape(maskedValue)
+		}
+		pairs[i] = key + "=" + url.QueryEscape(maskedValue)
 	}
 
 	return strings.Join(pairs, "&"), nil

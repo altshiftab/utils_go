@@ -2,9 +2,9 @@ package oauth2
 
 // TokenRequestCredentialFields are the fields of a token request that carry a credential: the
 // client's secret or assertion (RFC 6749 section 2.3, RFC 7523), the grant's code, verifier,
-// refresh token, assertion or password (RFC 6749 section 4, RFC 7636, RFC 7523). They are what a log
-// masks of one, keeping what says what was asked for: the grant type, the client id, the redirect
-// URI and the scope.
+// refresh token, assertion or password (RFC 6749 section 4, RFC 7636, RFC 7523) -- and the password
+// grant's username, which names the person. They are what a log masks of one, keeping what says
+// what was asked for: the grant type, the client id, the redirect URI and the scope.
 func TokenRequestCredentialFields() []string {
 	return []string{
 		"client_secret",
@@ -13,6 +13,7 @@ func TokenRequestCredentialFields() []string {
 		"code_verifier",
 		"refresh_token",
 		"assertion",
+		"username",
 		"password",
 	}
 }
