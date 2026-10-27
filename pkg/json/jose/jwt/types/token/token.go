@@ -10,6 +10,7 @@ import (
 	altshiftCryptoInterfaces "github.com/altshiftab/utils_go/pkg/crypto/interfaces"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	altshiftJws "github.com/altshiftab/utils_go/pkg/json/jose/jws"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jws/types/jws_object"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
@@ -26,7 +27,7 @@ func (t *Token) Encode(signer altshiftCryptoInterfaces.NamedSigner) (string, err
 
 	payloadBytes, err := json.Marshal(t.Payload)
 	if err != nil {
-		return "", altshiftErrors.NewWithTrace(fmt.Errorf("json marshal (payload): %w", err), t.Payload)
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("json marshal (payload): %w", err))
 	}
 
 	var header map[string]any
@@ -54,7 +55,7 @@ func (t *Token) Encode(signer altshiftCryptoInterfaces.NamedSigner) (string, err
 
 	signature, err := signer.Sign(signatureInput)
 	if err != nil {
-		return "", altshiftErrors.NewWithTrace(fmt.Errorf("signer sign: %w", err), signatureInput)
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("signer sign: %w", err))
 	}
 
 	return strings.Join(
@@ -75,7 +76,7 @@ func NewFromJws(jws *jws_object.Object) (*Token, error) {
 	}
 
 	if err := json.Unmarshal(jws.Payload, &token.Payload); err != nil {
-		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (payload): %w", err), jws.Payload)
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal (payload): %w", err))
 	}
 
 	return &token, nil
@@ -89,7 +90,7 @@ func New(tokenString string) (*Token, error) {
 
 	token, err := NewFromJws(rawToken)
 	if err != nil {
-		return nil, altshiftErrors.New(fmt.Errorf("from raw token: %w", err), rawToken)
+		return nil, altshiftErrors.New(fmt.Errorf("from raw token: %w", err), altshiftJws.Fingerprint(tokenString))
 	}
 
 	return token, nil

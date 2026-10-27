@@ -7,6 +7,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	altshiftJws "github.com/altshiftab/utils_go/pkg/json/jose/jws"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jws/types/jws_object"
 	altshiftJwtToken "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token/authenticated_token/authenticated_token_config"
@@ -44,7 +45,7 @@ func New(tokenString string, options ...authenticated_token_config.Option) (*Tok
 	if err != nil {
 		return nil, errors.New(
 			fmt.Errorf("%w: token from raw token: %w", errors.ErrParseError, err),
-			rawToken,
+			altshiftJws.Fingerprint(tokenString),
 		)
 	}
 	if token == nil {
@@ -79,7 +80,7 @@ func New(tokenString string, options ...authenticated_token_config.Option) (*Tok
 		}
 
 		if err := rawToken.Verify(signatureVerifier); err != nil {
-			return authenticatedToken, errors.New(fmt.Errorf("raw token verify: %w", err), rawToken)
+			return authenticatedToken, errors.New(fmt.Errorf("raw token verify: %w", err), altshiftJws.Fingerprint(tokenString))
 		}
 	} else if !config.AllowUnauthenticated {
 		return authenticatedToken, errors.NewWithTrace(nil_error.New("verifier"))
@@ -91,7 +92,7 @@ func New(tokenString string, options ...authenticated_token_config.Option) (*Tok
 		if err := tokenValidator.Validate(token); err != nil {
 			return authenticatedToken, errors.New(
 				fmt.Errorf("%w: token validator validate: %w", errors.ErrValidationError, err),
-				token,
+				altshiftJws.Fingerprint(tokenString), token.Header,
 			)
 		}
 	}

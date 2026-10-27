@@ -38,19 +38,37 @@ func (v *Validator) Validate(token *token.Token) error {
 		if err != nil {
 			return altshiftErrors.New(
 				fmt.Errorf("%w: registered claims new parsed claims: %w", altshiftErrors.ErrParseError, err),
-				tokenPayload,
+				decisiveClaims(tokenPayload),
 			)
 		}
 
 		parsedSessionClaims, err := session_claims.NewParsedClaims(parsedRegisteredClaims)
 		if err != nil {
-			return altshiftErrors.New(fmt.Errorf("sessions claims new parsed claims: %w", err), parsedRegisteredClaims)
+			return altshiftErrors.New(fmt.Errorf("sessions claims new parsed claims: %w", err), decisiveClaims(parsedRegisteredClaims))
 		}
 
 		if err := payloadValidator.Validate(parsedSessionClaims); err != nil {
-			return altshiftErrors.New(fmt.Errorf("payload validator validate: %w", err), parsedSessionClaims)
+			return altshiftErrors.New(fmt.Errorf("payload validator validate: %w", err), decisiveClaims(parsedSessionClaims))
 		}
 	}
 
 	return nil
+}
+
+// decisiveClaimNames are the claims an error about a token's claims carries: the ones that decide
+// whether the token is valid at all.
+var decisiveClaimNames = []string{"iss", "aud", "exp", "iat", "nbf"}
+
+// decisiveClaims is what of a token's claims goes on an error. The rest -- the subject, an email
+// address, a name -- say who the token is about, and an error is written to a log, which is no place
+// for them; what made the token valid or not is all a reader of the log needs.
+func decisiveClaims(claims map[string]any) map[string]any {
+	decisive := make(map[string]any, len(decisiveClaimNames))
+	for _, name := range decisiveClaimNames {
+		if value, ok := claims[name]; ok {
+			decisive[name] = value
+		}
+	}
+
+	return decisive
 }

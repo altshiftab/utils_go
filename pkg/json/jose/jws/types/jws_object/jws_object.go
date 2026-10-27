@@ -33,7 +33,7 @@ func (o *Object) Verify(verifier interfaces.Verifier) error {
 	header := rawSplit[0]
 	payload := rawSplit[1]
 	if err := jws.Verify(header, payload, o.Signature, verifier); err != nil {
-		return altshiftErrors.New(fmt.Errorf("verifier verify: %w", err), header, payload, o.Signature)
+		return altshiftErrors.New(fmt.Errorf("verifier verify: %w", err), header)
 	}
 
 	return nil

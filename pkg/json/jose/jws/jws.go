@@ -61,7 +61,7 @@ func VerifyCompactSerialization(serialization string, verifier altshiftCryptoInt
 	}
 
 	if err := Verify(header, payload, signature, verifier); err != nil {
-		return altshiftErrors.New(fmt.Errorf("verifier verify: %w", err), header, payload, signature)
+		return altshiftErrors.New(fmt.Errorf("verifier verify: %w", err), header)
 	}
 
 	return nil

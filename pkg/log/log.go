@@ -18,6 +18,7 @@ import (
 
 	context2 "github.com/altshiftab/utils_go/pkg/context"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	altshiftJws "github.com/altshiftab/utils_go/pkg/json/jose/jws"
 	altshiftStrings "github.com/altshiftab/utils_go/pkg/strings"
 )
 
@@ -173,7 +174,11 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 					continue
 				}
 
-				textualRepresentations = append(textualRepresentations, textualRepresentation)
+				// The net under the code that attaches values: a token written out here as text loses its
+				// signature, as a header carrying one does, so that it cannot be presented again -- including
+				// one attached by code written after the rule. It sees text only: a token attached as some
+				// other value is that value's own to write out safely, as jws_object.Object does.
+				textualRepresentations = append(textualRepresentations, altshiftJws.MaskSignatures(textualRepresentation))
 			}
 
 			if len(textualRepresentations) != 0 {
@@ -264,7 +269,8 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 	}
 
 	if errorMessage != "" {
-		attrs = append(attrs, slog.String("message", errorMessage))
+		// Masked as the inputs are: a message that formats a token in with %s would write it whole.
+		attrs = append(attrs, slog.String("message", altshiftJws.MaskSignatures(errorMessage)))
 	}
 
 	return attrs

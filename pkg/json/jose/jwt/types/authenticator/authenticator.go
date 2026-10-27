@@ -8,6 +8,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler"
+	altshiftJws "github.com/altshiftab/utils_go/pkg/json/jose/jws"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/authenticator/authenticator_config"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/authenticator/authenticator_with_key_handler_config"
 	altshiftJwkToken "github.com/altshiftab/utils_go/pkg/json/jose/jwt/types/token"
@@ -39,7 +40,7 @@ func (a *Authenticator) Authenticate(ctx context.Context, tokenString string) (*
 	if err != nil {
 		return nil, altshiftErrors.New(
 			fmt.Errorf("authenticated token new: %w", err),
-			tokenString, signatureVerifier, validator,
+			altshiftJws.Fingerprint(tokenString), signatureVerifier, validator,
 		)
 	}
 	if token == nil {
@@ -114,7 +115,7 @@ func (a *AuthenticatorWithKeyHandler) Authenticate(ctx context.Context, tokenStr
 	if err != nil {
 		return nil, altshiftErrors.New(
 			fmt.Errorf("authenticated token new: %w", err),
-			tokenString, signatureVerifier, validator,
+			altshiftJws.Fingerprint(tokenString), signatureVerifier, validator,
 		)
 	}
 	if authenticatedToken == nil {
