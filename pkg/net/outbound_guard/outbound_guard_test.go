@@ -98,6 +98,41 @@ func TestIsPublicIP(t *testing.T) {
 	}
 }
 
+func TestIsPublic(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		addr     string
+		expected bool
+	}{
+		{name: "Public IPv4", addr: "8.8.8.8", expected: true},
+		{name: "Public IPv6", addr: "2606:4700:4700::1111", expected: true},
+		{name: "Loopback IPv6", addr: "::1", expected: false},
+		{name: "IPv4 mapped loopback", addr: "::ffff:127.0.0.1", expected: false},
+		{name: "Loopback IPv6 with a zone", addr: "::1%lo", expected: false},
+		{name: "IPv6 link-local with a zone", addr: "fe80::1%eth0", expected: false},
+		{name: "IPv6 ULA with a zone", addr: "fd00::1%eth0", expected: false},
+		{name: "IPv4 mapped loopback with a zone", addr: "::ffff:127.0.0.1%lo", expected: false},
+		{name: "Public IPv6 with a zone", addr: "2606:4700:4700::1111%eth0", expected: false},
+		{name: "The zero value", addr: "", expected: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var addr netip.Addr
+			if tc.addr != "" {
+				addr = netip.MustParseAddr(tc.addr)
+			}
+			if actual := IsPublic(addr); actual != tc.expected {
+				t.Fatalf("IsPublic(%q) = %v; want %v", tc.addr, actual, tc.expected)
+			}
+		})
+	}
+}
+
 func TestCheckWithLookup(t *testing.T) {
 	t.Parallel()
 
@@ -375,6 +410,8 @@ func TestDialControl(t *testing.T) {
 		{name: "a private network", address: "10.1.2.3:80", wantErr: true},
 		{name: "the metadata server", address: "169.254.169.254:80", wantErr: true},
 		{name: "a unique local IPv6 address", address: "[fd00::1]:80", wantErr: true},
+		{name: "loopback, IPv6, with a zone", address: "[::1%lo]:80", wantErr: true},
+		{name: "link-local, with a zone", address: "[fe80::1%eth0]:80", wantErr: true},
 		{name: "a name, unresolved", address: "localhost:80", wantErr: true},
 		{name: "no port", address: "93.184.215.14", wantErr: true},
 	}

@@ -136,7 +136,13 @@ func IsPublicIP(ip net.IP) bool {
 
 // IsPublic reports whether addr is outside the deny list: not loopback, private, link-local, cloud
 // metadata, reserved, documentation, multicast or any other range the public internet does not route.
+// An address with a zone is refused whatever it is: a zone scopes an address to one link, which no
+// public address needs, and netip.Prefix.Contains is false for a zoned address, so ::1%lo would
+// otherwise pass a check of every prefix it is in.
 func IsPublic(addr netip.Addr) bool {
+	if addr.Zone() != "" {
+		return false
+	}
 	addr = normalizeAddr(addr)
 	if !addr.IsValid() {
 		return false
