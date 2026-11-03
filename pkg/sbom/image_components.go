@@ -239,7 +239,7 @@ func osPackagePurl(purlType, namespace, name, version string, qualifiers map[str
 		for _, key := range keys {
 			pairs = append(pairs, key+"="+escapePurlSegment(qualifiers[key]))
 		}
-		purl += "?" + strings.Join(pairs, "&")
+		purl += "?" + strings.Join(pairs, "&") //nolint:urlconcat // a purl, whose qualifiers follow the purl spec's encoding rather than a form's
 	}
 
 	return purl

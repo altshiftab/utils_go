@@ -342,8 +342,14 @@ func TestHistoryUrl(t *testing.T) {
 
 	u, _ := url.Parse("http://localhost:8080")
 	client := NewClient(gmail_config.WithBaseUrl(u))
-	got := client.historyUrl("user@example.com")
+	got := client.historyUrl("user@example.com", nil)
 	expected := "http://localhost:8080/gmail/v1/users/user@example.com/history"
+	if got != expected {
+		t.Errorf("expected %q, got %q", expected, got)
+	}
+
+	got = client.historyUrl("user@example.com", url.Values{"startHistoryId": {"42"}, "historyTypes": {"messageAdded", "labelAdded"}})
+	expected = "http://localhost:8080/gmail/v1/users/user@example.com/history?historyTypes=messageAdded&historyTypes=labelAdded&startHistoryId=42"
 	if got != expected {
 		t.Errorf("expected %q, got %q", expected, got)
 	}
@@ -947,16 +953,31 @@ func TestMessagesUrl(t *testing.T) {
 	u, _ := url.Parse("http://localhost:8080")
 	client := NewClient(gmail_config.WithBaseUrl(u))
 
-	got := client.messagesUrl("user@example.com", "")
-	expected := "http://localhost:8080/gmail/v1/users/user@example.com/messages"
-	if got != expected {
-		t.Errorf("expected %q, got %q", expected, got)
+	testCases := []struct {
+		name      string
+		messageId string
+		verb      string
+		query     url.Values
+		expected  string
+	}{
+		{name: "list", expected: "http://localhost:8080/gmail/v1/users/user@example.com/messages"},
+		{name: "one message", messageId: "msg-123", expected: "http://localhost:8080/gmail/v1/users/user@example.com/messages/msg-123"},
+		{name: "a verb", messageId: "msg-123", verb: "trash", expected: "http://localhost:8080/gmail/v1/users/user@example.com/messages/msg-123/trash"},
+		{
+			name:     "a query",
+			query:    url.Values{"q": {"from:a b"}, "maxResults": {"10"}},
+			expected: "http://localhost:8080/gmail/v1/users/user@example.com/messages?maxResults=10&q=from%3Aa+b",
+		},
 	}
 
-	got = client.messagesUrl("user@example.com", "msg-123")
-	expected = "http://localhost:8080/gmail/v1/users/user@example.com/messages/msg-123"
-	if got != expected {
-		t.Errorf("expected %q, got %q", expected, got)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := client.messagesUrl("user@example.com", testCase.messageId, testCase.verb, testCase.query); got != testCase.expected {
+				t.Errorf("%s: expected %q, got %q", testCase.name, testCase.expected, got)
+			}
+		})
 	}
 }
 

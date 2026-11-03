@@ -119,6 +119,37 @@ func TestPublicKeyRoundTrips(t *testing.T) {
 		}
 	})
 
+	// A sender may strip a coordinate's leading zero byte; it has to be padded back, not misread.
+	t.Run("ec2 coordinate without its leading zero byte", func(t *testing.T) {
+		t.Parallel()
+
+		for range 100_000 {
+			privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			if err != nil {
+				t.Fatalf("ecdsa generate key: %v", err)
+			}
+
+			keyMap := makeEc2KeyMap(t, &privateKey.PublicKey)
+			x, _ := keyMap[keyParameterX].([]byte)
+			if x[0] != 0 {
+				continue
+			}
+			keyMap[keyParameterX] = x[1:]
+
+			convertedKey, err := PublicKey(keyMap)
+			if err != nil {
+				t.Fatalf("public key: %v", err)
+			}
+			if !privateKey.PublicKey.Equal(convertedKey) {
+				t.Errorf("key mismatch")
+			}
+
+			return
+		}
+
+		t.Fatal("no key with a leading zero byte in x")
+	})
+
 	t.Run("okp ed25519", func(t *testing.T) {
 		t.Parallel()
 

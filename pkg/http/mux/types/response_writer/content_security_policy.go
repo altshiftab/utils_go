@@ -1,6 +1,7 @@
 package response_writer
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -13,7 +14,7 @@ import (
 
 const contentSecurityPolicyHeaderName = "Content-Security-Policy"
 
-var ErrInvalidInlineScriptHash = fmt.Errorf("invalid inline script hash")
+var ErrInvalidInlineScriptHash = errors.New("invalid inline script hash")
 
 // applyInlineScriptHashesCache caches merged policies keyed by the policy
 // string and hash list, as the combinations are few and stable.

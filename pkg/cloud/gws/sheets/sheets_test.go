@@ -225,8 +225,13 @@ func TestSpreadsheetUrl(t *testing.T) {
 
 	client := NewClient()
 	expected := "https://sheets.googleapis.com/v4/spreadsheets/sheet-1"
-	if u := client.spreadsheetUrl("sheet-1"); u != expected {
+	if u := client.spreadsheetUrl("sheet-1", nil); u != expected {
 		t.Errorf("spreadsheetUrl = %q, want %q", u, expected)
+	}
+
+	expected = "https://sheets.googleapis.com/v4/spreadsheets/sheet-1?fields=sheets.properties"
+	if u := client.spreadsheetUrl("sheet-1", url.Values{"fields": {"sheets.properties"}}); u != expected {
+		t.Errorf("spreadsheetUrl with query = %q, want %q", u, expected)
 	}
 }
 
@@ -235,7 +240,7 @@ func TestValuesUrl(t *testing.T) {
 
 	client := NewClient()
 	expected := "https://sheets.googleapis.com/v4/spreadsheets/sheet-1/values/%27Bes%C3%B6k%27%21A2:E"
-	if u := client.valuesUrl("sheet-1", "'Besök'!A2:E"); u != expected {
+	if u := client.valuesUrl("sheet-1", "'Besök'!A2:E", nil); u != expected {
 		t.Errorf("valuesUrl = %q, want %q", u, expected)
 	}
 }

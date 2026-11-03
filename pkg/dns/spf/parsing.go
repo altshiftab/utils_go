@@ -25,13 +25,13 @@ func extractLabelValues[T TermPtr](record *Record, passOnly bool, labels ...stri
 						continue
 					}
 
-					if strings.ToLower(typedTerm.Mechanism.Label) == label {
+					if strings.EqualFold(typedTerm.Mechanism.Label, label) {
 						values = append(values, typedTerm.Mechanism.Value)
 					}
 				}
 			case *Modifier:
 				for _, label := range labels {
-					if strings.ToLower(typedTerm.Label) == label {
+					if strings.EqualFold(typedTerm.Label, label) {
 						values = append(values, typedTerm.Value)
 					}
 				}

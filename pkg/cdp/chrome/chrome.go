@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"slices"
 	"strconv"
@@ -219,7 +220,7 @@ func FreePort(ctx context.Context) (int, error) {
 // browser's own endpoint there, from the version it reports. With a fixed port
 // Chrome writes no DevToolsActivePort file to read it from instead.
 func DevToolsEndpoint(ctx context.Context, port int, exited <-chan struct{}) (string, error) {
-	versionUrl := "http://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(port)) + "/json/version"
+	versionUrl := new(url.URL{Scheme: "http", Host: net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), Path: "/json/version"}).String()
 	client := &http.Client{Timeout: endpointPollInterval * 5}
 
 	for {

@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_tasks/cloud_tasks_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_tasks/types/list_tasks_response"
@@ -101,35 +102,17 @@ func (client *Client) resourceUrl(resource string, verb string) (string, error) 
 		return "", altshiftErrors.NewWithTrace(empty_error.New("resource"))
 	}
 
-	escaped := ""
-	for index, segment := range splitPath(resource) {
-		if index != 0 {
-			escaped += "/"
-		}
-		escaped += url.PathEscape(segment)
+	segments := strings.Split(resource, "/")
+	for index, segment := range segments {
+		segments[index] = url.PathEscape(segment)
 	}
+	escaped := strings.Join(segments, "/")
 
 	u := *client.baseUrl
 	u.Path += resource + verb
 	u.RawPath = u.EscapedPath()[:len(client.baseUrl.EscapedPath())] + escaped + verb
 
 	return u.String(), nil
-}
-
-func splitPath(path string) []string {
-	segments := make([]string, 0, 8)
-	current := ""
-	for _, character := range path {
-		if character == '/' {
-			segments = append(segments, current)
-			current = ""
-
-			continue
-		}
-		current += string(character)
-	}
-
-	return append(segments, current)
 }
 
 // createTaskRequest is the body tasks.create takes. Unlike Cloud Scheduler, which is posted the

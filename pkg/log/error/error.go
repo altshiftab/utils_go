@@ -1,4 +1,4 @@
-package error
+package error //nolint:predeclared // the import path is the public API, and every importer aliases it
 
 import (
 	"context"

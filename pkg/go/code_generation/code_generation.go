@@ -113,12 +113,12 @@ func GenerateLiteral(value reflect.Value, importSet ImportSet) (string, ImportSe
 	case reflect.String:
 		return strconv.Quote(value.String()), importSet, nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return fmt.Sprint(value.Int()), importSet, nil
+		return strconv.FormatInt(value.Int(), 10), importSet, nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return fmt.Sprint(value.Uint()), importSet, nil
+		return strconv.FormatUint(value.Uint(), 10), importSet, nil
 	case reflect.Uintptr:
 		// Represent as a decimal literal
-		return fmt.Sprint(value.Uint()), importSet, nil
+		return strconv.FormatUint(value.Uint(), 10), importSet, nil
 	case reflect.Float32:
 		f := value.Float()
 		if math.IsNaN(f) {

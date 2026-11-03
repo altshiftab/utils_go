@@ -48,29 +48,24 @@ func NewClient(options ...sheets_config.Option) *Client {
 // PathEscape output to Path alone would make URL.String re-escape the percent
 // signs, which matters for the non-ASCII sheet titles A1 ranges can contain.
 
-func (c *Client) spreadsheetUrl(spreadsheetId string) string {
+func (c *Client) spreadsheetUrl(spreadsheetId string, query url.Values) string {
 	u := *c.baseUrl
 	u.Path = c.baseUrl.Path + spreadsheetId
 	u.RawPath = c.baseUrl.Path + url.PathEscape(spreadsheetId)
+	u.RawQuery = query.Encode()
 	return u.String()
 }
 
-func (c *Client) valuesUrl(spreadsheetId string, valuesRange string) string {
+func (c *Client) valuesUrl(spreadsheetId string, valuesRange string, query url.Values) string {
 	u := *c.baseUrl
 	u.Path = c.baseUrl.Path + spreadsheetId + "/values/" + valuesRange
 	u.RawPath = c.baseUrl.Path + url.PathEscape(spreadsheetId) + "/values/" + url.PathEscape(valuesRange)
+	u.RawQuery = query.Encode()
 	return u.String()
 }
 
 func (c *Client) fetchOptions(options []fetch_config.Option) []fetch_config.Option {
 	return append(c.config.FetchOptions, options...)
-}
-
-func withQuery(urlString string, query url.Values) string {
-	if encoded := query.Encode(); encoded != "" {
-		return urlString + "?" + encoded
-	}
-	return urlString
 }
 
 // GetSpreadsheet retrieves spreadsheet metadata (the sheet list and properties), not cell data.
@@ -88,7 +83,7 @@ func (c *Client) GetSpreadsheet(ctx context.Context, spreadsheetId string, optio
 
 	return rest.GetJson[spreadsheet.Spreadsheet](
 		ctx,
-		withQuery(c.spreadsheetUrl(spreadsheetId), query),
+		c.spreadsheetUrl(spreadsheetId, query),
 		c.fetchOptions(getSpreadsheetConfig.FetchOptions),
 	)
 }
@@ -112,7 +107,7 @@ func (c *Client) GetValues(ctx context.Context, spreadsheetId string, valuesRang
 
 	return rest.GetJson[value_range.ValueRange](
 		ctx,
-		withQuery(c.valuesUrl(spreadsheetId, valuesRange), query),
+		c.valuesUrl(spreadsheetId, valuesRange, query),
 		c.fetchOptions(getValuesConfig.FetchOptions),
 	)
 }

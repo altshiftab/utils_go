@@ -3,6 +3,7 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 var (
@@ -33,5 +34,5 @@ func (e *RetrieveError) Error() string {
 		return s
 	}
 
-	return fmt.Sprintf("%d", e.StatusCode)
+	return strconv.Itoa(e.StatusCode)
 }

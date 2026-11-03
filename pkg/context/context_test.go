@@ -6,17 +6,18 @@ import (
 	"testing"
 )
 
+var errBoom = errors.New("boom")
+
 func TestWithError_StoresAndRetrievesError(t *testing.T) {
 	t.Parallel()
 
-	original := errors.New("boom")
-	ctx := WithError(context.Background(), original)
+	ctx := WithError(context.Background(), errBoom)
 
 	got, ok := ctx.Value(ErrorContextKey).(error)
 	if !ok {
 		t.Fatal("expected value at ErrorContextKey to be an error")
 	}
-	if !errors.Is(got, original) {
+	if !errors.Is(got, errBoom) {
 		t.Fatalf("expected stored error to match original, got %v", got)
 	}
 }
@@ -44,7 +45,7 @@ func TestWithError_ParentValuesPreserved(t *testing.T) {
 	type otherKey struct{}
 
 	parent := context.WithValue(context.Background(), otherKey{}, "parent-value")
-	ctx := WithError(parent, errors.New("e"))
+	ctx := WithError(parent, errBoom)
 
 	if got, _ := ctx.Value(otherKey{}).(string); got != "parent-value" {
 		t.Fatalf("expected parent value preserved, got %q", got)

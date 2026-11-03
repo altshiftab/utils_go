@@ -2,11 +2,11 @@ package cloud_scheduler
 
 import (
 	"encoding/json/v2"
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"sync/atomic"
 	"testing"
 
@@ -231,7 +231,7 @@ func TestListJobsFollowsPages(t *testing.T) {
 		t.Errorf("expected the pages in order, got %q first and %q last", jobs[0].Name, jobs[2].Name)
 	}
 	for _, size := range sizes {
-		if size != fmt.Sprintf("%d", maxPageSize) {
+		if size != strconv.Itoa(maxPageSize) {
 			t.Errorf("expected the largest page the API serves, got %q", size)
 		}
 	}

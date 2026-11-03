@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_scheduler/cloud_scheduler_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_scheduler/types/job"
@@ -82,34 +83,17 @@ func (client *Client) resourceUrl(resource string, verb string) (string, error) 
 		return "", altshiftErrors.NewWithTrace(empty_error.New("resource"))
 	}
 
-	escaped := ""
-	for index, segment := range splitPath(resource) {
-		if index != 0 {
-			escaped += "/"
-		}
-		escaped += url.PathEscape(segment)
+	segments := strings.Split(resource, "/")
+	for index, segment := range segments {
+		segments[index] = url.PathEscape(segment)
 	}
+	escaped := strings.Join(segments, "/")
 
 	u := *client.baseUrl
 	u.Path += resource + verb
 	u.RawPath = u.EscapedPath()[:len(client.baseUrl.EscapedPath())] + escaped + verb
 
 	return u.String(), nil
-}
-
-func splitPath(path string) []string {
-	segments := make([]string, 0, 6)
-	current := ""
-	for _, character := range path {
-		if character == '/' {
-			segments = append(segments, current)
-			current = ""
-			continue
-		}
-		current += string(character)
-	}
-
-	return append(segments, current)
 }
 
 // CreateJob creates a job under parent with the id given, and returns it as the server recorded it
@@ -281,16 +265,8 @@ func (client *Client) PatchJob(
 		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("url parse: %w", err), base)
 	}
 
-	mask := ""
-	for index, field := range updateMask {
-		if index != 0 {
-			mask += ","
-		}
-		mask += field
-	}
-
 	query := requestUrl.Query()
-	query.Set("updateMask", mask)
+	query.Set("updateMask", strings.Join(updateMask, ","))
 	requestUrl.RawQuery = query.Encode()
 
 	urlString := requestUrl.String()

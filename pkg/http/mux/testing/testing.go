@@ -50,7 +50,7 @@ func TestArgs(t *testing.T, args *Args, serverUrl string) {
 		requestBody = bytes.NewReader(testCaseBody)
 	}
 
-	request, err := http.NewRequestWithContext(t.Context(), args.Method, serverUrl+args.Path, requestBody)
+	request, err := http.NewRequestWithContext(t.Context(), args.Method, serverUrl+args.Path, requestBody) //nolint:urlconcat // a test's path and query are sent as written
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}

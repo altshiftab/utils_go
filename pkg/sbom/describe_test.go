@@ -53,7 +53,8 @@ func dockerArchive(t *testing.T, reference string, files map[string]string) []by
 func fakePodman(t *testing.T, archives map[string][]byte) string {
 	t.Helper()
 	dir := t.TempDir()
-	script := "#!/bin/sh\ncase \"$5\" in\n"
+	var script strings.Builder
+	script.WriteString("#!/bin/sh\ncase \"$5\" in\n")
 	i := 0
 	for reference, archive := range archives {
 		fixture := filepath.Join(dir, "image"+string(rune('a'+i))+".tar")
@@ -61,11 +62,11 @@ func fakePodman(t *testing.T, archives map[string][]byte) string {
 		if err := os.WriteFile(fixture, archive, 0o600); err != nil {
 			t.Fatalf("write fixture: %v", err)
 		}
-		script += "  '" + reference + "') cat '" + fixture + "' ;;\n"
+		script.WriteString("  '" + reference + "') cat '" + fixture + "' ;;\n")
 	}
-	script += "  *) echo \"Error: $5: image not known\" >&2; exit 125 ;;\nesac\n"
+	script.WriteString("  *) echo \"Error: $5: image not known\" >&2; exit 125 ;;\nesac\n")
 	scriptPath := filepath.Join(dir, "podman")
-	if err := os.WriteFile(scriptPath, []byte(script), 0o700); err != nil { //nolint:gosec // executable test script
+	if err := os.WriteFile(scriptPath, []byte(script.String()), 0o700); err != nil { //nolint:gosec // executable test script
 		t.Fatalf("write script: %v", err)
 	}
 	return scriptPath

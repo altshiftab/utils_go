@@ -187,10 +187,12 @@ func (outOfRangeNumber) MarshalJSON() ([]byte, error) {
 	return []byte("1e999"), nil
 }
 
+var errWrite = errors.New("write error")
+
 type errorWriter struct{}
 
 func (errorWriter) Write([]byte) (int, error) {
-	return 0, errors.New("write error")
+	return 0, errWrite
 }
 
 // poisonedEncoder returns an encoder whose buffered writer has already

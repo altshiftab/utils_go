@@ -95,14 +95,14 @@ func ecdsaPublicKeyFromEc2Key(keyMap map[any]any) (*ecdsa.PublicKey, error) {
 		return nil, fmt.Errorf("%w: oversized coordinate", ErrMalformedKey)
 	}
 
-	publicKey := &ecdsa.PublicKey{
-		Curve: curve,
-		X:     new(big.Int).SetBytes(x),
-		Y:     new(big.Int).SetBytes(y),
-	}
+	// The uncompressed encoding, with each coordinate left-padded to the curve's size; parsing it checks the point is on the curve.
+	point := make([]byte, 1+2*coordinateSize)
+	point[0] = 4
+	copy(point[1+coordinateSize-len(x):1+coordinateSize], x)
+	copy(point[1+2*coordinateSize-len(y):], y)
 
-	// ECDH conversion validates that the point is on the curve.
-	if _, err := publicKey.ECDH(); err != nil {
+	publicKey, err := ecdsa.ParseUncompressedPublicKey(curve, point)
+	if err != nil {
 		return nil, fmt.Errorf("%w: invalid point: %w", ErrMalformedKey, err)
 	}
 

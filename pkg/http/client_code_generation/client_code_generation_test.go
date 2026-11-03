@@ -1,6 +1,7 @@
 package client_code_generation
 
 import (
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -449,5 +450,53 @@ func TestRenderMultipartFormDataBodylessMethod(t *testing.T) {
 
 	if _, err := Render(endpoints, nil); err == nil {
 		t.Error("expected an error for multipart/form-data with a body-less method")
+	}
+}
+
+func TestRenderBaseUrl(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		baseUrl  string
+		expected string
+	}{
+		{name: "no base url", expected: `new URL("/api/items"`},
+		{name: "a bare origin", baseUrl: "https://api.example.com", expected: `new URL("https://api.example.com/api/items"`},
+		{name: "a base path with a trailing slash", baseUrl: "https://api.example.com/v1/", expected: `new URL("https://api.example.com/v1/api/items"`},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var baseUrl *url.URL
+			if testCase.baseUrl != "" {
+				parsed, err := url.Parse(testCase.baseUrl)
+				if err != nil {
+					t.Fatalf("%s: url parse: %v", testCase.name, err)
+				}
+				baseUrl = parsed
+			}
+
+			endpoints := []*endpointPkg.Endpoint{
+				{
+					Method: "GET",
+					Path:   "/api/items",
+					Hint: &endpointPkg.Hint{
+						OutputType:        reflect.TypeFor[uploadOutput](),
+						OutputContentType: "application/json",
+					},
+				},
+			}
+
+			output, err := Render(endpoints, baseUrl)
+			if err != nil {
+				t.Fatalf("%s: render: %v", testCase.name, err)
+			}
+			if !strings.Contains(output, testCase.expected) {
+				t.Errorf("%s: expected %s, got:\n%s", testCase.name, testCase.expected, output)
+			}
+		})
 	}
 }

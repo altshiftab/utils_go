@@ -8,6 +8,8 @@ import (
 // TestExpiresAt covers the conversion every caller of Watch would otherwise
 // work out for itself, from a field that names neither its unit nor its epoch.
 func TestExpiresAt(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		expiration string

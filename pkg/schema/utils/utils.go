@@ -475,10 +475,7 @@ func MakeHttpMessage(base *schema.Base) string {
 				if ecsUrl.Original != "" {
 					path = ecsUrl.Original
 				} else if ecsUrl.Path != "" {
-					path = ecsUrl.Path
-					if ecsUrl.Query != "" {
-						path += "?" + ecsUrl.Query
-					}
+					path = new(url.URL{Path: ecsUrl.Path, RawQuery: ecsUrl.Query}).RequestURI()
 				}
 			}
 
@@ -609,28 +606,22 @@ func parseTarget(rawAddress string, rawIpAddress string, rawPort int) (*schema.T
 	var target *schema.Target
 
 	if rawIpAddress != "" {
-		ipAddressUrl := fmt.Sprintf("fake://%s", rawIpAddress)
-		urlParsedClientIpAddress, err := url.Parse(ipAddressUrl)
-		if err != nil {
-			return nil, altshiftErrors.NewWithTrace(
-				fmt.Errorf("url parse (crafted ip address url): %w", err),
-				ipAddressUrl,
-			)
-		}
-
+		ipAddress := strings.TrimSuffix(strings.TrimPrefix(rawIpAddress, "["), "]")
 		port := rawPort
 
-		if portString := urlParsedClientIpAddress.Port(); portString != "" {
-			port, err = strconv.Atoi(portString)
-			if err != nil {
-				return nil, altshiftErrors.NewWithTrace(
-					fmt.Errorf("strconv atoi (port string): %w", err),
-					portString,
-				)
+		if host, portString, err := net.SplitHostPort(rawIpAddress); err == nil {
+			ipAddress = host
+			if portString != "" {
+				port, err = strconv.Atoi(portString)
+				if err != nil {
+					return nil, altshiftErrors.NewWithTrace(
+						fmt.Errorf("strconv atoi (port string): %w", err),
+						portString,
+					)
+				}
 			}
 		}
 
-		ipAddress := urlParsedClientIpAddress.Hostname()
 		address := rawAddress
 		if address != "" {
 			address = ipAddress

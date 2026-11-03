@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"uuid"
 
@@ -134,7 +135,7 @@ func (bm *baseMux) ServeHttpWithCallback(
 		}
 	}
 
-	responseWriter.IsHeadRequest = strings.ToUpper(request.Method) == http.MethodHead
+	responseWriter.IsHeadRequest = strings.EqualFold(request.Method, http.MethodHead)
 
 	// Perform firewall check.
 
@@ -445,7 +446,7 @@ func handleUnmatchedMethod(
 	expectedMethodsString := strings.Join(allowedMethods, ", ")
 	headerEntries := []*muxTypesResponse.HeaderEntry{{Name: "Allow", Value: expectedMethodsString}}
 
-	if strings.ToUpper(request.Method) == http.MethodOptions {
+	if strings.EqualFold(request.Method, http.MethodOptions) {
 		if len(corsEndpoints) > 0 {
 			var corsConfiguration altshiftHttpTypes.CorsConfiguration
 			accessControlRequestMethod := strings.ToUpper(requestHeader.Get("Access-Control-Request-Method"))
@@ -521,7 +522,7 @@ func handleUnmatchedMethod(
 			if maxAge := corsConfiguration.MaxAge; maxAge > 0 {
 				headerEntries = append(
 					headerEntries,
-					&muxTypesResponse.HeaderEntry{Name: "Access-Control-Max-Age", Value: fmt.Sprintf("%d", maxAge)},
+					&muxTypesResponse.HeaderEntry{Name: "Access-Control-Max-Age", Value: strconv.Itoa(maxAge)},
 				)
 			}
 		}
@@ -955,7 +956,7 @@ func (mux *Mux) GetDocumentEndpointSpecifications() []*endpointPkg.Endpoint {
 					continue
 				}
 
-				if strings.ToLower(header.Name) == "content-type" && strings.ToLower(header.Value) == "text/html" {
+				if strings.EqualFold(header.Name, "content-type") && strings.EqualFold(header.Value, "text/html") {
 					isDocument = true
 					break
 				}

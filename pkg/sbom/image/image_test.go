@@ -121,7 +121,7 @@ func TestAnalyzeArchive(t *testing.T) {
 					regular("lib/apk/db/installed", apkInstalled),
 					regularBytes("usr/local/bin/app", binary),
 					regular("usr/local/bin/script", "#!/bin/sh\necho hi"),
-					regularBytes("usr/lib/libfake.so", append([]byte("\x7fELF"), bytes.Repeat([]byte{0}, 100)...)),
+					regularBytes("usr/lib/libfake.so", append([]byte("\x7fELF"), make([]byte, 100)...)),
 				},
 			},
 			check: func(t *testing.T, analysis *Analysis) {

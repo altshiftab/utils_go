@@ -2,6 +2,7 @@ package format
 
 import "testing"
 
+//nolint:dupl // Per-format table tests are intentionally parallel in structure.
 func TestDateFormat(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {

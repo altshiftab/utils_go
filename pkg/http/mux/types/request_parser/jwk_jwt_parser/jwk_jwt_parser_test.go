@@ -24,6 +24,8 @@ func acceptAll() validator.Validator[map[string]any] {
 }
 
 func TestNew(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name              string
 		headerName        string
@@ -45,6 +47,8 @@ func TestNew(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
 			parser, err := jwk_jwt_parser.New(
 				jwkUrl(t),
 				testCase.headerName,
@@ -68,6 +72,8 @@ func TestNew(t *testing.T) {
 // OAuth2 keys, a token minted for anybody, by anybody who asked. Refusing it
 // here makes the omission impossible rather than merely unlikely.
 func TestNewRefusesANilClaimsValidator(t *testing.T) {
+	t.Parallel()
+
 	if _, err := jwk_jwt_parser.New(jwkUrl(t), "Authorization", "Bearer ", nil); err == nil {
 		t.Fatal("a parser was built with nothing checking its claims")
 	}
@@ -77,6 +83,8 @@ func TestNewRefusesANilClaimsValidator(t *testing.T) {
 // actually arrives in: a nil pointer in a non-nil interface, which == nil does
 // not catch.
 func TestNewRefusesATypedNilClaimsValidator(t *testing.T) {
+	t.Parallel()
+
 	var typedNil validator.Validator[map[string]any] = (*nilValidator)(nil)
 
 	if _, err := jwk_jwt_parser.New(jwkUrl(t), "Authorization", "Bearer ", typedNil); err == nil {
@@ -89,6 +97,8 @@ type nilValidator struct{}
 func (*nilValidator) Validate(_ map[string]any) error { return nil }
 
 func TestNewRefusesIncompleteInput(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		jwkUrl     *url.URL
@@ -100,6 +110,8 @@ func TestNewRefusesIncompleteInput(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
 			_, err := jwk_jwt_parser.New(testCase.jwkUrl, testCase.headerName, "Bearer ", acceptAll())
 			if err == nil {
 				t.Errorf("%s: was accepted", testCase.name)

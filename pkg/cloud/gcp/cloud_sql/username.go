@@ -55,8 +55,12 @@ func (r *UsernameResolver) Resolve(ctx context.Context, tokenSource token_source
 		return "", altshiftErrors.NewWithTrace(empty_error.New("access token"))
 	}
 
-	infoUrl := r.TokenInfoUrl + "?" + url.Values{"access_token": {token.AccessToken}}.Encode()
-	_, info, err := altshiftHttpUtils.FetchJson[*tokenInfo](ctx, infoUrl)
+	infoUrl, err := url.Parse(r.TokenInfoUrl)
+	if err != nil {
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("url parse (token info url): %w", err), r.TokenInfoUrl)
+	}
+	infoUrl.RawQuery = url.Values{"access_token": {token.AccessToken}}.Encode()
+	_, info, err := altshiftHttpUtils.FetchJson[*tokenInfo](ctx, infoUrl.String())
 	if err != nil {
 		return "", altshiftErrors.New(fmt.Errorf("fetch json (token info): %w", err))
 	}
@@ -75,7 +79,12 @@ func (r *UsernameResolver) Resolve(ctx context.Context, tokenSource token_source
 		return "", altshiftErrors.NewWithTrace(empty_error.New("token email and client"))
 	}
 
-	accountUrl := r.ServiceAccountUrl + url.PathEscape(info.Azp)
+	serviceAccountUrl, err := url.Parse(r.ServiceAccountUrl)
+	if err != nil {
+		return "", altshiftErrors.NewWithTrace(fmt.Errorf("url parse (service account url): %w", err), r.ServiceAccountUrl)
+	}
+	// JoinPath takes escaped elements, so an escaped slash stays inside the one segment.
+	accountUrl := serviceAccountUrl.JoinPath(url.PathEscape(info.Azp)).String()
 	_, account, err := altshiftHttpUtils.FetchJson[*serviceAccount](
 		ctx,
 		accountUrl,

@@ -65,7 +65,7 @@ func TestRoundTrip(t *testing.T) {
 		Content: []any{
 			[]byte{0xa1, 0x01, 0x03},
 			map[any]any{
-				int64(5):  bytes.Repeat([]byte{0}, 12),
+				int64(5):  make([]byte, 12),
 				int64(-1): "negative label",
 				"label":   Undefined{},
 			},

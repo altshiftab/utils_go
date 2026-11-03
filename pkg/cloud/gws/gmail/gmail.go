@@ -52,12 +52,16 @@ func NewClient(options ...gmail_config.Option) *Client {
 	return &Client{baseUrl: &u, config: config}
 }
 
-func (c *Client) messagesUrl(userId string, messageId string) string {
+func (c *Client) messagesUrl(userId string, messageId string, verb string, query url.Values) string {
 	u := *c.baseUrl
 	u.Path += url.PathEscape(userId) + "/messages"
 	if messageId != "" {
 		u.Path += "/" + url.PathEscape(messageId)
 	}
+	if verb != "" {
+		u.Path += "/" + verb
+	}
+	u.RawQuery = query.Encode()
 	return u.String()
 }
 
@@ -79,9 +83,10 @@ func (c *Client) profileUrl(userId string) string {
 	return u.String()
 }
 
-func (c *Client) historyUrl(userId string) string {
+func (c *Client) historyUrl(userId string, query url.Values) string {
 	u := *c.baseUrl
 	u.Path += url.PathEscape(userId) + "/history"
+	u.RawQuery = query.Encode()
 	return u.String()
 }
 
@@ -132,13 +137,6 @@ func (c *Client) forwardingAddressesUrl(userId string, forwardingEmail string) s
 
 func (c *Client) fetchOptions(options []fetch_config.Option) []fetch_config.Option {
 	return append(c.config.FetchOptions, options...)
-}
-
-func withQuery(urlString string, query url.Values) string {
-	if encoded := query.Encode(); encoded != "" {
-		return urlString + "?" + encoded
-	}
-	return urlString
 }
 
 // Send sends the specified message to the recipients in the To, Cc, and Bcc headers.
@@ -204,7 +202,7 @@ func (c *Client) ListHistory(ctx context.Context, userId string, startHistoryId 
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
-			return withQuery(c.historyUrl(userId), query)
+			return c.historyUrl(userId, query)
 		},
 		func(response *listHistoryResponse) ([]*history.Record, string) {
 			return response.History, response.NextPageToken
@@ -252,7 +250,7 @@ func (c *Client) ListMessages(ctx context.Context, userId string, options ...lis
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
-			return withQuery(c.messagesUrl(userId, ""), query)
+			return c.messagesUrl(userId, "", "", query)
 		},
 		func(response *listMessagesResponse) ([]*message.Message, string) {
 			return response.Messages, response.NextPageToken
@@ -282,7 +280,7 @@ func (c *Client) GetMessage(ctx context.Context, userId string, messageId string
 
 	return rest.GetJson[message.Message](
 		ctx,
-		withQuery(c.messagesUrl(userId, messageId), query),
+		c.messagesUrl(userId, messageId, "", query),
 		c.fetchOptions(getMessageConfig.FetchOptions),
 	)
 }
@@ -299,7 +297,7 @@ func (c *Client) Trash(ctx context.Context, userId string, messageId string, opt
 	return rest.SendJson[message.Message, any](
 		ctx,
 		http.MethodPost,
-		c.messagesUrl(userId, messageId)+"/trash",
+		c.messagesUrl(userId, messageId, "trash", nil),
 		nil,
 		c.fetchOptions(options),
 	)
@@ -337,7 +335,7 @@ func (c *Client) Modify(
 	return rest.SendJson[message.Message](
 		ctx,
 		http.MethodPost,
-		c.messagesUrl(userId, messageId)+"/modify",
+		c.messagesUrl(userId, messageId, "modify", nil),
 		request,
 		c.fetchOptions(options),
 	)

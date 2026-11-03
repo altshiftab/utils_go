@@ -9,8 +9,40 @@ import (
 	"math/big"
 	"testing"
 
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 )
+
+// coordinates returns the base64url x and y of a fresh key on the curve, the first one whose x starts with a zero
+// byte when leadingZeroX is set, with that byte stripped as a sender may.
+func coordinates(t *testing.T, curve elliptic.Curve, leadingZeroX bool) (string, string) {
+	t.Helper()
+
+	for range 100_000 {
+		privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+		if err != nil {
+			t.Fatalf("ecdsa generate key: %v", err)
+		}
+		point, err := privateKey.PublicKey.Bytes()
+		if err != nil {
+			t.Fatalf("public key bytes: %v", err)
+		}
+
+		size := (len(point) - 1) / 2
+		x, y := point[1:1+size], point[1+size:]
+		if leadingZeroX {
+			if x[0] != 0 {
+				continue
+			}
+			x = x[1:]
+		}
+
+		return base64.RawURLEncoding.EncodeToString(x), base64.RawURLEncoding.EncodeToString(y)
+	}
+
+	t.Fatal("no key with a leading zero byte in x")
+	return "", ""
+}
 
 func TestCurveFromCrv(t *testing.T) {
 	t.Parallel()
@@ -62,10 +94,15 @@ func TestCurveFromCrv(t *testing.T) {
 func TestKey_PublicKey(t *testing.T) {
 	t.Parallel()
 
-	// Generate valid EC coordinates for P-256 (using a known test vector)
-	// These are arbitrary but valid-looking base64 encoded coordinates
-	validX := base64.RawURLEncoding.EncodeToString(make([]byte, 32)) // 32 bytes for P-256
-	validY := base64.RawURLEncoding.EncodeToString(make([]byte, 32))
+	validX, validY := coordinates(t, elliptic.P256(), false)
+	p384X, p384Y := coordinates(t, elliptic.P384(), false)
+	p521X, p521Y := coordinates(t, elliptic.P521(), false)
+	shortX, shortY := coordinates(t, elliptic.P256(), true)
+	zeros := base64.RawURLEncoding.EncodeToString(make([]byte, 32))
+
+	isParseError := func(err error) bool {
+		return errors.Is(err, altshiftErrors.ErrParseError)
+	}
 
 	testCases := []struct {
 		name        string
@@ -86,8 +123,8 @@ func TestKey_PublicKey(t *testing.T) {
 			name: "valid P-384 key",
 			key: &Key{
 				Crv: "P-384",
-				X:   base64.RawURLEncoding.EncodeToString(make([]byte, 48)),
-				Y:   base64.RawURLEncoding.EncodeToString(make([]byte, 48)),
+				X:   p384X,
+				Y:   p384Y,
 			},
 			expectError: false,
 		},
@@ -95,10 +132,40 @@ func TestKey_PublicKey(t *testing.T) {
 			name: "valid P-521 key",
 			key: &Key{
 				Crv: "P-521",
-				X:   base64.RawURLEncoding.EncodeToString(make([]byte, 66)),
-				Y:   base64.RawURLEncoding.EncodeToString(make([]byte, 66)),
+				X:   p521X,
+				Y:   p521Y,
 			},
 			expectError: false,
+		},
+		{
+			// RFC 7518 asks for the full length, but a sender stripping a leading zero byte has always been accepted.
+			name: "a coordinate without its leading zero byte",
+			key: &Key{
+				Crv: "P-256",
+				X:   shortX,
+				Y:   shortY,
+			},
+			expectError: false,
+		},
+		{
+			name: "a point off the curve",
+			key: &Key{
+				Crv: "P-256",
+				X:   zeros,
+				Y:   zeros,
+			},
+			expectError: true,
+			errorCheck:  isParseError,
+		},
+		{
+			name: "an oversized coordinate",
+			key: &Key{
+				Crv: "P-256",
+				X:   base64.RawURLEncoding.EncodeToString(make([]byte, 33)),
+				Y:   validY,
+			},
+			expectError: true,
+			errorCheck:  isParseError,
 		},
 		{
 			name: "unsupported curve",

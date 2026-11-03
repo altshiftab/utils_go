@@ -603,6 +603,7 @@ func (c *Client) SignedUrl(
 		return "", altshiftErrors.New(fmt.Errorf("signer sign: %w", err))
 	}
 
-	return c.baseUrl.Scheme + "://" + host + encodedPath + "?" + canonicalQuery +
+	// The query has to be the canonical one that was signed, RFC 3986 encoded, which url.Values would re-encode as a form.
+	return c.baseUrl.Scheme + "://" + host + encodedPath + "?" + canonicalQuery + //nolint:urlconcat // the signed canonical query
 		"&X-Goog-Signature=" + hex.EncodeToString(signature), nil
 }

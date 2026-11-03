@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"math/big"
 
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
@@ -60,11 +59,27 @@ func (k *Key) PublicKey() (crypto.PublicKey, error) {
 
 	crv := k.Crv
 	curve := curveFromCrv(crv)
-	if utils.IsNil(curve) {
+	if curve == nil {
 		return nil, altshiftErrors.NewWithTrace(altshiftJwkErrors.ErrUnsupportedCrv, crv)
 	}
 
-	return &ecdsa.PublicKey{Curve: curve, X: new(big.Int).SetBytes(xBytes), Y: new(big.Int).SetBytes(yBytes)}, nil
+	coordinateSize := (curve.Params().BitSize + 7) / 8
+	if len(xBytes) > coordinateSize || len(yBytes) > coordinateSize {
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: oversized coordinate", altshiftErrors.ErrParseError), crv)
+	}
+
+	// The uncompressed encoding, with each coordinate left-padded to the curve's size; parsing it checks the point is on the curve.
+	point := make([]byte, 1+2*coordinateSize)
+	point[0] = 4
+	copy(point[1+coordinateSize-len(xBytes):1+coordinateSize], xBytes)
+	copy(point[1+2*coordinateSize-len(yBytes):], yBytes)
+
+	publicKey, err := ecdsa.ParseUncompressedPublicKey(curve, point)
+	if err != nil {
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: ecdsa parse uncompressed public key: %w", altshiftErrors.ErrParseError, err), crv)
+	}
+
+	return publicKey, nil
 }
 
 func New(m map[string]any) (*Key, error) {

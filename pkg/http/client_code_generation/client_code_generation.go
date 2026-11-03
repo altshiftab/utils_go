@@ -291,7 +291,7 @@ func makeTemplateInput(
 
 		var urlString string
 		if baseUrl != nil {
-			urlString = baseUrl.String() + path
+			urlString = baseUrl.JoinPath(path).String()
 		} else {
 			urlString = path
 		}

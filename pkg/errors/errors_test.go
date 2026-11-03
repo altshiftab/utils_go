@@ -1,10 +1,13 @@
 package errors
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 )
+
+var errInner = errors.New("inner error")
 
 // uncomparableError contains a slice field, making it uncomparable with ==.
 type uncomparableError struct {
@@ -16,7 +19,7 @@ func (e uncomparableError) Error() string {
 }
 
 func (e uncomparableError) Unwrap() error {
-	return fmt.Errorf("inner error")
+	return errInner
 }
 
 func TestCollectWrappedErrors_UncomparableType(t *testing.T) {
@@ -38,15 +41,14 @@ func TestCollectWrappedErrors_UncomparableType(t *testing.T) {
 func TestCollectWrappedErrors_ComparableType(t *testing.T) {
 	t.Parallel()
 
-	inner := fmt.Errorf("inner")
-	err := fmt.Errorf("outer: %w", inner)
+	err := fmt.Errorf("outer: %w", errInner)
 
 	results := CollectWrappedErrors(err)
 
 	if len(results) != 1 {
 		t.Fatalf("expected 1 wrapped error, got %d", len(results))
 	}
-	if results[0] != inner {
+	if results[0] != errInner { //nolint:err113,errorlint // identity is the point: the wrapped error itself has to come back
 		t.Fatalf("expected inner error, got %v", results[0])
 	}
 }

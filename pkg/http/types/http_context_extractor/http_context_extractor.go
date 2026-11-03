@@ -179,15 +179,18 @@ func maskUnparsedCookie(cookie string, keepAttributes bool) string {
 		return masked
 	}
 
+	var builder strings.Builder
+	builder.WriteString(masked)
 	for attribute := range strings.SplitSeq(attributes, ";") {
 		attribute = strings.TrimSpace(attribute)
 		attributeName, _, _ := strings.Cut(attribute, "=")
 		if _, ok := setCookieAttributes[strings.ToLower(strings.TrimSpace(attributeName))]; ok {
-			masked += "; " + attribute
+			builder.WriteString("; ")
+			builder.WriteString(attribute)
 		}
 	}
 
-	return masked
+	return builder.String()
 }
 
 func maskBasicAuth(value string) string {
@@ -224,7 +227,7 @@ func extractNormalizedHeaders(host string, header http.Header, maskedHeaders map
 						parsedValue.Params[k] = maskedValue
 					}
 
-					if strings.ToLower(parsedValue.Scheme) == "basic" {
+					if strings.EqualFold(parsedValue.Scheme, "basic") {
 						parsedValue.Token68 = maskBasicAuth(parsedValue.Token68)
 					} else {
 						parsedValue.Token68 = maskJws(parsedValue.Token68)
