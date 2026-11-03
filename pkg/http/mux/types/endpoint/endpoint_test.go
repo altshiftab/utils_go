@@ -223,6 +223,51 @@ func TestNewFromDataPath(t *testing.T) {
 	})
 }
 
+func contentTypeValue(endpoint *Endpoint) string {
+	if endpoint == nil || endpoint.StaticContent == nil {
+		return ""
+	}
+	for _, header := range endpoint.StaticContent.Headers {
+		if header != nil && header.Name == "Content-Type" {
+			return header.Value
+		}
+	}
+	return ""
+}
+
+func TestNewFromDataPathContentType(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name            string
+		path            string
+		wantContentType string
+		wantEncoded     bool
+	}{
+		{name: "a script is compressed", path: "/app.js", wantContentType: "text/javascript", wantEncoded: true},
+		{name: "a png is served as it is", path: "/piece.png", wantContentType: "image/png"},
+		{name: "an mp3 is audio, already compressed", path: "/sounds/move.mp3", wantContentType: "audio/mpeg"},
+		{name: "the extension's case does not matter", path: "/sounds/MOVE.MP3", wantContentType: "audio/mpeg"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			endpoint, err := NewFromDataPath(testCase.path, bytes.Repeat([]byte("a"), 2048), "", true, true)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got := contentTypeValue(endpoint); got != testCase.wantContentType {
+				t.Errorf("Content-Type = %q, want %q", got, testCase.wantContentType)
+			}
+			if _, encoded := endpoint.StaticContent.ContentEncodingToData["gzip"]; encoded != testCase.wantEncoded {
+				t.Errorf("gzip encoding present = %t, want %t", encoded, testCase.wantEncoded)
+			}
+		})
+	}
+}
+
 func TestNewFromDirectory(t *testing.T) {
 	t.Parallel()
 
