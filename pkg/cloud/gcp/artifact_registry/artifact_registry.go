@@ -37,6 +37,7 @@ const (
 )
 
 const (
+	headerAccept              = "Accept"
 	headerDockerContentDigest = "Docker-Content-Digest"
 	headerOciSubject          = "OCI-Subject"
 	sha256DigestPrefix        = "sha256:"
@@ -92,7 +93,7 @@ func (c *Client) GetManifest(ctx context.Context, name string, reference string,
 
 	options = append(
 		append(c.config.FetchOptions, fetch_config.WithHeaders(map[string]string{
-			"Accept": "application/vnd.oci.image.manifest.v1+json",
+			headerAccept: MediaTypeOciManifest,
 		})),
 		options...,
 	)
@@ -134,7 +135,12 @@ func (c *Client) ListReferrers(ctx context.Context, name string, digest string, 
 	}
 	urlString := u.String()
 
-	options = append(c.config.FetchOptions, options...)
+	// The answer is an OCI index, and is asked for as one rather than as the
+	// generic JSON a fetch would otherwise accept.
+	options = append(
+		append(c.config.FetchOptions, fetch_config.WithHeaders(map[string]string{headerAccept: MediaTypeOciIndex})),
+		options...,
+	)
 	_, idx, err := altshiftHttpUtils.FetchJson[*index.Index](ctx, urlString, options...)
 	if err != nil {
 		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
@@ -201,7 +207,7 @@ func (c *Client) HeadManifest(ctx context.Context, name string, reference string
 	options = append(
 		append(c.config.FetchOptions, options...),
 		fetch_config.WithMethod(http.MethodHead),
-		fetch_config.WithHeaders(map[string]string{"Accept": manifestAcceptForAnyImageKind}),
+		fetch_config.WithHeaders(map[string]string{headerAccept: manifestAcceptForAnyImageKind}),
 	)
 
 	response, _, err := altshiftHttpUtils.Fetch(ctx, urlString, options...)

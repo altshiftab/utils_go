@@ -132,6 +132,9 @@ func TestListReferrers(t *testing.T) {
 		if !strings.HasSuffix(r.URL.Path, "/v2/my-project/my-repo/my-image/referrers/sha256:abc123") {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
+		if accept := r.Header.Get("Accept"); accept != MediaTypeOciIndex {
+			t.Errorf("Accept = %q, want %q", accept, MediaTypeOciIndex)
+		}
 
 		w.Header().Set("Content-Type", "application/vnd.oci.image.index.v1+json")
 		if err := json.MarshalWrite(w, &index.Index{
