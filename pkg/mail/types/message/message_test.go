@@ -1,7 +1,10 @@
 package message
 
 import (
+	"bytes"
 	"errors"
+	"io"
+	"mime/quotedprintable"
 	"net/mail"
 	"reflect"
 	"strings"
@@ -440,5 +443,111 @@ func TestMessage_String_MultipartNested(t *testing.T) {
 	}
 	if !strings.Contains(out, "Content-Type: application/octet-stream\r\n\r\nattachment-bytes\r\n") {
 		t.Errorf("attachment part not rendered as expected:\n%s", out)
+	}
+}
+
+func TestMessage_String_Subject(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		subject string
+		want    string
+		wantErr bool
+	}{
+		{name: "ascii is written as it is", subject: "Invoice 42", want: "Subject: Invoice 42\r\n"},
+		{name: "other text is an encoded word", subject: "Räkning för oktober", want: "Subject: =?utf-8?q?R=C3=A4kning_f=C3=B6r_oktober?=\r\n"},
+		{name: "a line break is refused", subject: "Hi\r\nBcc: someone@example.com", wantErr: true},
+		{name: "a bare newline is refused", subject: "Hi\nthere", wantErr: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			msg := &Message{
+				From:    &mail.Address{Address: "a@example.com"},
+				To:      []*mail.Address{{Address: "b@example.com"}},
+				Subject: testCase.subject,
+				Body:    Text("x"),
+			}
+			got, err := msg.String()
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("%s: err = %v, want error %t", testCase.name, err, testCase.wantErr)
+			}
+			if testCase.wantErr {
+				if !errors.Is(err, altshiftMailErrors.ErrHeaderInjection) {
+					t.Errorf("%s: err = %v, want header injection", testCase.name, err)
+				}
+				return
+			}
+			if !strings.Contains(got, testCase.want) {
+				t.Errorf("%s: %q does not have %q", testCase.name, got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestMessage_String_HeaderInjection(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		header *message_header.Header
+	}{
+		{name: "a value with a line break", header: &message_header.Header{Name: "In-Reply-To", Value: "<a@b>\r\nBcc: x@example.com"}},
+		{name: "a name with a colon", header: &message_header.Header{Name: "Bcc: x@example.com\r\nX", Value: "y"}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			msg := &Message{
+				From:    &mail.Address{Address: "a@example.com"},
+				To:      []*mail.Address{{Address: "b@example.com"}},
+				Subject: "s",
+				Headers: []*message_header.Header{testCase.header},
+			}
+			if _, err := msg.String(); !errors.Is(err, altshiftMailErrors.ErrHeaderInjection) {
+				t.Errorf("%s: err = %v, want header injection", testCase.name, err)
+			}
+		})
+	}
+}
+
+func TestText(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		text string
+	}{
+		{name: "ascii", text: "Hello,\r\nsee you."},
+		{name: "swedish", text: "Hej på dig, vi ses i övermorgon."},
+		{name: "a long line", text: strings.Repeat("ord ", 60)},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := Text(testCase.text)
+			if body.ContentType != "text/plain; charset=utf-8" {
+				t.Errorf("%s: content type = %q", testCase.name, body.ContentType)
+			}
+			for _, line := range strings.Split(string(body.Content), "\r\n") {
+				if len(line) > 76 {
+					t.Errorf("%s: a line of %d characters", testCase.name, len(line))
+				}
+			}
+			decoded, err := io.ReadAll(quotedprintable.NewReader(bytes.NewReader(body.Content)))
+			if err != nil {
+				t.Fatalf("%s: read: %v", testCase.name, err)
+			}
+			if string(decoded) != testCase.text {
+				t.Errorf("%s: decoded %q, want %q", testCase.name, decoded, testCase.text)
+			}
+		})
 	}
 }

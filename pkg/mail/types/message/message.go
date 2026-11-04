@@ -1,10 +1,12 @@
 package message
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"mime"
+	"mime/quotedprintable"
 	"net/mail"
 	"strings"
 	"time"
@@ -95,6 +97,22 @@ func makeBoundary() (string, error) {
 	return fmt.Sprintf("=_%x", buf), nil
 }
 
+// Text is a text/plain body of the text, quoted-printable, so that a line is never longer than mail allows and a
+// character outside ASCII arrives as it was written.
+func Text(text string) *Body {
+	var buffer bytes.Buffer
+	writer := quotedprintable.NewWriter(&buffer)
+	// Writing to a bytes.Buffer does not fail.
+	_, _ = writer.Write([]byte(text))
+	_ = writer.Close()
+
+	return &Body{
+		Content:     buffer.Bytes(),
+		ContentType: "text/plain; charset=utf-8",
+		Headers:     []*message_header.Header{{Name: "Content-Transfer-Encoding", Value: "quoted-printable"}},
+	}
+}
+
 func Attachment(filename, contentType string, content []byte) *Body {
 	if contentType == "" {
 		contentType = "application/octet-stream"
@@ -161,7 +179,35 @@ type Message struct {
 	Headers []*message_header.Header
 }
 
+// checkHeaderValue refuses a value that would end its header line: what follows a line break is read as a header of
+// its own, or as the body.
+func checkHeaderValue(name string, value string) error {
+	if strings.ContainsAny(value, "\r\n") {
+		return altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: the %s header's value has a line break", altshiftMailErrors.ErrHeaderInjection, name),
+		)
+	}
+	return nil
+}
+
 func (message *Message) String() (string, error) {
+	if err := checkHeaderValue("Subject", message.Subject); err != nil {
+		return "", err
+	}
+	for _, header := range message.Headers {
+		if header == nil {
+			continue
+		}
+		if err := checkHeaderValue(header.Name, header.Value); err != nil {
+			return "", err
+		}
+		if strings.ContainsAny(header.Name, "\r\n:") {
+			return "", altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: a header's name has a line break or a colon", altshiftMailErrors.ErrHeaderInjection),
+			)
+		}
+	}
+
 	var builder strings.Builder
 	timeNow := time.Now()
 
@@ -198,7 +244,8 @@ func (message *Message) String() (string, error) {
 		}
 		fmt.Fprintf(&builder, "Bcc: %s\r\n", strings.Join(bccStrings, ", "))
 	}
-	fmt.Fprintf(&builder, "Subject: %s\r\n", message.Subject)
+	// A subject outside ASCII is an encoded word (RFC 2047); one inside it is written as it is.
+	fmt.Fprintf(&builder, "Subject: %s\r\n", mime.QEncoding.Encode("utf-8", message.Subject))
 	fmt.Fprintf(&builder, "Date: %s\r\n", timeNow.Format(time.RFC1123Z))
 
 	domain := message.Domain
