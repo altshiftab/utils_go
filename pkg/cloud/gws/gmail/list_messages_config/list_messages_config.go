@@ -16,7 +16,11 @@ type Config struct {
 	// MaxResults is how many are asked for per page. Zero takes Gmail's own
 	// default, which is a hundred; the most it serves is five hundred, and a
 	// listing that is to be read whole is cheaper in fewer, larger pages.
-	MaxResults   int
+	MaxResults int
+	// PageToken asks for the page after the one that returned it. It is read by
+	// the calls that list one page, and ignored by those that follow the paging
+	// to the end themselves.
+	PageToken    string
 	FetchOptions []fetch_config.Option
 }
 
@@ -52,6 +56,12 @@ func WithIncludeSpamTrash(includeSpamTrash bool) Option {
 func WithMaxResults(maxResults int) Option {
 	return func(config *Config) {
 		config.MaxResults = maxResults
+	}
+}
+
+func WithPageToken(pageToken string) Option {
+	return func(config *Config) {
+		config.PageToken = pageToken
 	}
 }
 

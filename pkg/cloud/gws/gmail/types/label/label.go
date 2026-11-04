@@ -18,4 +18,11 @@ type Label struct {
 	// LabelListVisibility is "labelShow", "labelShowIfUnread" or "labelHide":
 	// whether the label itself appears in the sidebar.
 	LabelListVisibility string `json:"labelListVisibility,omitzero"`
+
+	// The counts are filled in by a read of the one label, and left zero by a
+	// listing of them all.
+	MessagesTotal  int `json:"messagesTotal,omitzero"`
+	MessagesUnread int `json:"messagesUnread,omitzero"`
+	ThreadsTotal   int `json:"threadsTotal,omitzero"`
+	ThreadsUnread  int `json:"threadsUnread,omitzero"`
 }

@@ -34,6 +34,7 @@ func TestNew(t *testing.T) {
 		WithMaxResults(500),
 		WithLabelIds("INBOX"),
 		WithLabelIds("UNREAD"),
+		WithPageToken("token-abc"),
 		WithFetchOptions(fetch_config.WithMethod(http.MethodGet)),
 	)
 
@@ -49,6 +50,9 @@ func TestNew(t *testing.T) {
 	// Repeats accumulate rather than replace, as elsewhere.
 	if !slices.Equal(config.LabelIds, []string{"INBOX", "UNREAD"}) {
 		t.Errorf("LabelIds = %v, want [INBOX UNREAD]", config.LabelIds)
+	}
+	if config.PageToken != "token-abc" {
+		t.Errorf("PageToken = %q, want token-abc", config.PageToken)
 	}
 	if len(config.FetchOptions) != 1 {
 		t.Errorf("FetchOptions len = %d, want 1", len(config.FetchOptions))

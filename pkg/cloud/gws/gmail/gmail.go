@@ -99,12 +99,26 @@ func (c *Client) sendAsUrl(userId string, sendAsEmail string) string {
 	return u.String()
 }
 
-func (c *Client) threadsUrl(userId string, threadId string) string {
+func (c *Client) threadsUrl(userId string, threadId string, verb string, query url.Values) string {
 	u := *c.baseUrl
 	u.Path += url.PathEscape(userId) + "/threads"
 	if threadId != "" {
 		u.Path += "/" + url.PathEscape(threadId)
 	}
+	if verb != "" {
+		u.Path += "/" + verb
+	}
+	u.RawQuery = query.Encode()
+	return u.String()
+}
+
+func (c *Client) draftsUrl(userId string, draftId string, query url.Values) string {
+	u := *c.baseUrl
+	u.Path += url.PathEscape(userId) + "/drafts"
+	if draftId != "" {
+		u.Path += "/" + url.PathEscape(draftId)
+	}
+	u.RawQuery = query.Encode()
 	return u.String()
 }
 
@@ -211,6 +225,27 @@ func (c *Client) ListHistory(ctx context.Context, userId string, startHistoryId 
 	)
 }
 
+// listQuery is a listing's query parameters, which messages and threads share.
+func listQuery(config *list_messages_config.Config, pageToken string) url.Values {
+	query := url.Values{}
+	if config.Query != "" {
+		query.Set("q", config.Query)
+	}
+	for _, labelId := range config.LabelIds {
+		query.Add("labelIds", labelId)
+	}
+	if config.IncludeSpamTrash {
+		query.Set("includeSpamTrash", "true")
+	}
+	if config.MaxResults > 0 {
+		query.Set("maxResults", strconv.Itoa(config.MaxResults))
+	}
+	if pageToken != "" {
+		query.Set("pageToken", pageToken)
+	}
+	return query
+}
+
 type listMessagesResponse struct {
 	Messages           []*message.Message `json:"messages"`
 	NextPageToken      string             `json:"nextPageToken"`
@@ -234,23 +269,7 @@ func (c *Client) ListMessages(ctx context.Context, userId string, options ...lis
 	return rest.ListPaginated(
 		ctx,
 		func(pageToken string) string {
-			query := url.Values{}
-			if listMessagesConfig.Query != "" {
-				query.Set("q", listMessagesConfig.Query)
-			}
-			for _, labelId := range listMessagesConfig.LabelIds {
-				query.Add("labelIds", labelId)
-			}
-			if listMessagesConfig.IncludeSpamTrash {
-				query.Set("includeSpamTrash", "true")
-			}
-			if listMessagesConfig.MaxResults > 0 {
-				query.Set("maxResults", strconv.Itoa(listMessagesConfig.MaxResults))
-			}
-			if pageToken != "" {
-				query.Set("pageToken", pageToken)
-			}
-			return c.messagesUrl(userId, "", "", query)
+			return c.messagesUrl(userId, "", "", listQuery(listMessagesConfig, pageToken))
 		},
 		func(response *listMessagesResponse) ([]*message.Message, string) {
 			return response.Messages, response.NextPageToken
@@ -369,7 +388,7 @@ func (c *Client) ModifyThread(
 	return rest.SendJson[thread.Thread](
 		ctx,
 		http.MethodPost,
-		c.threadsUrl(userId, threadId)+"/modify",
+		c.threadsUrl(userId, threadId, "modify", nil),
 		request,
 		c.fetchOptions(options),
 	)
@@ -379,10 +398,6 @@ type listLabelsResponse struct {
 	Labels []*label.Label `json:"labels,omitzero"`
 }
 
-// ListLabels returns every label in the mailbox.
-//
-// A label is applied by id, and a user-created label's id is opaque, so this
-// is how a caller finds the id of a label it knows only by name.
 // GetProfile retrieves the mailbox's profile, which is how to ask where its
 // history stands now.
 //
@@ -404,6 +419,10 @@ func (c *Client) GetProfile(ctx context.Context, userId string, options ...fetch
 	)
 }
 
+// ListLabels returns every label in the mailbox.
+//
+// A label is applied by id, and a user-created label's id is opaque, so this
+// is how a caller finds the id of a label it knows only by name.
 func (c *Client) ListLabels(ctx context.Context, userId string, options ...fetch_config.Option) ([]*label.Label, error) {
 	if userId == "" {
 		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
