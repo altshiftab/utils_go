@@ -32,6 +32,25 @@ func GetJson[T any](ctx context.Context, urlString string, options []fetch_confi
 	return value, nil
 }
 
+// GetBytes performs a GET request and returns the response body as it is, with
+// the content type it was served as: a file's content rather than a resource's
+// description.
+func GetBytes(ctx context.Context, urlString string, options []fetch_config.Option) ([]byte, string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, "", fmt.Errorf("context err: %w", err)
+	}
+
+	response, body, err := altshiftHttpUtils.Fetch(ctx, urlString, options...)
+	if err != nil {
+		return nil, "", altshiftErrors.New(fmt.Errorf("fetch: %w", err), urlString)
+	}
+	if response == nil {
+		return nil, "", altshiftErrors.NewWithTrace(nil_error.New("response"))
+	}
+
+	return body, response.Header.Get("Content-Type"), nil
+}
+
 // SendJson performs a request with the given method and JSON body and returns
 // the decoded, nil-checked response.
 func SendJson[T any, B any](

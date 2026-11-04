@@ -33,7 +33,10 @@ var defaultBaseUrl = &url.URL{
 
 type Client struct {
 	baseUrl *url.URL
-	config  *drive_config.Config
+	// uploadBaseUrl is where content is sent: Drive takes a file's bytes at a
+	// path of its own, beside the one its metadata is written to.
+	uploadBaseUrl *url.URL
+	config        *drive_config.Config
 }
 
 func NewClient(options ...drive_config.Option) *Client {
@@ -44,7 +47,9 @@ func NewClient(options ...drive_config.Option) *Client {
 	}
 	u := *baseUrl
 	u.Path = "/drive/v3/"
-	return &Client{baseUrl: &u, config: config}
+	upload := *baseUrl
+	upload.Path = "/upload/drive/v3/"
+	return &Client{baseUrl: &u, uploadBaseUrl: &upload, config: config}
 }
 
 func (c *Client) urlString(path string, query url.Values) string {

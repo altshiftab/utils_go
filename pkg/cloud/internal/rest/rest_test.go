@@ -49,6 +49,46 @@ func TestGetJson(t *testing.T) {
 	}
 }
 
+func TestGetBytes(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name            string
+		status          int
+		wantErr         bool
+		wantBody        string
+		wantContentType string
+	}{
+		{name: "ok", status: http.StatusOK, wantBody: "%PDF-1.7", wantContentType: "application/pdf"},
+		{name: "not found", status: http.StatusNotFound, wantErr: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/pdf")
+				w.WriteHeader(testCase.status)
+				if _, err := w.Write([]byte("%PDF-1.7")); err != nil {
+					t.Errorf("write: %v", err)
+				}
+			})
+
+			body, contentType, err := GetBytes(context.Background(), server.URL, nil)
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("%s: err = %v, want error %t", testCase.name, err, testCase.wantErr)
+			}
+			if string(body) != testCase.wantBody {
+				t.Errorf("%s: body = %q, want %q", testCase.name, body, testCase.wantBody)
+			}
+			if contentType != testCase.wantContentType {
+				t.Errorf("%s: content type = %q, want %q", testCase.name, contentType, testCase.wantContentType)
+			}
+		})
+	}
+}
+
 func TestGetJson_CancelledContext(t *testing.T) {
 	t.Parallel()
 
