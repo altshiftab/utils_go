@@ -6,7 +6,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"hash/crc32"
+	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/secret_manager/secret_manager_config"
@@ -40,6 +42,22 @@ type accessResponse struct {
 	Payload *payload `json:"payload"`
 }
 
+type addVersionRequest struct {
+	Payload *payload `json:"payload"`
+}
+
+// SecretVersion is one version of a secret: its resource name, with the version's number rather than "latest", and,
+// read, its payload.
+type SecretVersion struct {
+	Name    string
+	Payload []byte
+}
+
+type versionResponse struct {
+	Name  string `json:"name"`
+	State string `json:"state"`
+}
+
 type Client struct {
 	baseUrl *url.URL
 	config  *secret_manager_config.Config
@@ -63,12 +81,12 @@ func VersionName(project string, secret string, version string) string {
 	return "projects/" + project + "/secrets/" + secret + "/versions/" + version
 }
 
-// AccessSecretVersion returns the payload of a secret's version, named as
-// VersionName names it.
+// AccessSecretVersion reads a secret's version, named as VersionName names it: its payload, and its name with the
+// version's number, which "latest" stands for.
 //
-// The payload's checksum is verified when Secret Manager sends one, so a payload
-// damaged on the way is an error rather than a secret read wrong.
-func (c *Client) AccessSecretVersion(ctx context.Context, versionName string, options ...fetch_config.Option) ([]byte, error) {
+// The payload's checksum is verified when Secret Manager sends one, so a payload damaged on the way is an error rather
+// than a secret read wrong.
+func (c *Client) AccessSecretVersion(ctx context.Context, versionName string, options ...fetch_config.Option) (*SecretVersion, error) {
 	if versionName == "" {
 		return nil, altshiftErrors.NewWithTrace(empty_error.New("version name"))
 	}
@@ -77,13 +95,9 @@ func (c *Client) AccessSecretVersion(ctx context.Context, versionName string, op
 		return nil, fmt.Errorf("context err: %w", err)
 	}
 
-	// The name's slashes stay literal: gRPC transcoding routes against the raw
-	// path and rejects %2F-encoded separators.
-	u := *c.baseUrl
-	u.Path += versionName + ":access"
-	urlString := u.String()
+	urlString := c.resourceUrl(versionName, ":access")
 
-	options = append(append(c.config.FetchOptions, options...), fetch_config.WithMethod("GET"))
+	options = append(append(slices.Clip(c.config.FetchOptions), options...), fetch_config.WithMethod(http.MethodGet))
 	_, response, err := altshiftHttpUtils.FetchJson[*accessResponse](ctx, urlString, options...)
 	if err != nil {
 		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
@@ -115,5 +129,78 @@ func (c *Client) AccessSecretVersion(ctx context.Context, versionName string, op
 		}
 	}
 
-	return data, nil
+	return &SecretVersion{Name: response.Name, Payload: data}, nil
+}
+
+// SecretName is the resource name of a secret.
+func SecretName(project string, secret string) string {
+	return "projects/" + project + "/secrets/" + secret
+}
+
+// AddSecretVersion makes the payload the secret's newest version, and returns the version's name. It takes
+// roles/secretmanager.secretVersionAdder on the secret.
+//
+// An empty payload is refused here, Secret Manager accepting one: a version that holds nothing is a writer that failed
+// before it had anything to write, and it would be served as "latest" all the same.
+func (c *Client) AddSecretVersion(ctx context.Context, secretName string, data []byte, options ...fetch_config.Option) (string, error) {
+	if secretName == "" {
+		return "", altshiftErrors.NewWithTrace(empty_error.New("secret name"))
+	}
+	if len(data) == 0 {
+		return "", altshiftErrors.NewWithTrace(empty_error.New("payload"))
+	}
+
+	if err := ctx.Err(); err != nil {
+		return "", fmt.Errorf("context err: %w", err)
+	}
+
+	urlString := c.resourceUrl(secretName, ":addVersion")
+	body := &addVersionRequest{Payload: &payload{
+		Data:       base64.StdEncoding.EncodeToString(data),
+		DataCrc32c: strconv.FormatUint(uint64(crc32.Checksum(data, castagnoli)), 10),
+	}}
+
+	options = append(append(slices.Clip(c.config.FetchOptions), options...), fetch_config.WithMethod(http.MethodPost))
+	_, response, err := altshiftHttpUtils.FetchJsonWithBody[*versionResponse](ctx, urlString, body, options...)
+	if err != nil {
+		return "", altshiftErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
+	}
+	if response == nil {
+		return "", altshiftErrors.NewWithTrace(nil_error.New("version response"))
+	}
+	if response.Name == "" {
+		return "", altshiftErrors.NewWithTrace(empty_error.New("version name"))
+	}
+
+	return response.Name, nil
+}
+
+// DestroySecretVersion destroys a version, its payload gone for good: what a secret held before it was replaced is
+// still read by whoever may read the secret, until its version is destroyed. It takes
+// roles/secretmanager.secretVersionManager on the secret.
+func (c *Client) DestroySecretVersion(ctx context.Context, versionName string, options ...fetch_config.Option) error {
+	if versionName == "" {
+		return altshiftErrors.NewWithTrace(empty_error.New("version name"))
+	}
+
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("context err: %w", err)
+	}
+
+	urlString := c.resourceUrl(versionName, ":destroy")
+
+	options = append(append(slices.Clip(c.config.FetchOptions), options...), fetch_config.WithMethod(http.MethodPost))
+	if _, _, err := altshiftHttpUtils.FetchJsonWithBody[*versionResponse](ctx, urlString, struct{}{}, options...); err != nil {
+		return altshiftErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
+	}
+
+	return nil
+}
+
+// resourceUrl addresses a method of a resource. The name's slashes stay literal: gRPC transcoding routes against the
+// raw path and rejects %2F-encoded separators.
+func (c *Client) resourceUrl(name string, method string) string {
+	u := *c.baseUrl
+	u.Path += name + method
+	return u.String()
 }
