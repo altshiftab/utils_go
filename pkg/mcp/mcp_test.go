@@ -40,6 +40,17 @@ func newServer() *Server {
 				},
 			},
 			{
+				Name:        "picture",
+				InputSchema: map[string]any{"type": "object"},
+				Annotations: &Annotations{ReadOnlyHint: true},
+				Call: func(context.Context, jsontext.Value) (any, error) {
+					return &Result{
+						Structured: map[string]any{"name": "dot.png"},
+						Content:    []*Content{ImageContent([]byte("png"), "image/png"), nil},
+					}, nil
+				},
+			},
+			{
 				Name:        "broken",
 				InputSchema: map[string]any{"type": "object"},
 				Call: func(context.Context, jsontext.Value) (any, error) {
@@ -113,7 +124,7 @@ func TestServer_Handle(t *testing.T) {
 				tools, _ := result["tools"].([]any)
 				first, _ := tools[0].(map[string]any)
 				annotations, _ := first["annotations"].(map[string]any)
-				if len(tools) != 2 || first["name"] != "echo" || result["resultType"] != "complete" || result["cacheScope"] != "public" {
+				if len(tools) != 3 || first["name"] != "echo" || result["resultType"] != "complete" || result["cacheScope"] != "public" {
 					t.Errorf("tools/list %v", result)
 				}
 				// Both hints, the false one too.
@@ -137,6 +148,28 @@ func TestServer_Handle(t *testing.T) {
 				}
 				if _, ok := result["ttlMs"]; ok {
 					t.Errorf("a call is no cacheable result: %v", result)
+				}
+			},
+		},
+		{
+			name:       "modern tools/call with an image",
+			header:     modernHeader("tools/call", "picture"),
+			body:       `{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"picture","arguments":{},` + modernMeta + `}}`,
+			wantStatus: http.StatusOK,
+			want: func(t *testing.T, result map[string]any) {
+				t.Helper()
+				structured, _ := result["structuredContent"].(map[string]any)
+				content, _ := result["content"].([]any)
+				if len(content) != 2 || structured["name"] != "dot.png" {
+					t.Fatalf("tools/call %v", result)
+				}
+				text, _ := content[0].(map[string]any)
+				image, _ := content[1].(map[string]any)
+				if text["text"] != `{"name":"dot.png"}` {
+					t.Errorf("text %v", text)
+				}
+				if image["type"] != "image" || image["mimeType"] != "image/png" || image["data"] != base64.StdEncoding.EncodeToString([]byte("png")) {
+					t.Errorf("image %v", image)
 				}
 			},
 		},

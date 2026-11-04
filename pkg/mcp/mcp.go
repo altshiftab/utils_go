@@ -87,9 +87,30 @@ func (e *ToolError) Error() string {
 	return e.Message
 }
 
+// Content is a block of a tool's result besides the text its structured content is given as: an
+// image the model is shown, say. Data is base64-encoded, as the protocol carries it.
+type Content struct {
+	Type     string `json:"type"`
+	Text     string `json:"text,omitzero"`
+	Data     string `json:"data,omitzero"`
+	MimeType string `json:"mimeType,omitzero"`
+}
+
+// ImageContent is an image block of the given bytes and type.
+func ImageContent(data []byte, mimeType string) *Content {
+	return &Content{Type: "image", Data: base64.StdEncoding.EncodeToString(data), MimeType: mimeType}
+}
+
+// Result is what a tool answers with to give blocks besides its structured content: Structured is
+// what it would have answered with otherwise, and Content goes after the text of it, in order.
+type Result struct {
+	Structured any
+	Content    []*Content
+}
+
 // Tool is a tool the server offers. Call answers with what becomes the result's structured
-// content, a JSON object, and its text; a *ToolError is a refusal, and any other error the
-// server's.
+// content, a JSON object, and its text, or with a *Result to give more blocks besides; a
+// *ToolError is a refusal, and any other error the server's.
 type Tool struct {
 	Name         string         `json:"name"`
 	Title        string         `json:"title,omitzero"`
@@ -351,7 +372,7 @@ func (s *Server) call(ctx context.Context, parsed *params) (map[string]any, *fai
 		arguments = jsontext.Value("{}")
 	}
 
-	structured, err := tool.Call(ctx, arguments)
+	answered, err := tool.Call(ctx, arguments)
 	if refused, ok := errors.AsType[*ToolError](err); ok && refused != nil {
 		return map[string]any{
 			"content": []map[string]any{{"type": "text", "text": refused.Message}},
@@ -364,6 +385,13 @@ func (s *Server) call(ctx context.Context, parsed *params) (map[string]any, *fai
 		return nil, fail(http.StatusOK, CodeInternalError, "The tool failed.")
 	}
 
+	structured := answered
+	var blocks []*Content
+	if result, ok := answered.(*Result); ok && result != nil {
+		structured = result.Structured
+		blocks = result.Content
+	}
+
 	// The structured content, and the same as text for a client that reads only that.
 	text, err := json.Marshal(structured, json.Deterministic(true))
 	if err != nil {
@@ -371,8 +399,15 @@ func (s *Server) call(ctx context.Context, parsed *params) (map[string]any, *fai
 			slog.String("tool", tool.Name), slog.Any("error", altshiftErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err))))
 		return nil, fail(http.StatusOK, CodeInternalError, "The tool failed.")
 	}
+	content := make([]any, 0, 1+len(blocks))
+	content = append(content, map[string]any{"type": "text", "text": string(text)})
+	for _, block := range blocks {
+		if block != nil {
+			content = append(content, block)
+		}
+	}
 	return map[string]any{
-		"content":           []map[string]any{{"type": "text", "text": string(text)}},
+		"content":           content,
 		"structuredContent": structured,
 		"isError":           false,
 	}, nil
