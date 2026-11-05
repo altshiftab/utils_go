@@ -152,6 +152,15 @@ func TestFileRequests(t *testing.T) {
 			want:     `{"id":"f1","version":"8"}`,
 		},
 		{
+			name: "delete file",
+			call: func(client *Client) (any, error) {
+				return "deleted", client.DeleteFile(context.Background(), "tmp")
+			},
+			method: http.MethodDelete,
+			path:   "/drive/v3/files/tmp",
+			want:   `"deleted"`,
+		},
+		{
 			name: "copy file",
 			call: func(client *Client) (any, error) {
 				return client.CopyFile(context.Background(), "f1", &file.File{Name: "kopia"})
@@ -327,6 +336,7 @@ func TestFileArgumentErrors(t *testing.T) {
 			call: func() error { _, err := client.UpdateFileContent(ctx, "f1", tooLarge, "text/plain"); return err },
 		},
 		{name: "copy, empty id", call: func() error { _, err := client.CopyFile(ctx, "", nil); return err }},
+		{name: "delete, empty id", call: func() error { return client.DeleteFile(ctx, "") }},
 	}
 
 	for _, testCase := range testCases {

@@ -339,3 +339,14 @@ func (c *Client) CopyFile(
 		c.fetchOptions(getFileConfig.FetchOptions),
 	)
 }
+
+// DeleteFile deletes a file for good, past the trash: what UpdateFile with Trashed does is what a user would want of
+// their own file, and this is for a file a caller made for itself and has no more use for. A folder's files go with
+// it.
+func (c *Client) DeleteFile(ctx context.Context, fileId string, options ...fetch_config.Option) error {
+	if fileId == "" {
+		return altshiftErrors.NewWithTrace(empty_error.New("file id"))
+	}
+
+	return rest.Do(ctx, http.MethodDelete, c.urlString(filePath(fileId), c.newQuery()), c.fetchOptions(options))
+}
