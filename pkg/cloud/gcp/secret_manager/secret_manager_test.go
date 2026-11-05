@@ -23,7 +23,7 @@ func TestAccessSecretVersion(t *testing.T) {
 	testCases := []struct {
 		name     string
 		status   int
-		response map[string]any
+		response any
 		want     string
 		wantErr  bool
 	}{
@@ -55,6 +55,12 @@ func TestAccessSecretVersion(t *testing.T) {
 			name:     "data that is not base64",
 			status:   http.StatusOK,
 			response: map[string]any{"payload": map[string]any{"data": "!!"}},
+			wantErr:  true,
+		},
+		{
+			name:     "a body that is not json",
+			status:   http.StatusOK,
+			response: "c2VjcmV0",
 			wantErr:  true,
 		},
 		{
@@ -177,5 +183,34 @@ func TestAddAndDestroySecretVersion(t *testing.T) {
 		if err := testCase.call(); err == nil {
 			t.Errorf("%s: expected an error", testCase.name)
 		}
+	}
+}
+
+func TestListSecretVersions(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if want := "/v1/projects/p/secrets/s/versions"; r.URL.EscapedPath() != want {
+			t.Errorf("path = %s, want %s", r.URL.EscapedPath(), want)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("pageToken") == "" {
+			_, _ = w.Write([]byte(`{"versions":[{"name":"projects/1/secrets/s/versions/3","state":"ENABLED"}],"nextPageToken":"n"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"versions":[{"name":"projects/1/secrets/s/versions/2","state":"DESTROYED"}]}`))
+	}))
+	t.Cleanup(server.Close)
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse url: %v", err)
+	}
+
+	versions, err := NewClient(secret_manager_config.WithBaseUrl(u)).ListSecretVersions(context.Background(), SecretName("p", "s"))
+	if err != nil || len(versions) != 2 || versions[0].State != StateEnabled || versions[1].Name != "projects/1/secrets/s/versions/2" {
+		t.Errorf("versions = %+v, %v", versions, err)
+	}
+	if _, err := NewClient().ListSecretVersions(context.Background(), ""); err == nil {
+		t.Error("expected an error for an empty secret name")
 	}
 }

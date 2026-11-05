@@ -3,7 +3,9 @@ package message
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
+	"mime"
 	"mime/quotedprintable"
 	"net/mail"
 	"reflect"
@@ -549,5 +551,44 @@ func TestText(t *testing.T) {
 				t.Errorf("%s: decoded %q, want %q", testCase.name, decoded, testCase.text)
 			}
 		})
+	}
+}
+
+func TestMessage_String_FoldsLongHeaders(t *testing.T) {
+	t.Parallel()
+
+	var references []string
+	for index := range 40 {
+		references = append(references, fmt.Sprintf("<message-%d@mail.example.com>", index))
+	}
+	msg := &Message{
+		From:    &mail.Address{Address: "a@example.com"},
+		To:      []*mail.Address{{Address: "b@example.com"}},
+		Subject: strings.Repeat("Räkning ", 20),
+		Body:    Text("x"),
+		Headers: []*message_header.Header{{Name: "References", Value: strings.Join(references, " ")}},
+	}
+	written, err := msg.String()
+	if err != nil {
+		t.Fatalf("string: %v", err)
+	}
+	head, _, _ := strings.Cut(written, "\r\n\r\n")
+	for _, line := range strings.Split(head, "\r\n") {
+		if len(line) > foldLength {
+			t.Errorf("a line of %d characters: %q", len(line), line)
+		}
+	}
+
+	// Read back, the headers are what was written.
+	parsed, err := mail.ReadMessage(strings.NewReader(written))
+	if err != nil {
+		t.Fatalf("read message: %v", err)
+	}
+	if got := parsed.Header.Get("References"); got != strings.Join(references, " ") {
+		t.Errorf("references = %q", got)
+	}
+	subject, err := new(mime.WordDecoder).DecodeHeader(parsed.Header.Get("Subject"))
+	if err != nil || subject != strings.Repeat("Räkning ", 20) {
+		t.Errorf("subject = %q, %v", subject, err)
 	}
 }

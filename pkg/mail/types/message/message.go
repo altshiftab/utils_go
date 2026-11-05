@@ -179,6 +179,29 @@ type Message struct {
 	Headers []*message_header.Header
 }
 
+// foldLength is the length a header line is folded at, the one RFC 5322 recommends.
+const foldLength = 78
+
+// writeHeader writes the header folded at its spaces, so that no line is longer than foldLength where a space allows,
+// and none near the 998 octets a line may hold: a References header grows with every reply in a thread. A run of
+// text with no space in it is left whole.
+func writeHeader(builder *strings.Builder, name string, value string) {
+	builder.WriteString(name)
+	builder.WriteString(":")
+	lineLength := len(name) + 1
+	for index, word := range strings.Split(value, " ") {
+		// The first word goes on a line of its own after the name only when that is a line it fits.
+		if lineLength+1+len(word) > foldLength && (index > 0 || 1+len(word) <= foldLength) {
+			builder.WriteString("\r\n")
+			lineLength = 0
+		}
+		builder.WriteString(" ")
+		builder.WriteString(word)
+		lineLength += 1 + len(word)
+	}
+	builder.WriteString("\r\n")
+}
+
 // checkHeaderValue refuses a value that would end its header line: what follows a line break is read as a header of
 // its own, or as the body.
 func checkHeaderValue(name string, value string) error {
@@ -213,7 +236,7 @@ func (message *Message) String() (string, error) {
 
 	fromMailAddress := message.From
 
-	fmt.Fprintf(&builder, "From: %s\r\n", fromMailAddress.String())
+	writeHeader(&builder, "From", fromMailAddress.String())
 
 	var toStrings []string
 	for _, to := range message.To {
@@ -221,31 +244,31 @@ func (message *Message) String() (string, error) {
 			toStrings = append(toStrings, to.String())
 		}
 	}
-	fmt.Fprintf(&builder, "To: %s\r\n", strings.Join(toStrings, ", "))
+	writeHeader(&builder, "To", strings.Join(toStrings, ", "))
 
 	if replyTo := message.ReplyTo; len(replyTo) > 0 {
 		var replyToStrings []string
 		for _, replyToAddress := range replyTo {
 			replyToStrings = append(replyToStrings, replyToAddress.String())
 		}
-		fmt.Fprintf(&builder, "Reply-To: %s\r\n", strings.Join(replyToStrings, ", "))
+		writeHeader(&builder, "Reply-To", strings.Join(replyToStrings, ", "))
 	}
 	if cc := message.Cc; len(cc) > 0 {
 		var ccStrings []string
 		for _, ccAddress := range cc {
 			ccStrings = append(ccStrings, ccAddress.String())
 		}
-		fmt.Fprintf(&builder, "Cc: %s\r\n", strings.Join(ccStrings, ", "))
+		writeHeader(&builder, "Cc", strings.Join(ccStrings, ", "))
 	}
 	if bcc := message.Bcc; len(bcc) > 0 {
 		var bccStrings []string
 		for _, bccAddress := range bcc {
 			bccStrings = append(bccStrings, bccAddress.String())
 		}
-		fmt.Fprintf(&builder, "Bcc: %s\r\n", strings.Join(bccStrings, ", "))
+		writeHeader(&builder, "Bcc", strings.Join(bccStrings, ", "))
 	}
 	// A subject outside ASCII is an encoded word (RFC 2047); one inside it is written as it is.
-	fmt.Fprintf(&builder, "Subject: %s\r\n", mime.QEncoding.Encode("utf-8", message.Subject))
+	writeHeader(&builder, "Subject", mime.QEncoding.Encode("utf-8", message.Subject))
 	fmt.Fprintf(&builder, "Date: %s\r\n", timeNow.Format(time.RFC1123Z))
 
 	domain := message.Domain
@@ -275,7 +298,7 @@ func (message *Message) String() (string, error) {
 		if header == nil {
 			continue
 		}
-		fmt.Fprintf(&builder, "%s: %s\r\n", header.Name, header.Value)
+		writeHeader(&builder, header.Name, header.Value)
 	}
 
 	builder.WriteString("MIME-Version: 1.0\r\n")

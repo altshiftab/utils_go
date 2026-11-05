@@ -4,6 +4,7 @@ package secret_manager
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json/v2"
 	"fmt"
 	"hash/crc32"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/secret_manager/secret_manager_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -97,10 +99,16 @@ func (c *Client) AccessSecretVersion(ctx context.Context, versionName string, op
 
 	urlString := c.resourceUrl(versionName, ":access")
 
+	// Fetched and read here rather than by FetchJson, which puts a body it cannot read into its error: this one is a
+	// secret.
 	options = append(append(slices.Clip(c.config.FetchOptions), options...), fetch_config.WithMethod(http.MethodGet))
-	_, response, err := altshiftHttpUtils.FetchJson[*accessResponse](ctx, urlString, options...)
+	_, body, err := altshiftHttpUtils.Fetch(ctx, urlString, options...)
 	if err != nil {
-		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+		return nil, altshiftErrors.New(fmt.Errorf("fetch: %w", err), urlString)
+	}
+	var response *accessResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: the access response is not json", altshiftErrors.ErrParseError))
 	}
 	if response == nil {
 		return nil, altshiftErrors.NewWithTrace(nil_error.New("access response"))
@@ -173,6 +181,48 @@ func (c *Client) AddSecretVersion(ctx context.Context, secretName string, data [
 	}
 
 	return response.Name, nil
+}
+
+// Version states, as Secret Manager names them.
+const (
+	StateEnabled   = "ENABLED"
+	StateDisabled  = "DISABLED"
+	StateDestroyed = "DESTROYED"
+)
+
+// VersionState is a version as a listing gives it: its name and its state.
+type VersionState struct {
+	Name  string `json:"name"`
+	State string `json:"state"`
+}
+
+type listVersionsResponse struct {
+	Versions      []*VersionState `json:"versions"`
+	NextPageToken string          `json:"nextPageToken"`
+}
+
+// ListSecretVersions lists every version of the secret, the destroyed ones too, newest first. It takes
+// roles/secretmanager.viewer on the secret, or a role that holds secretmanager.versions.list.
+func (c *Client) ListSecretVersions(ctx context.Context, secretName string, options ...fetch_config.Option) ([]*VersionState, error) {
+	if secretName == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("secret name"))
+	}
+
+	return rest.ListPaginated(
+		ctx,
+		func(pageToken string) string {
+			u := *c.baseUrl
+			u.Path += secretName + "/versions"
+			if pageToken != "" {
+				u.RawQuery = url.Values{"pageToken": {pageToken}}.Encode()
+			}
+			return u.String()
+		},
+		func(response *listVersionsResponse) ([]*VersionState, string) {
+			return response.Versions, response.NextPageToken
+		},
+		append(slices.Clip(c.config.FetchOptions), options...),
+	)
 }
 
 // DestroySecretVersion destroys a version, its payload gone for good: what a secret held before it was replaced is
