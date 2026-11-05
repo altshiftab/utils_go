@@ -171,8 +171,9 @@ func (c *Client) CheckNextLink(userId string, nextLink string) error {
 	if u.Scheme != c.baseUrl.Scheme || !strings.EqualFold(u.Host, c.baseUrl.Host) || u.User != nil || u.Fragment != "" {
 		return refuse()
 	}
-	// A path with a dot segment could climb out of the mailbox once Graph resolves it.
-	if u.Path == "" || path.Clean(u.Path) != u.Path {
+	// A path with a dot segment could climb out of the mailbox once Graph resolves it, and one holding
+	// a backslash or a percent sign once decoded could be read by Graph otherwise than here.
+	if u.Path == "" || path.Clean(u.Path) != u.Path || strings.ContainsAny(u.Path, `\%`) {
 		return refuse()
 	}
 
