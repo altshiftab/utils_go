@@ -92,6 +92,16 @@ func (b *PathBuilder) Url(baseUrl *url.URL, query url.Values) string {
 	return u.String()
 }
 
+// UrlWithRawQuery resolves the built path against baseUrl, with a query already encoded, which
+// may write names as Url's url.Values would not ("$filter" rather than "%24filter").
+func (b *PathBuilder) UrlWithRawQuery(baseUrl *url.URL, rawQuery string) string {
+	u := *baseUrl
+	u.Path = baseUrl.Path + b.path.String()
+	u.RawPath = baseUrl.EscapedPath() + b.rawPath.String()
+	u.RawQuery = rawQuery
+	return u.String()
+}
+
 // ODataString escapes s for use inside a single-quoted OData string literal.
 func ODataString(s string) string {
 	return strings.ReplaceAll(s, "'", "''")

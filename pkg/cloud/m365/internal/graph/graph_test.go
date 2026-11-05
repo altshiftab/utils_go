@@ -67,6 +67,35 @@ func TestPathBuilderUrl(t *testing.T) {
 	}
 }
 
+func TestPathBuilderUrlWithRawQuery(t *testing.T) {
+	t.Parallel()
+
+	baseUrl := &url.URL{Scheme: "https", Host: Domain, Path: "/v1.0"}
+
+	testCases := []struct {
+		name     string
+		rawQuery string
+		want     string
+	}{
+		{name: "no query", want: "https://graph.microsoft.com/v1.0/users/a%2Fb/messages"},
+		{
+			name:     "option names written as they are",
+			rawQuery: "$filter=isRead%20eq%20false&$top=5",
+			want:     "https://graph.microsoft.com/v1.0/users/a%2Fb/messages?$filter=isRead%20eq%20false&$top=5",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			builder := new(PathBuilder).Literal("/users/").Escaped("a/b").Literal("/messages")
+			if got := builder.UrlWithRawQuery(baseUrl, testCase.rawQuery); got != testCase.want {
+				t.Errorf("%s: UrlWithRawQuery() = %q, want %q", testCase.name, got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestPathSegments(t *testing.T) {
 	t.Parallel()
 
