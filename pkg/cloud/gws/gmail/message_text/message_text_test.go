@@ -59,6 +59,19 @@ func TestBody(t *testing.T) {
 			want: "Hej\nKvitto",
 		},
 		{
+			name: "plain text that is an html document past a byte order mark and a comment is read as html",
+			msg: &message.Message{Payload: textPart(
+				"text/plain",
+				"\ufeff<!-- generated --> <!-- twice -->\n<html><body><p>Hej</p></body></html>",
+			)},
+			want: "Hej",
+		},
+		{
+			name: "plain text beginning with an unclosed comment stays plain",
+			msg:  &message.Message{Payload: textPart("text/plain", "<!-- note <html>")},
+			want: "<!-- note <html>",
+		},
+		{
 			name: "plain text that is an html element alone stays plain",
 			msg:  &message.Message{Payload: textPart("text/plain", "<b>not a document</b>")},
 			want: "<b>not a document</b>",

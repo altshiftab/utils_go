@@ -56,10 +56,22 @@ func TextWith(msg *message.Message, htmlToText func(source string) string) strin
 	return ""
 }
 
-// isHtmlDocument reports whether a text begins as an HTML document does.
+// isHtmlDocument reports whether a text begins as an HTML document does, past blank space, a byte order mark, and
+// comments.
 func isHtmlDocument(text string) bool {
-	start := strings.TrimLeftFunc(text, unicode.IsSpace)
+	start := strings.TrimLeftFunc(text, isLeadingBlank)
+	for strings.HasPrefix(start, "<!--") {
+		end := strings.Index(start, "-->")
+		if end < 0 {
+			return false
+		}
+		start = strings.TrimLeftFunc(start[end+len("-->"):], isLeadingBlank)
+	}
 	return hasPrefixFold(start, "<!doctype html") || hasPrefixFold(start, "<html")
+}
+
+func isLeadingBlank(r rune) bool {
+	return unicode.IsSpace(r) || r == '\ufeff'
 }
 
 func hasPrefixFold(text string, prefix string) bool {
@@ -106,7 +118,7 @@ func Decode(data string) ([]byte, error) {
 	return decoded, nil
 }
 
-// partText decodes a part's data as text.
+// partText decodes a part's data as text, without the byte order mark it may begin with, which says nothing.
 func partText(part *message_part.MessagePart) string {
 	if part == nil || part.Body == nil {
 		return ""
@@ -118,7 +130,7 @@ func partText(part *message_part.MessagePart) string {
 	}
 
 	if utf8.Valid(data) {
-		return string(data)
+		return strings.TrimPrefix(string(data), "\ufeff")
 	}
 
 	// Latin-1: every byte is the code point of the same number.
