@@ -14,6 +14,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/utils"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/calendar/calendar_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/calendar/list_events_config"
@@ -186,12 +187,14 @@ func (c *Client) InsertEvent(
 	)
 }
 
-// PatchEvent changes the fields of an event that e sets, leaving the rest; a list it sets replaces the event's whole.
+// PatchEvent changes the fields of an event that the patch sets, leaving the rest; a list it sets replaces the event's
+// whole. The patch is an *event.Event, which sets the fields it has a value in, or a map of the fields' JSON names to
+// their values, which is how one is emptied: an event's empty field is not sent.
 func (c *Client) PatchEvent(
 	ctx context.Context,
 	calendarId string,
 	eventId string,
-	e *event.Event,
+	patch any,
 	options ...write_event_config.Option,
 ) (*event.Event, error) {
 	if calendarId == "" {
@@ -200,8 +203,8 @@ func (c *Client) PatchEvent(
 	if eventId == "" {
 		return nil, altshiftErrors.NewWithTrace(empty_error.New("event id"))
 	}
-	if e == nil {
-		return nil, altshiftErrors.NewWithTrace(nil_error.New("event"))
+	if utils.IsNil(patch) {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("patch"))
 	}
 
 	writeConfig := write_event_config.New(options...)
@@ -210,7 +213,7 @@ func (c *Client) PatchEvent(
 		ctx,
 		http.MethodPatch,
 		c.urlString(eventPath(calendarId, eventId), writeQuery(writeConfig)),
-		e,
+		patch,
 		c.fetchOptions(writeConfig.FetchOptions),
 	)
 }

@@ -38,6 +38,8 @@ type Attendee struct {
 	// Self says the attendee is the user the request is made as.
 	Self     bool `json:"self,omitzero"`
 	Resource bool `json:"resource,omitzero"`
+	// AdditionalGuests is how many people the attendee brings.
+	AdditionalGuests int `json:"additionalGuests,omitzero"`
 }
 
 // ConferenceSolutionKey names a kind of conference; "hangoutsMeet" is Google Meet.
@@ -68,8 +70,8 @@ type ConferenceData struct {
 
 // Event is an event in a calendar.
 //
-// A patch sends the fields set and leaves the rest as they are, so a field cannot be emptied by one; and a list --
-// Attendees, Recurrence -- is replaced whole by the one sent.
+// Sent as a patch, an event sets the fields it sets and leaves the rest, so a field cannot be emptied by it; a patch
+// of a map can (see PatchEvent). A list -- Attendees, Recurrence -- is replaced whole by the one sent.
 type Event struct {
 	Id          string `json:"id,omitzero"`
 	Status      string `json:"status,omitzero"`
@@ -94,9 +96,12 @@ type Event struct {
 	// EventType is "default", or one of Calendar's own kinds: "outOfOffice", "focusTime", "workingLocation", ...
 	EventType string `json:"eventType,omitzero"`
 
-	Attendees      []*Attendee     `json:"attendees,omitzero"`
-	HangoutLink    string          `json:"hangoutLink,omitzero"`
-	ConferenceData *ConferenceData `json:"conferenceData,omitzero"`
+	Attendees []*Attendee `json:"attendees,omitzero"`
+	// AttendeesOmitted says Attendees is not every guest: in a patch, that the attendees named are changed and the
+	// rest left, which is how a guest answers an invitation without sending back everyone else's.
+	AttendeesOmitted bool            `json:"attendeesOmitted,omitzero"`
+	HangoutLink      string          `json:"hangoutLink,omitzero"`
+	ConferenceData   *ConferenceData `json:"conferenceData,omitzero"`
 
 	Created string `json:"created,omitzero"`
 	Updated string `json:"updated,omitzero"`

@@ -125,6 +125,17 @@ func TestRequests(t *testing.T) {
 			want:     `{"id":"e1","location":"Rum 3"}`,
 		},
 		{
+			name: "patch event by fields, one emptied",
+			call: func(client *Client) (any, error) {
+				return client.PatchEvent(context.Background(), Primary, "e1", map[string]any{"location": ""})
+			},
+			method:   http.MethodPatch,
+			path:     "/calendar/v3/calendars/primary/events/e1",
+			body:     `{"location":""}`,
+			response: `{"id":"e1"}`,
+			want:     `{"id":"e1"}`,
+		},
+		{
 			name: "delete event",
 			call: func(client *Client) (any, error) {
 				return nil, client.DeleteEvent(context.Background(), Primary, "e1", write_event_config.WithSendUpdates(write_event_config.SendUpdatesNone))
@@ -223,7 +234,8 @@ func TestArgumentErrors(t *testing.T) {
 		{name: "insert, nil event", call: func() error { _, err := client.InsertEvent(ctx, Primary, nil); return err }},
 		{name: "insert, no end", call: func() error { _, err := client.InsertEvent(ctx, Primary, &event.Event{Start: timed.Start}); return err }},
 		{name: "patch, no event id", call: func() error { _, err := client.PatchEvent(ctx, Primary, "", timed); return err }},
-		{name: "patch, nil event", call: func() error { _, err := client.PatchEvent(ctx, Primary, "e1", nil); return err }},
+		{name: "patch, nil", call: func() error { _, err := client.PatchEvent(ctx, Primary, "e1", nil); return err }},
+		{name: "patch, nil event", call: func() error { _, err := client.PatchEvent(ctx, Primary, "e1", (*event.Event)(nil)); return err }},
 		{name: "delete, no event", call: func() error { return client.DeleteEvent(ctx, Primary, "") }},
 		{name: "free busy, nil", call: func() error { _, err := client.QueryFreeBusy(ctx, nil); return err }},
 		{name: "free busy, no items", call: func() error { _, err := client.QueryFreeBusy(ctx, &free_busy.Request{}); return err }},
