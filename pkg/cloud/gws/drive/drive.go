@@ -52,13 +52,8 @@ func NewClient(options ...drive_config.Option) *Client {
 	return &Client{baseUrl: &u, uploadBaseUrl: &upload, config: config}
 }
 
-func (c *Client) urlString(path string, query url.Values) string {
-	urlObj := *c.baseUrl
-	urlObj.Path += path
-	if len(query) != 0 {
-		urlObj.RawQuery = query.Encode()
-	}
-	return urlObj.String()
+func (c *Client) urlString(query url.Values, segments ...string) string {
+	return rest.Url(c.baseUrl, query, segments...)
 }
 
 // newQuery seeds the query parameters every permissions call shares.
@@ -74,12 +69,12 @@ func (c *Client) fetchOptions(options []fetch_config.Option) []fetch_config.Opti
 	return append(c.config.FetchOptions, options...)
 }
 
-func permissionsPath(fileId string) string {
-	return "files/" + url.PathEscape(fileId) + "/permissions"
+func permissionsPath(fileId string) []string {
+	return append(filePath(fileId), "permissions")
 }
 
-func permissionPath(fileId string, permissionId string) string {
-	return permissionsPath(fileId) + "/" + url.PathEscape(permissionId)
+func permissionPath(fileId string, permissionId string) []string {
+	return append(permissionsPath(fileId), permissionId)
 }
 
 // Permission operations
@@ -115,7 +110,7 @@ func (c *Client) CreatePermission(
 	return rest.SendJson[permission.Permission](
 		ctx,
 		http.MethodPost,
-		c.urlString(permissionsPath(fileId), query),
+		c.urlString(query, permissionsPath(fileId)...),
 		p,
 		c.fetchOptions(createPermissionConfig.FetchOptions),
 	)
@@ -138,7 +133,7 @@ func (c *Client) GetPermission(
 
 	return rest.GetJson[permission.Permission](
 		ctx,
-		c.urlString(permissionPath(fileId, permissionId), c.newQuery()),
+		c.urlString(c.newQuery(), permissionPath(fileId, permissionId)...),
 		c.fetchOptions(options),
 	)
 }
@@ -165,7 +160,7 @@ func (c *Client) ListPermissions(
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
-			return c.urlString(permissionsPath(fileId), query)
+			return c.urlString(query, permissionsPath(fileId)...)
 		},
 		func(response *listPermissionsResponse) ([]*permission.Permission, string) {
 			return response.Permissions, response.NextPageToken
@@ -207,7 +202,7 @@ func (c *Client) UpdatePermission(
 	return rest.SendJson[permission.Permission](
 		ctx,
 		http.MethodPatch,
-		c.urlString(permissionPath(fileId, permissionId), query),
+		c.urlString(query, permissionPath(fileId, permissionId)...),
 		p,
 		c.fetchOptions(updatePermissionConfig.FetchOptions),
 	)
@@ -231,7 +226,7 @@ func (c *Client) DeletePermission(
 	return rest.Do(
 		ctx,
 		http.MethodDelete,
-		c.urlString(permissionPath(fileId, permissionId), c.newQuery()),
+		c.urlString(c.newQuery(), permissionPath(fileId, permissionId)...),
 		c.fetchOptions(options),
 	)
 }

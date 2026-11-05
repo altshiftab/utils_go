@@ -38,11 +38,8 @@ func NewClient(options ...groups_settings_config.Option) *Client {
 }
 
 func (c *Client) groupUrl(groupEmail string) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(groupEmail)
 	// The Groups Settings API defaults to Atom XML; request JSON explicitly.
-	u.RawQuery = "alt=json"
-	return u.String()
+	return rest.Url(c.baseUrl, url.Values{"alt": {"json"}}, groupEmail)
 }
 
 func (c *Client) fetchOptions(options []fetch_config.Option) []fetch_config.Option {

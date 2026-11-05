@@ -60,25 +60,20 @@ func NewClient(options ...calendar_config.Option) *Client {
 	return &Client{baseUrl: &u, config: config}
 }
 
-func (c *Client) urlString(path string, query url.Values) string {
-	u := *c.baseUrl
-	u.Path += path
-	if len(query) != 0 {
-		u.RawQuery = query.Encode()
-	}
-	return u.String()
+func (c *Client) urlString(query url.Values, segments ...string) string {
+	return rest.Url(c.baseUrl, query, segments...)
 }
 
 func (c *Client) fetchOptions(options []fetch_config.Option) []fetch_config.Option {
 	return append(c.config.FetchOptions, options...)
 }
 
-func eventsPath(calendarId string) string {
-	return "calendars/" + url.PathEscape(calendarId) + "/events"
+func eventsPath(calendarId string) []string {
+	return []string{"calendars", calendarId, "events"}
 }
 
-func eventPath(calendarId string, eventId string) string {
-	return eventsPath(calendarId) + "/" + url.PathEscape(eventId)
+func eventPath(calendarId string, eventId string) []string {
+	return append(eventsPath(calendarId), eventId)
 }
 
 // writeQuery is the query of a call that makes, changes or deletes an event.
@@ -99,7 +94,7 @@ func (c *Client) ListCalendarsPage(ctx context.Context, pageToken string, option
 	if pageToken != "" {
 		query.Set("pageToken", pageToken)
 	}
-	return rest.GetJson[calendar_list.CalendarList](ctx, c.urlString("users/me/calendarList", query), c.fetchOptions(options))
+	return rest.GetJson[calendar_list.CalendarList](ctx, c.urlString(query, "users", "me", "calendarList"), c.fetchOptions(options))
 }
 
 // ListEventsPage retrieves one page of the calendar's events matching the options, beginning at the options' page
@@ -144,7 +139,7 @@ func (c *Client) ListEventsPage(
 		query.Set("showDeleted", "true")
 	}
 
-	return rest.GetJson[event_list.EventList](ctx, c.urlString(eventsPath(calendarId), query), c.fetchOptions(listConfig.FetchOptions))
+	return rest.GetJson[event_list.EventList](ctx, c.urlString(query, eventsPath(calendarId)...), c.fetchOptions(listConfig.FetchOptions))
 }
 
 // GetEvent retrieves an event.
@@ -156,7 +151,7 @@ func (c *Client) GetEvent(ctx context.Context, calendarId string, eventId string
 		return nil, altshiftErrors.NewWithTrace(empty_error.New("event id"))
 	}
 
-	return rest.GetJson[event.Event](ctx, c.urlString(eventPath(calendarId, eventId), nil), c.fetchOptions(options))
+	return rest.GetJson[event.Event](ctx, c.urlString(nil, eventPath(calendarId, eventId)...), c.fetchOptions(options))
 }
 
 // InsertEvent makes an event in the calendar, and returns it with its id.
@@ -181,7 +176,7 @@ func (c *Client) InsertEvent(
 	return rest.SendJson[event.Event](
 		ctx,
 		http.MethodPost,
-		c.urlString(eventsPath(calendarId), writeQuery(writeConfig)),
+		c.urlString(writeQuery(writeConfig), eventsPath(calendarId)...),
 		e,
 		c.fetchOptions(writeConfig.FetchOptions),
 	)
@@ -212,7 +207,7 @@ func (c *Client) PatchEvent(
 	return rest.SendJson[event.Event](
 		ctx,
 		http.MethodPatch,
-		c.urlString(eventPath(calendarId, eventId), writeQuery(writeConfig)),
+		c.urlString(writeQuery(writeConfig), eventPath(calendarId, eventId)...),
 		patch,
 		c.fetchOptions(writeConfig.FetchOptions),
 	)
@@ -232,7 +227,7 @@ func (c *Client) DeleteEvent(ctx context.Context, calendarId string, eventId str
 	return rest.Do(
 		ctx,
 		http.MethodDelete,
-		c.urlString(eventPath(calendarId, eventId), writeQuery(writeConfig)),
+		c.urlString(writeQuery(writeConfig), eventPath(calendarId, eventId)...),
 		c.fetchOptions(writeConfig.FetchOptions),
 	)
 }
@@ -247,5 +242,5 @@ func (c *Client) QueryFreeBusy(ctx context.Context, request *free_busy.Request, 
 		return nil, altshiftErrors.NewWithTrace(empty_error.New("free busy items"))
 	}
 
-	return rest.SendJson[free_busy.Response](ctx, http.MethodPost, c.urlString("freeBusy", nil), request, c.fetchOptions(options))
+	return rest.SendJson[free_busy.Response](ctx, http.MethodPost, c.urlString(nil, "freeBusy"), request, c.fetchOptions(options))
 }

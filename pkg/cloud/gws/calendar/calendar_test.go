@@ -63,6 +63,16 @@ func TestRequests(t *testing.T) {
 			want:     `{"items":[{"id":"a@example.com","summary":"A","accessRole":"owner","primary":true}]}`,
 		},
 		{
+			name: "list events of a calendar whose id has a hash",
+			call: func(client *Client) (any, error) {
+				return client.ListEventsPage(context.Background(), "sv.swedish#holiday@group.v.calendar.google.com")
+			},
+			method:   http.MethodGet,
+			path:     "/calendar/v3/calendars/sv.swedish#holiday@group.v.calendar.google.com/events",
+			response: `{"items":[]}`,
+			want:     `{"items":[]}`,
+		},
+		{
 			name: "list events",
 			call: func(client *Client) (any, error) {
 				return client.ListEventsPage(

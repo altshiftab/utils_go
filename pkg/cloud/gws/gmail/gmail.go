@@ -53,100 +53,77 @@ func NewClient(options ...gmail_config.Option) *Client {
 }
 
 func (c *Client) messagesUrl(userId string, messageId string, verb string, query url.Values) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(userId) + "/messages"
+	segments := []string{userId, "messages"}
 	if messageId != "" {
-		u.Path += "/" + url.PathEscape(messageId)
+		segments = append(segments, messageId)
 	}
 	if verb != "" {
-		u.Path += "/" + verb
+		segments = append(segments, verb)
 	}
-	u.RawQuery = query.Encode()
-	return u.String()
+	return rest.Url(c.baseUrl, query, segments...)
+}
+
+func (c *Client) attachmentUrl(userId string, messageId string, attachmentId string) string {
+	return rest.Url(c.baseUrl, nil, userId, "messages", messageId, "attachments", attachmentId)
 }
 
 func (c *Client) sendUrl(userId string) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(userId) + "/messages/send"
-	return u.String()
+	return rest.Url(c.baseUrl, nil, userId, "messages", "send")
 }
 
 func (c *Client) watchUrl(userId string) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(userId) + "/watch"
-	return u.String()
+	return rest.Url(c.baseUrl, nil, userId, "watch")
 }
 
 func (c *Client) profileUrl(userId string) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(userId) + "/profile"
-	return u.String()
+	return rest.Url(c.baseUrl, nil, userId, "profile")
 }
 
 func (c *Client) historyUrl(userId string, query url.Values) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(userId) + "/history"
-	u.RawQuery = query.Encode()
-	return u.String()
+	return rest.Url(c.baseUrl, query, userId, "history")
+}
+
+func (c *Client) settingsUrl(userId string, setting string, id string) string {
+	return rest.Url(c.baseUrl, nil, withId([]string{userId, "settings", setting}, id)...)
 }
 
 func (c *Client) sendAsUrl(userId string, sendAsEmail string) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(userId) + "/settings/sendAs"
-	if sendAsEmail != "" {
-		u.Path += "/" + url.PathEscape(sendAsEmail)
-	}
-	return u.String()
+	return c.settingsUrl(userId, "sendAs", sendAsEmail)
 }
 
 func (c *Client) threadsUrl(userId string, threadId string, verb string, query url.Values) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(userId) + "/threads"
+	segments := []string{userId, "threads"}
 	if threadId != "" {
-		u.Path += "/" + url.PathEscape(threadId)
+		segments = append(segments, threadId)
 	}
 	if verb != "" {
-		u.Path += "/" + verb
+		segments = append(segments, verb)
 	}
-	u.RawQuery = query.Encode()
-	return u.String()
+	return rest.Url(c.baseUrl, query, segments...)
 }
 
 func (c *Client) draftsUrl(userId string, draftId string, query url.Values) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(userId) + "/drafts"
-	if draftId != "" {
-		u.Path += "/" + url.PathEscape(draftId)
-	}
-	u.RawQuery = query.Encode()
-	return u.String()
+	return rest.Url(c.baseUrl, query, withId([]string{userId, "drafts"}, draftId)...)
 }
 
 func (c *Client) labelsUrl(userId string, labelId string) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(userId) + "/labels"
-	if labelId != "" {
-		u.Path += "/" + url.PathEscape(labelId)
-	}
-	return u.String()
+	return rest.Url(c.baseUrl, nil, withId([]string{userId, "labels"}, labelId)...)
 }
 
 func (c *Client) filtersUrl(userId string, filterId string) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(userId) + "/settings/filters"
-	if filterId != "" {
-		u.Path += "/" + url.PathEscape(filterId)
-	}
-	return u.String()
+	return c.settingsUrl(userId, "filters", filterId)
 }
 
 func (c *Client) forwardingAddressesUrl(userId string, forwardingEmail string) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(userId) + "/settings/forwardingAddresses"
-	if forwardingEmail != "" {
-		u.Path += "/" + url.PathEscape(forwardingEmail)
+	return c.settingsUrl(userId, "forwardingAddresses", forwardingEmail)
+}
+
+// withId is the segments of a collection, followed by the id of one of its items when one is given.
+func withId(segments []string, id string) []string {
+	if id == "" {
+		return segments
 	}
-	return u.String()
+	return append(segments, id)
 }
 
 func (c *Client) fetchOptions(options []fetch_config.Option) []fetch_config.Option {

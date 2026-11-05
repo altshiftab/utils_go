@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -43,9 +44,7 @@ func NewClient(options ...gemini_config.Option) *Client {
 }
 
 func (c *Client) generateContentUrl(model string) string {
-	u := *c.baseUrl
-	u.Path += url.PathEscape(model) + ":generateContent"
-	return u.String()
+	return rest.Url(c.baseUrl, nil, model+":generateContent")
 }
 
 // apiKeyFetchOption merges the API key header into the fetch configuration without

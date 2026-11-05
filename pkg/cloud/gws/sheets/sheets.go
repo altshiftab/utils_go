@@ -44,24 +44,12 @@ func NewClient(options ...sheets_config.Option) *Client {
 	return &Client{baseUrl: &u, config: config}
 }
 
-// The URL builders set both Path (decoded) and RawPath (escaped): appending
-// PathEscape output to Path alone would make URL.String re-escape the percent
-// signs, which matters for the non-ASCII sheet titles A1 ranges can contain.
-
 func (c *Client) spreadsheetUrl(spreadsheetId string, query url.Values) string {
-	u := *c.baseUrl
-	u.Path = c.baseUrl.Path + spreadsheetId
-	u.RawPath = c.baseUrl.Path + url.PathEscape(spreadsheetId)
-	u.RawQuery = query.Encode()
-	return u.String()
+	return rest.Url(c.baseUrl, query, spreadsheetId)
 }
 
 func (c *Client) valuesUrl(spreadsheetId string, valuesRange string, query url.Values) string {
-	u := *c.baseUrl
-	u.Path = c.baseUrl.Path + spreadsheetId + "/values/" + valuesRange
-	u.RawPath = c.baseUrl.Path + url.PathEscape(spreadsheetId) + "/values/" + url.PathEscape(valuesRange)
-	u.RawQuery = query.Encode()
-	return u.String()
+	return rest.Url(c.baseUrl, query, spreadsheetId, "values", valuesRange)
 }
 
 func (c *Client) fetchOptions(options []fetch_config.Option) []fetch_config.Option {

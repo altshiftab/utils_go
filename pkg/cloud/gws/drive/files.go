@@ -30,17 +30,12 @@ import (
 // which this client does not make.
 const MaxSimpleUploadBytes = 5 * 1024 * 1024
 
-func filePath(fileId string) string {
-	return "files/" + url.PathEscape(fileId)
+func filePath(fileId string) []string {
+	return []string{"files", fileId}
 }
 
-func (c *Client) uploadUrlString(path string, query url.Values) string {
-	urlObj := *c.uploadBaseUrl
-	urlObj.Path += path
-	if len(query) != 0 {
-		urlObj.RawQuery = query.Encode()
-	}
-	return urlObj.String()
+func (c *Client) uploadUrlString(query url.Values, segments ...string) string {
+	return rest.Url(c.uploadBaseUrl, query, segments...)
 }
 
 // fieldsQuery is the query every call answering with a file starts from.
@@ -79,7 +74,7 @@ func (c *Client) ListFilesPage(ctx context.Context, options ...list_files_config
 
 	return rest.GetJson[file_list.FileList](
 		ctx,
-		c.urlString("files", query),
+		c.urlString(query, "files"),
 		c.fetchOptions(listFilesConfig.FetchOptions),
 	)
 }
@@ -94,7 +89,7 @@ func (c *Client) GetFile(ctx context.Context, fileId string, options ...get_file
 
 	return rest.GetJson[file.File](
 		ctx,
-		c.urlString(filePath(fileId), c.fieldsQuery(getFileConfig.Fields)),
+		c.urlString(c.fieldsQuery(getFileConfig.Fields), filePath(fileId)...),
 		c.fetchOptions(getFileConfig.FetchOptions),
 	)
 }
@@ -113,7 +108,7 @@ func (c *Client) DownloadFile(ctx context.Context, fileId string, options ...fet
 	query := c.newQuery()
 	query.Set("alt", "media")
 
-	return rest.GetBytes(ctx, c.urlString(filePath(fileId), query), c.fetchOptions(options))
+	return rest.GetBytes(ctx, c.urlString(query, filePath(fileId)...), c.fetchOptions(options))
 }
 
 // ExportFile retrieves a file Drive keeps in a form of its own converted to the
@@ -131,7 +126,7 @@ func (c *Client) ExportFile(ctx context.Context, fileId string, mimeType string,
 	query := url.Values{}
 	query.Set("mimeType", mimeType)
 
-	content, _, err := rest.GetBytes(ctx, c.urlString(filePath(fileId)+"/export", query), c.fetchOptions(options))
+	content, _, err := rest.GetBytes(ctx, c.urlString(query, append(filePath(fileId), "export")...), c.fetchOptions(options))
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +210,7 @@ func (c *Client) CreateFile(
 		return rest.SendJson[file.File](
 			ctx,
 			http.MethodPost,
-			c.urlString("files", query),
+			c.urlString(query, "files"),
 			f,
 			c.fetchOptions(getFileConfig.FetchOptions),
 		)
@@ -233,7 +228,7 @@ func (c *Client) CreateFile(
 	return rest.SendBytes[file.File](
 		ctx,
 		http.MethodPost,
-		c.uploadUrlString("files", query),
+		c.uploadUrlString(query, "files"),
 		body,
 		bodyContentType,
 		c.fetchOptions(getFileConfig.FetchOptions),
@@ -274,7 +269,7 @@ func (c *Client) UpdateFile(
 	return rest.SendJson[file.File](
 		ctx,
 		http.MethodPatch,
-		c.urlString(filePath(fileId), c.updateQuery(updateFileConfig)),
+		c.urlString(c.updateQuery(updateFileConfig), filePath(fileId)...),
 		f,
 		c.fetchOptions(updateFileConfig.FetchOptions),
 	)
@@ -307,7 +302,7 @@ func (c *Client) UpdateFileContent(
 	return rest.SendBytes[file.File](
 		ctx,
 		http.MethodPatch,
-		c.uploadUrlString(filePath(fileId), query),
+		c.uploadUrlString(query, filePath(fileId)...),
 		content,
 		contentType,
 		c.fetchOptions(updateFileConfig.FetchOptions),
@@ -334,7 +329,7 @@ func (c *Client) CopyFile(
 	return rest.SendJson[file.File](
 		ctx,
 		http.MethodPost,
-		c.urlString(filePath(fileId)+"/copy", c.fieldsQuery(getFileConfig.Fields)),
+		c.urlString(c.fieldsQuery(getFileConfig.Fields), append(filePath(fileId), "copy")...),
 		f,
 		c.fetchOptions(getFileConfig.FetchOptions),
 	)
@@ -348,5 +343,5 @@ func (c *Client) DeleteFile(ctx context.Context, fileId string, options ...fetch
 		return altshiftErrors.NewWithTrace(empty_error.New("file id"))
 	}
 
-	return rest.Do(ctx, http.MethodDelete, c.urlString(filePath(fileId), c.newQuery()), c.fetchOptions(options))
+	return rest.Do(ctx, http.MethodDelete, c.urlString(c.newQuery(), filePath(fileId)...), c.fetchOptions(options))
 }

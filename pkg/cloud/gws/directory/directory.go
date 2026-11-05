@@ -49,13 +49,8 @@ func NewClient(options ...directory_config.Option) *Client {
 	return &Client{baseUrl: &u, config: config}
 }
 
-func (c *Client) urlString(path string, query url.Values) string {
-	urlObj := *c.baseUrl
-	urlObj.Path += path
-	if len(query) != 0 {
-		urlObj.RawQuery = query.Encode()
-	}
-	return urlObj.String()
+func (c *Client) urlString(query url.Values, segments ...string) string {
+	return rest.Url(c.baseUrl, query, segments...)
 }
 
 func (c *Client) fetchOptions(options []fetch_config.Option) []fetch_config.Option {
@@ -70,7 +65,7 @@ func (c *Client) CreateUser(ctx context.Context, u *user.User, options ...fetch_
 		return nil, altshiftErrors.NewWithTrace(nil_error.New("user"))
 	}
 
-	return rest.SendJson[user.User](ctx, http.MethodPost, c.urlString("users", nil), u, c.fetchOptions(options))
+	return rest.SendJson[user.User](ctx, http.MethodPost, c.urlString(nil, "users"), u, c.fetchOptions(options))
 }
 
 // GetUser retrieves a user account identified by userKey (primary email address, alias email address, or unique user ID).
@@ -79,7 +74,7 @@ func (c *Client) GetUser(ctx context.Context, userKey string, options ...fetch_c
 		return nil, altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
-	return rest.GetJson[user.User](ctx, c.urlString("users/"+url.PathEscape(userKey), nil), c.fetchOptions(options))
+	return rest.GetJson[user.User](ctx, c.urlString(nil, "users", userKey), c.fetchOptions(options))
 }
 
 // UpdateUser updates a user account identified by userKey.
@@ -94,7 +89,7 @@ func (c *Client) UpdateUser(ctx context.Context, userKey string, u *user.User, o
 	return rest.SendJson[user.User](
 		ctx,
 		http.MethodPut,
-		c.urlString("users/"+url.PathEscape(userKey), nil),
+		c.urlString(nil, "users", userKey),
 		u,
 		c.fetchOptions(options),
 	)
@@ -106,7 +101,7 @@ func (c *Client) DeleteUser(ctx context.Context, userKey string, options ...fetc
 		return altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
-	return rest.Do(ctx, http.MethodDelete, c.urlString("users/"+url.PathEscape(userKey), nil), c.fetchOptions(options))
+	return rest.Do(ctx, http.MethodDelete, c.urlString(nil, "users", userKey), c.fetchOptions(options))
 }
 
 type listUsersResponse struct {
@@ -127,7 +122,7 @@ func (c *Client) ListUsers(ctx context.Context, customer string, options ...fetc
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
-			return c.urlString("users", query)
+			return c.urlString(query, "users")
 		},
 		func(response *listUsersResponse) ([]*user.User, string) {
 			return response.Users, response.NextPageToken
@@ -156,7 +151,7 @@ func (c *Client) ListGroups(ctx context.Context, customer string, options ...fet
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
-			return c.urlString("groups", query)
+			return c.urlString(query, "groups")
 		},
 		func(response *listGroupsResponse) ([]*group.Group, string) {
 			return response.Groups, response.NextPageToken
@@ -171,7 +166,7 @@ func (c *Client) CreateGroup(ctx context.Context, g *group.Group, options ...fet
 		return nil, altshiftErrors.NewWithTrace(nil_error.New("group"))
 	}
 
-	return rest.SendJson[group.Group](ctx, http.MethodPost, c.urlString("groups", nil), g, c.fetchOptions(options))
+	return rest.SendJson[group.Group](ctx, http.MethodPost, c.urlString(nil, "groups"), g, c.fetchOptions(options))
 }
 
 // GetGroup retrieves a group identified by groupKey (group email address, group alias, or unique group ID).
@@ -180,7 +175,7 @@ func (c *Client) GetGroup(ctx context.Context, groupKey string, options ...fetch
 		return nil, altshiftErrors.NewWithTrace(empty_error.New("group key"))
 	}
 
-	return rest.GetJson[group.Group](ctx, c.urlString("groups/"+url.PathEscape(groupKey), nil), c.fetchOptions(options))
+	return rest.GetJson[group.Group](ctx, c.urlString(nil, "groups", groupKey), c.fetchOptions(options))
 }
 
 // UpdateGroup updates a group identified by groupKey.
@@ -195,7 +190,7 @@ func (c *Client) UpdateGroup(ctx context.Context, groupKey string, g *group.Grou
 	return rest.SendJson[group.Group](
 		ctx,
 		http.MethodPut,
-		c.urlString("groups/"+url.PathEscape(groupKey), nil),
+		c.urlString(nil, "groups", groupKey),
 		g,
 		c.fetchOptions(options),
 	)
@@ -207,7 +202,7 @@ func (c *Client) DeleteGroup(ctx context.Context, groupKey string, options ...fe
 		return altshiftErrors.NewWithTrace(empty_error.New("group key"))
 	}
 
-	return rest.Do(ctx, http.MethodDelete, c.urlString("groups/"+url.PathEscape(groupKey), nil), c.fetchOptions(options))
+	return rest.Do(ctx, http.MethodDelete, c.urlString(nil, "groups", groupKey), c.fetchOptions(options))
 }
 
 // Group member operations
@@ -230,7 +225,7 @@ func (c *Client) ListMembers(ctx context.Context, groupKey string, options ...fe
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
-			return c.urlString("groups/"+url.PathEscape(groupKey)+"/members", query)
+			return c.urlString(query, "groups", groupKey, "members")
 		},
 		func(response *listMembersResponse) ([]*member.Member, string) {
 			return response.Members, response.NextPageToken
@@ -251,7 +246,7 @@ func (c *Client) CreateMember(ctx context.Context, groupKey string, m *member.Me
 	return rest.SendJson[member.Member](
 		ctx,
 		http.MethodPost,
-		c.urlString("groups/"+url.PathEscape(groupKey)+"/members", nil),
+		c.urlString(nil, "groups", groupKey, "members"),
 		m,
 		c.fetchOptions(options),
 	)
@@ -268,7 +263,7 @@ func (c *Client) GetMember(ctx context.Context, groupKey string, memberKey strin
 
 	return rest.GetJson[member.Member](
 		ctx,
-		c.urlString("groups/"+url.PathEscape(groupKey)+"/members/"+url.PathEscape(memberKey), nil),
+		c.urlString(nil, "groups", groupKey, "members", memberKey),
 		c.fetchOptions(options),
 	)
 }
@@ -288,7 +283,7 @@ func (c *Client) UpdateMember(ctx context.Context, groupKey string, memberKey st
 	return rest.SendJson[member.Member](
 		ctx,
 		http.MethodPut,
-		c.urlString("groups/"+url.PathEscape(groupKey)+"/members/"+url.PathEscape(memberKey), nil),
+		c.urlString(nil, "groups", groupKey, "members", memberKey),
 		m,
 		c.fetchOptions(options),
 	)
@@ -306,7 +301,7 @@ func (c *Client) DeleteMember(ctx context.Context, groupKey string, memberKey st
 	return rest.Do(
 		ctx,
 		http.MethodDelete,
-		c.urlString("groups/"+url.PathEscape(groupKey)+"/members/"+url.PathEscape(memberKey), nil),
+		c.urlString(nil, "groups", groupKey, "members", memberKey),
 		c.fetchOptions(options),
 	)
 }
@@ -326,7 +321,7 @@ func (c *Client) MakeUserAdmin(ctx context.Context, userKey string, status bool,
 	return rest.DoWithBody(
 		ctx,
 		http.MethodPost,
-		c.urlString("users/"+url.PathEscape(userKey)+"/makeAdmin", nil),
+		c.urlString(nil, "users", userKey, "makeAdmin"),
 		&makeAdminRequest{Status: status},
 		c.fetchOptions(options),
 	)
@@ -338,7 +333,7 @@ func (c *Client) SignOutUser(ctx context.Context, userKey string, options ...fet
 		return altshiftErrors.NewWithTrace(empty_error.New("user key"))
 	}
 
-	return rest.Do(ctx, http.MethodPost, c.urlString("users/"+url.PathEscape(userKey)+"/signOut", nil), c.fetchOptions(options))
+	return rest.Do(ctx, http.MethodPost, c.urlString(nil, "users", userKey, "signOut"), c.fetchOptions(options))
 }
 
 // TurnOffUser2Sv turns off 2-step verification for the user identified by userKey.
@@ -350,17 +345,20 @@ func (c *Client) TurnOffUser2Sv(ctx context.Context, userKey string, options ...
 	return rest.Do(
 		ctx,
 		http.MethodPost,
-		c.urlString("users/"+url.PathEscape(userKey)+"/twoStepVerification/turnOff", nil),
+		c.urlString(nil, "users", userKey, "twoStepVerification", "turnOff"),
 		c.fetchOptions(options),
 	)
 }
 
 // Org unit operations
 
-// orgUnitPathSegment builds the URL path for an org unit. Slashes in the org
+// customerSegment heads the path of everything of a customer's.
+const customerSegment = "customer"
+
+// orgUnitPathSegments builds the URL path for an org unit. Slashes in the org
 // unit path are segment separators and must not be escaped.
-func orgUnitPathSegment(customer string, orgUnitPath string) string {
-	return "customer/" + url.PathEscape(customer) + "/orgunits/" + strings.TrimPrefix(orgUnitPath, "/")
+func orgUnitPathSegments(customer string, orgUnitPath string) []string {
+	return append([]string{customerSegment, customer, "orgunits"}, strings.Split(strings.TrimPrefix(orgUnitPath, "/"), "/")...)
 }
 
 // CreateOrgUnit creates a new organizational unit for the given customer ID (use "my_customer" for the authenticated account).
@@ -375,7 +373,7 @@ func (c *Client) CreateOrgUnit(ctx context.Context, customer string, ou *org_uni
 	return rest.SendJson[org_unit.OrgUnit](
 		ctx,
 		http.MethodPost,
-		c.urlString("customer/"+url.PathEscape(customer)+"/orgunits", nil),
+		c.urlString(nil, customerSegment, customer, "orgunits"),
 		ou,
 		c.fetchOptions(options),
 	)
@@ -392,7 +390,7 @@ func (c *Client) GetOrgUnit(ctx context.Context, customer string, orgUnitPath st
 
 	return rest.GetJson[org_unit.OrgUnit](
 		ctx,
-		c.urlString(orgUnitPathSegment(customer, orgUnitPath), nil),
+		c.urlString(nil, orgUnitPathSegments(customer, orgUnitPath)...),
 		c.fetchOptions(options),
 	)
 }
@@ -412,7 +410,7 @@ func (c *Client) UpdateOrgUnit(ctx context.Context, customer string, orgUnitPath
 	return rest.SendJson[org_unit.OrgUnit](
 		ctx,
 		http.MethodPut,
-		c.urlString(orgUnitPathSegment(customer, orgUnitPath), nil),
+		c.urlString(nil, orgUnitPathSegments(customer, orgUnitPath)...),
 		ou,
 		c.fetchOptions(options),
 	)
@@ -427,7 +425,7 @@ func (c *Client) DeleteOrgUnit(ctx context.Context, customer string, orgUnitPath
 		return altshiftErrors.NewWithTrace(empty_error.New("org unit path"))
 	}
 
-	return rest.Do(ctx, http.MethodDelete, c.urlString(orgUnitPathSegment(customer, orgUnitPath), nil), c.fetchOptions(options))
+	return rest.Do(ctx, http.MethodDelete, c.urlString(nil, orgUnitPathSegments(customer, orgUnitPath)...), c.fetchOptions(options))
 }
 
 type listOrgUnitsResponse struct {
@@ -442,7 +440,7 @@ func (c *Client) ListOrgUnits(ctx context.Context, customer string, options ...f
 
 	response, err := rest.GetJson[listOrgUnitsResponse](
 		ctx,
-		c.urlString("customer/"+url.PathEscape(customer)+"/orgunits", url.Values{"type": {"all"}}),
+		c.urlString(url.Values{"type": {"all"}}, customerSegment, customer, "orgunits"),
 		c.fetchOptions(options),
 	)
 	if err != nil {
@@ -472,7 +470,7 @@ func (c *Client) ListRoles(ctx context.Context, customer string, options ...fetc
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
-			return c.urlString("customer/"+url.PathEscape(customer)+"/roles", query)
+			return c.urlString(query, customerSegment, customer, "roles")
 		},
 		func(response *listRolesResponse) ([]*role.Role, string) {
 			return response.Items, response.NextPageToken
@@ -493,7 +491,7 @@ func (c *Client) CreateRole(ctx context.Context, customer string, r *role.Role, 
 	return rest.SendJson[role.Role](
 		ctx,
 		http.MethodPost,
-		c.urlString("customer/"+url.PathEscape(customer)+"/roles", nil),
+		c.urlString(nil, customerSegment, customer, "roles"),
 		r,
 		c.fetchOptions(options),
 	)
@@ -510,7 +508,7 @@ func (c *Client) GetRole(ctx context.Context, customer string, roleId string, op
 
 	return rest.GetJson[role.Role](
 		ctx,
-		c.urlString("customer/"+url.PathEscape(customer)+"/roles/"+url.PathEscape(roleId), nil),
+		c.urlString(nil, customerSegment, customer, "roles", roleId),
 		c.fetchOptions(options),
 	)
 }
@@ -530,7 +528,7 @@ func (c *Client) UpdateRole(ctx context.Context, customer string, roleId string,
 	return rest.SendJson[role.Role](
 		ctx,
 		http.MethodPut,
-		c.urlString("customer/"+url.PathEscape(customer)+"/roles/"+url.PathEscape(roleId), nil),
+		c.urlString(nil, customerSegment, customer, "roles", roleId),
 		r,
 		c.fetchOptions(options),
 	)
@@ -548,7 +546,7 @@ func (c *Client) DeleteRole(ctx context.Context, customer string, roleId string,
 	return rest.Do(
 		ctx,
 		http.MethodDelete,
-		c.urlString("customer/"+url.PathEscape(customer)+"/roles/"+url.PathEscape(roleId), nil),
+		c.urlString(nil, customerSegment, customer, "roles", roleId),
 		c.fetchOptions(options),
 	)
 }
@@ -565,7 +563,7 @@ func (c *Client) ListPrivileges(ctx context.Context, customer string, options ..
 
 	response, err := rest.GetJson[listPrivilegesResponse](
 		ctx,
-		c.urlString("customer/"+url.PathEscape(customer)+"/roles/ALL/privileges", nil),
+		c.urlString(nil, customerSegment, customer, "roles", "ALL", "privileges"),
 		c.fetchOptions(options),
 	)
 	if err != nil {
@@ -603,7 +601,7 @@ func (c *Client) ListRoleAssignments(ctx context.Context, customer string, optio
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
-			return c.urlString("customer/"+url.PathEscape(customer)+"/roleassignments", query)
+			return c.urlString(query, customerSegment, customer, "roleassignments")
 		},
 		func(response *listRoleAssignmentsResponse) ([]*role_assignment.RoleAssignment, string) {
 			return response.Items, response.NextPageToken
@@ -624,7 +622,7 @@ func (c *Client) CreateRoleAssignment(ctx context.Context, customer string, ra *
 	return rest.SendJson[role_assignment.RoleAssignment](
 		ctx,
 		http.MethodPost,
-		c.urlString("customer/"+url.PathEscape(customer)+"/roleassignments", nil),
+		c.urlString(nil, customerSegment, customer, "roleassignments"),
 		ra,
 		c.fetchOptions(options),
 	)
@@ -641,7 +639,7 @@ func (c *Client) GetRoleAssignment(ctx context.Context, customer string, roleAss
 
 	return rest.GetJson[role_assignment.RoleAssignment](
 		ctx,
-		c.urlString("customer/"+url.PathEscape(customer)+"/roleassignments/"+url.PathEscape(roleAssignmentId), nil),
+		c.urlString(nil, customerSegment, customer, "roleassignments", roleAssignmentId),
 		c.fetchOptions(options),
 	)
 }
@@ -658,7 +656,7 @@ func (c *Client) DeleteRoleAssignment(ctx context.Context, customer string, role
 	return rest.Do(
 		ctx,
 		http.MethodDelete,
-		c.urlString("customer/"+url.PathEscape(customer)+"/roleassignments/"+url.PathEscape(roleAssignmentId), nil),
+		c.urlString(nil, customerSegment, customer, "roleassignments", roleAssignmentId),
 		c.fetchOptions(options),
 	)
 }
@@ -677,7 +675,7 @@ func (c *Client) ListTokens(ctx context.Context, userKey string, options ...fetc
 
 	response, err := rest.GetJson[listTokensResponse](
 		ctx,
-		c.urlString("users/"+url.PathEscape(userKey)+"/tokens", nil),
+		c.urlString(nil, "users", userKey, "tokens"),
 		c.fetchOptions(options),
 	)
 	if err != nil {
@@ -698,7 +696,7 @@ func (c *Client) GetToken(ctx context.Context, userKey string, clientId string, 
 
 	return rest.GetJson[token.Token](
 		ctx,
-		c.urlString("users/"+url.PathEscape(userKey)+"/tokens/"+url.PathEscape(clientId), nil),
+		c.urlString(nil, "users", userKey, "tokens", clientId),
 		c.fetchOptions(options),
 	)
 }
@@ -715,7 +713,7 @@ func (c *Client) DeleteToken(ctx context.Context, userKey string, clientId strin
 	return rest.Do(
 		ctx,
 		http.MethodDelete,
-		c.urlString("users/"+url.PathEscape(userKey)+"/tokens/"+url.PathEscape(clientId), nil),
+		c.urlString(nil, "users", userKey, "tokens", clientId),
 		c.fetchOptions(options),
 	)
 }
@@ -734,7 +732,7 @@ func (c *Client) ListAsps(ctx context.Context, userKey string, options ...fetch_
 
 	response, err := rest.GetJson[listAspsResponse](
 		ctx,
-		c.urlString("users/"+url.PathEscape(userKey)+"/asps", nil),
+		c.urlString(nil, "users", userKey, "asps"),
 		c.fetchOptions(options),
 	)
 	if err != nil {
@@ -752,7 +750,7 @@ func (c *Client) GetAsp(ctx context.Context, userKey string, codeId int, options
 
 	return rest.GetJson[asp.Asp](
 		ctx,
-		c.urlString("users/"+url.PathEscape(userKey)+"/asps/"+strconv.Itoa(codeId), nil),
+		c.urlString(nil, "users", userKey, "asps", strconv.Itoa(codeId)),
 		c.fetchOptions(options),
 	)
 }
@@ -766,7 +764,7 @@ func (c *Client) DeleteAsp(ctx context.Context, userKey string, codeId int, opti
 	return rest.Do(
 		ctx,
 		http.MethodDelete,
-		c.urlString("users/"+url.PathEscape(userKey)+"/asps/"+strconv.Itoa(codeId), nil),
+		c.urlString(nil, "users", userKey, "asps", strconv.Itoa(codeId)),
 		c.fetchOptions(options),
 	)
 }

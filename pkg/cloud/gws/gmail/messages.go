@@ -3,7 +3,6 @@ package gmail
 import (
 	"context"
 	"net/http"
-	"net/url"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/internal/rest"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
@@ -94,7 +93,7 @@ func (c *Client) GetAttachment(
 
 	return rest.GetJson[body.Body](
 		ctx,
-		c.messagesUrl(userId, messageId, "attachments/"+url.PathEscape(attachmentId), nil),
+		c.attachmentUrl(userId, messageId, attachmentId),
 		c.fetchOptions(options),
 	)
 }
