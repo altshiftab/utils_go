@@ -8,6 +8,7 @@ import (
 	"html"
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/message"
@@ -26,19 +27,54 @@ const (
 // Gmail serves a part's data in the message's own character set, which for mail is overwhelmingly UTF-8; what is not
 // valid UTF-8 is read as Latin-1, which is right for the rest of what arrives and readable for anything else.
 func Text(msg *message.Message) string {
+	return TextWith(msg, HtmlToText)
+}
+
+// TextWith is Text with HTML read as text by htmlToText: the text/html part, and a text/plain part that is an HTML
+// document in fact, as some senders' are. A text/plain part keeps its indentation and its runs of spaces, which line
+// its columns up.
+func TextWith(msg *message.Message, htmlToText func(source string) string) string {
 	if msg == nil || msg.Payload == nil {
 		return ""
 	}
+	if htmlToText == nil {
+		htmlToText = HtmlToText
+	}
 
 	if part := FindTextPart(msg.Payload, mimeTypeTextPlain); part != nil {
-		return NormalizeWhitespace(partText(part))
+		text := partText(part)
+		if isHtmlDocument(text) {
+			return htmlToText(text)
+		}
+		return normalizePlainText(text)
 	}
 
 	if part := FindTextPart(msg.Payload, mimeTypeTextHtml); part != nil {
-		return HtmlToText(partText(part))
+		return htmlToText(partText(part))
 	}
 
 	return ""
+}
+
+// isHtmlDocument reports whether a text begins as an HTML document does.
+func isHtmlDocument(text string) bool {
+	start := strings.TrimLeftFunc(text, unicode.IsSpace)
+	return hasPrefixFold(start, "<!doctype html") || hasPrefixFold(start, "<html")
+}
+
+func hasPrefixFold(text string, prefix string) bool {
+	return len(text) >= len(prefix) && strings.EqualFold(text[:len(prefix)], prefix)
+}
+
+// normalizePlainText is a text with no trailing space on a line and no more than one blank line in a row, its
+// indentation and its runs of spaces kept.
+func normalizePlainText(text string) string {
+	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRightFunc(line, unicode.IsSpace)
+	}
+	text = blankLineRunPattern.ReplaceAllString(strings.Join(lines, "\n"), "\n\n")
+	return strings.Trim(text, "\n")
 }
 
 // FindTextPart returns the first part of the mime type that is text rather than an attachment, searching the parts in

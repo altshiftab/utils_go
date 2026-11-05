@@ -40,7 +40,28 @@ func TestBody(t *testing.T) {
 		{
 			name: "plain text",
 			msg:  &message.Message{Payload: textPart("text/plain", "Hello,\r\n\r\nSee you  tomorrow.\r\n")},
-			want: "Hello,\n\nSee you tomorrow.",
+			want: "Hello,\n\nSee you  tomorrow.",
+		},
+		{
+			name: "plain text keeps its indentation",
+			msg: &message.Message{Payload: textPart(
+				"text/plain",
+				"\n× unit.service\n     Loaded: loaded\n  Transient: yes  \r\n\r\n\r\n\r\n\tindented\n",
+			)},
+			want: "× unit.service\n     Loaded: loaded\n  Transient: yes\n\n\tindented",
+		},
+		{
+			name: "plain text that is an html document is read as html",
+			msg: &message.Message{Payload: textPart(
+				"text/plain",
+				"  <!DOCTYPE html><html><body><p>Hej</p><p>Kvitto</p></body></html>",
+			)},
+			want: "Hej\nKvitto",
+		},
+		{
+			name: "plain text that is an html element alone stays plain",
+			msg:  &message.Message{Payload: textPart("text/plain", "<b>not a document</b>")},
+			want: "<b>not a document</b>",
 		},
 		{
 			name: "plain text without padding",
@@ -205,6 +226,53 @@ func TestHtmlToText(t *testing.T) {
 			t.Parallel()
 
 			if got := HtmlToText(testCase.source); got != testCase.want {
+				t.Errorf("text = %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestTextWith(t *testing.T) {
+	t.Parallel()
+
+	converted := func(string) string { return "converted" }
+
+	testCases := []struct {
+		name       string
+		msg        *message.Message
+		htmlToText func(string) string
+		want       string
+	}{
+		{
+			name:       "html part",
+			msg:        &message.Message{Payload: textPart("text/html", "<p>html</p>")},
+			htmlToText: converted,
+			want:       "converted",
+		},
+		{
+			name:       "plain part that is an html document",
+			msg:        &message.Message{Payload: textPart("text/plain", "<html><body>x</body></html>")},
+			htmlToText: converted,
+			want:       "converted",
+		},
+		{
+			name:       "plain part",
+			msg:        &message.Message{Payload: textPart("text/plain", "plain")},
+			htmlToText: converted,
+			want:       "plain",
+		},
+		{
+			name: "no converter reads html with HtmlToText",
+			msg:  &message.Message{Payload: textPart("text/html", "<p>html</p>")},
+			want: "html",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := TextWith(testCase.msg, testCase.htmlToText); got != testCase.want {
 				t.Errorf("text = %q, want %q", got, testCase.want)
 			}
 		})
