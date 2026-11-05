@@ -46,7 +46,11 @@ func newServer() *Server {
 				Call: func(context.Context, jsontext.Value) (any, error) {
 					return &Result{
 						Structured: map[string]any{"name": "dot.png"},
-						Content:    []*Content{ImageContent([]byte("png"), "image/png"), nil},
+						Content: []*Content{
+							ImageContent([]byte("png"), "image/png"),
+							nil,
+							EmbeddedResourceContent("file:///dot.png", []byte("png"), "image/png"),
+						},
 					}, nil
 				},
 			},
@@ -160,7 +164,7 @@ func TestServer_Handle(t *testing.T) {
 				t.Helper()
 				structured, _ := result["structuredContent"].(map[string]any)
 				content, _ := result["content"].([]any)
-				if len(content) != 2 || structured["name"] != "dot.png" {
+				if len(content) != 3 || structured["name"] != "dot.png" {
 					t.Fatalf("tools/call %v", result)
 				}
 				text, _ := content[0].(map[string]any)
@@ -170,6 +174,12 @@ func TestServer_Handle(t *testing.T) {
 				}
 				if image["type"] != "image" || image["mimeType"] != "image/png" || image["data"] != base64.StdEncoding.EncodeToString([]byte("png")) {
 					t.Errorf("image %v", image)
+				}
+				embedded, _ := content[2].(map[string]any)
+				resource, _ := embedded["resource"].(map[string]any)
+				if embedded["type"] != "resource" || len(embedded) != 2 || resource["uri"] != "file:///dot.png" ||
+					resource["mimeType"] != "image/png" || resource["blob"] != base64.StdEncoding.EncodeToString([]byte("png")) {
+					t.Errorf("resource %v", embedded)
 				}
 			},
 		},

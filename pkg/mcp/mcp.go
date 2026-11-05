@@ -88,17 +88,34 @@ func (e *ToolError) Error() string {
 }
 
 // Content is a block of a tool's result besides the text its structured content is given as: an
-// image the model is shown, say. Data is base64-encoded, as the protocol carries it.
+// image the model is shown, say, or a file embedded whole. Data is base64-encoded, as the protocol carries it.
 type Content struct {
-	Type     string `json:"type"`
-	Text     string `json:"text,omitzero"`
-	Data     string `json:"data,omitzero"`
+	Type     string            `json:"type"`
+	Text     string            `json:"text,omitzero"`
+	Data     string            `json:"data,omitzero"`
+	MimeType string            `json:"mimeType,omitzero"`
+	Resource *ResourceContents `json:"resource,omitzero"`
+}
+
+// ResourceContents is a file embedded in a result: the uri it is known by, its type, and its bytes, base64-encoded.
+type ResourceContents struct {
+	Uri      string `json:"uri"`
 	MimeType string `json:"mimeType,omitzero"`
+	Blob     string `json:"blob"`
 }
 
 // ImageContent is an image block of the given bytes and type.
 func ImageContent(data []byte, mimeType string) *Content {
 	return &Content{Type: "image", Data: base64.StdEncoding.EncodeToString(data), MimeType: mimeType}
+}
+
+// EmbeddedResourceContent is a block embedding a file's bytes whole, known by the uri, which a client may keep as a file
+// rather than show the model.
+func EmbeddedResourceContent(uri string, data []byte, mimeType string) *Content {
+	return &Content{
+		Type:     "resource",
+		Resource: &ResourceContents{Uri: uri, MimeType: mimeType, Blob: base64.StdEncoding.EncodeToString(data)},
+	}
 }
 
 // Result is what a tool answers with to give blocks besides its structured content: Structured is
