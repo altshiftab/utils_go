@@ -56,6 +56,17 @@ func TextWith(msg *message.Message, htmlToText func(source string) string) strin
 	return ""
 }
 
+// dropInvisible drops a soft hyphen, a combining grapheme joiner, a zero-width space and non-joiner, a word joiner and
+// a byte order mark. The zero-width joiner is kept, which joins an emoji of several.
+func dropInvisible(r rune) rune {
+	switch r {
+	case '\u00ad', '\u034f', '\u200b', '\u200c', '\u2060', '\ufeff':
+		return -1
+	default:
+		return r
+	}
+}
+
 // isHtmlDocument reports whether a text begins as an HTML document does, past blank space, a byte order mark, and
 // comments.
 func isHtmlDocument(text string) bool {
@@ -79,8 +90,10 @@ func hasPrefixFold(text string, prefix string) bool {
 }
 
 // normalizePlainText is a text with no trailing space on a line and no more than one blank line in a row, its
-// indentation and its runs of spaces kept.
+// indentation and its runs of spaces kept, and without the characters that show nothing, with which mail pads the
+// preview text an inbox shows.
 func normalizePlainText(text string) string {
+	text = strings.Map(dropInvisible, text)
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
 	for i, line := range lines {
 		lines[i] = strings.TrimRightFunc(line, unicode.IsSpace)

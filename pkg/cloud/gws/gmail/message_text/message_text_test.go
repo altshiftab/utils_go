@@ -51,6 +51,14 @@ func TestBody(t *testing.T) {
 			want: "× unit.service\n     Loaded: loaded\n  Transient: yes\n\n\tindented",
 		},
 		{
+			name: "plain text loses the invisible padding of a preview text",
+			msg: &message.Message{Payload: textPart(
+				"text/plain",
+				"Nytt avrop \u034f \u200c\u00a0\u00a0\u00ad \u034f \u200c\u00a0\u00ad\nf\u00f6r\u00adst\u00e5 \U0001F468\u200d\U0001F469",
+			)},
+			want: "Nytt avrop\nförstå \U0001F468\u200d\U0001F469",
+		},
+		{
 			name: "plain text that is an html document is read as html",
 			msg: &message.Message{Payload: textPart(
 				"text/plain",
