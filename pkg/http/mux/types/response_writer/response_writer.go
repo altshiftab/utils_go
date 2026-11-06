@@ -142,6 +142,12 @@ func (responseWriter *ResponseWriter) WriteResponse(
 
 	body := response.Body
 	bodyStreamer := response.BodyStreamer
+	hasBody := len(body) != 0 || bodyStreamer != nil
+
+	// A 200 for an empty file is still that file, and of the type it has: a browser refuses a module
+	// script it is not told is JavaScript, and under nosniff any script or stylesheet. Only a
+	// response without content at all leaves a Content-Type nothing to describe.
+	hasContent := hasBody || statusHasContent(response.StatusCode)
 
 	var contentTypeString *string
 	var contentEncodingString *string
@@ -160,14 +166,16 @@ func (responseWriter *ResponseWriter) WriteResponse(
 
 		if canonicalHeaderName == "Content-Type" {
 			contentTypeString = &headerValue
-			if len(body) == 0 && bodyStreamer == nil {
+			if !hasContent {
 				continue
 			}
 		}
 
+		// An encoding is a property of bytes, and an empty body has none that were encoded,
+		// whatever its status.
 		if canonicalHeaderName == "Content-Encoding" {
 			contentEncodingString = &headerValue
-			if len(body) == 0 && bodyStreamer == nil {
+			if !hasBody {
 				continue
 			}
 		}
@@ -362,4 +370,18 @@ func (responseWriter *ResponseWriter) WriteResponse(
 	}
 
 	return nil
+}
+
+// statusHasContent says whether a response of the status carries content, if only an empty one.
+// No status is taken as 204, which is what Write makes of it when the body is empty.
+func statusHasContent(statusCode int) bool {
+	switch {
+	case statusCode == 0,
+		statusCode >= 100 && statusCode < 200,
+		statusCode == http.StatusNoContent,
+		statusCode == http.StatusResetContent,
+		statusCode == http.StatusNotModified:
+		return false
+	}
+	return true
 }

@@ -136,3 +136,80 @@ func TestHandlerWithStaticContent(t *testing.T) {
 		})
 	}
 }
+
+// TestEmptyStaticContent covers a file that is empty: what esbuild emits for a chunk of modules that
+// compile to nothing, and what a browser refuses to run as a module script when it is not told the
+// type. The 200 says what the file is; the 304 that revalidates it has no content to describe.
+func TestEmptyStaticContent(t *testing.T) {
+	t.Parallel()
+
+	const etag = `"empty"`
+
+	testCases := []struct {
+		name                string
+		ifNoneMatch         string
+		expectedStatusCode  int
+		expectedContentType string
+	}{
+		{
+			name:                "an empty file keeps its type",
+			expectedStatusCode:  http.StatusOK,
+			expectedContentType: "text/javascript",
+		},
+		{
+			name:               "its revalidation describes nothing",
+			ifNoneMatch:        etag,
+			expectedStatusCode: http.StatusNotModified,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			mux := &Mux{}
+			mux.Add(
+				&endpoint.Endpoint{
+					Path:                 "/scripts/chunk.js",
+					Method:               http.MethodGet,
+					Public:               true,
+					DisableFetchMetadata: true,
+					StaticContent: &muxTypesStaticContent.StaticContent{
+						StaticContentData: muxTypesStaticContent.StaticContentData{
+							Data: []byte{},
+							Etag: etag,
+							Headers: []*muxTypesResponse.HeaderEntry{
+								{Name: "Content-Type", Value: "text/javascript"},
+								{Name: "ETag", Value: etag},
+							},
+						},
+					},
+				},
+			)
+
+			httpServer := httptest.NewServer(mux)
+			defer httpServer.Close()
+
+			request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, httpServer.URL+"/scripts/chunk.js", nil)
+			if err != nil {
+				t.Fatalf("http new request: %v", err)
+			}
+			if testCase.ifNoneMatch != "" {
+				request.Header.Set("If-None-Match", testCase.ifNoneMatch)
+			}
+
+			response, err := http.DefaultClient.Do(request)
+			if err != nil {
+				t.Fatalf("client do: %v", err)
+			}
+			defer func() { _ = response.Body.Close() }()
+
+			if response.StatusCode != testCase.expectedStatusCode {
+				t.Errorf("got status %d, expected %d", response.StatusCode, testCase.expectedStatusCode)
+			}
+			if contentType := response.Header.Get("Content-Type"); contentType != testCase.expectedContentType {
+				t.Errorf("got Content-Type %q, expected %q", contentType, testCase.expectedContentType)
+			}
+		})
+	}
+}

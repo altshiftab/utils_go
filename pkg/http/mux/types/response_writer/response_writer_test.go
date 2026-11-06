@@ -244,3 +244,44 @@ func TestWriteResponse_DocumentHeadersReplace(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteResponse_EmptyBodyRepresentationHeaders(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                string
+		statusCode          int
+		wantStatusCode      int
+		wantContentType     string
+		wantContentEncoding string
+	}{
+		{name: "an empty file keeps its type", statusCode: http.StatusOK, wantStatusCode: http.StatusOK, wantContentType: "text/javascript"},
+		{name: "no status is no content", statusCode: 0, wantStatusCode: http.StatusNoContent},
+		{name: "no content", statusCode: http.StatusNoContent, wantStatusCode: http.StatusNoContent},
+		{name: "not modified", statusCode: http.StatusNotModified, wantStatusCode: http.StatusNotModified},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			recorder := writeAndRecord(t, &muxTypesResponse.Response{
+				StatusCode: testCase.statusCode,
+				Headers: []*muxTypesResponse.HeaderEntry{
+					{Name: "Content-Type", Value: "text/javascript"},
+					{Name: "Content-Encoding", Value: "br"},
+				},
+			})
+
+			if recorder.Code != testCase.wantStatusCode {
+				t.Fatalf("status = %d, want %d", recorder.Code, testCase.wantStatusCode)
+			}
+			if got := recorder.Header().Get("Content-Type"); got != testCase.wantContentType {
+				t.Errorf("Content-Type = %q, want %q", got, testCase.wantContentType)
+			}
+			if got := recorder.Header().Get("Content-Encoding"); got != testCase.wantContentEncoding {
+				t.Errorf("Content-Encoding = %q, want %q", got, testCase.wantContentEncoding)
+			}
+		})
+	}
+}
