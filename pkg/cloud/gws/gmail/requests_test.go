@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/get_message_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/import_message_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_drafts_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_messages_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/draft"
@@ -33,6 +34,37 @@ func TestRequests(t *testing.T) {
 		// want is the result, as JSON; empty for a call that returns none.
 		want string
 	}{
+		{
+			name: "import a message as new mail",
+			call: func(client *Client) (any, error) {
+				return client.Import(
+					context.Background(),
+					"me",
+					&message.Message{Raw: "cmF3", LabelIds: []string{"INBOX", "UNREAD"}},
+					import_message_config.WithInternalDateSource(import_message_config.InternalDateSourceDateHeader),
+					import_message_config.WithNeverMarkSpam(true),
+				)
+			},
+			method:   http.MethodPost,
+			path:     "/gmail/v1/users/me/messages/import",
+			query:    url.Values{"internalDateSource": {"dateHeader"}, "neverMarkSpam": {"true"}},
+			body:     `{"labelIds":["INBOX","UNREAD"],"raw":"cmF3"}`,
+			response: `{"id":"m1","threadId":"t1","labelIds":["INBOX","UNREAD"]}`,
+			want:     `{"id":"m1","threadId":"t1","labelIds":["INBOX","UNREAD"]}`,
+		},
+		{
+			// Every flag left false is Gmail's default, so none is sent.
+			name: "import a message without options",
+			call: func(client *Client) (any, error) {
+				return client.Import(context.Background(), "me", &message.Message{Raw: "cmF3"})
+			},
+			method:   http.MethodPost,
+			path:     "/gmail/v1/users/me/messages/import",
+			query:    url.Values{},
+			body:     `{"raw":"cmF3"}`,
+			response: `{"id":"m2"}`,
+			want:     `{"id":"m2"}`,
+		},
 		{
 			name: "list messages page",
 			call: func(client *Client) (any, error) {
@@ -309,6 +341,8 @@ func TestArgumentErrors(t *testing.T) {
 		{name: "trash thread, empty thread", call: func() error { _, err := client.TrashThread(ctx, "me", ""); return err }},
 		{name: "untrash thread, empty user", call: func() error { _, err := client.UntrashThread(ctx, "", "t1"); return err }},
 		{name: "untrash, empty message", call: func() error { _, err := client.Untrash(ctx, "me", ""); return err }},
+		{name: "import, empty user", call: func() error { _, err := client.Import(ctx, "", &message.Message{Raw: "cmF3"}); return err }},
+		{name: "import, nil message", call: func() error { _, err := client.Import(ctx, "me", nil); return err }},
 		{name: "get attachment, empty message", call: func() error { _, err := client.GetAttachment(ctx, "me", "", "a"); return err }},
 		{name: "get attachment, empty attachment", call: func() error { _, err := client.GetAttachment(ctx, "me", "m", ""); return err }},
 		{name: "create draft, nil draft", call: func() error { _, err := client.CreateDraft(ctx, "me", nil); return err }},

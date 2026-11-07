@@ -14,6 +14,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/get_message_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/gmail_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/import_message_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_history_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/list_messages_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/filter"
@@ -141,6 +142,61 @@ func (c *Client) Send(ctx context.Context, userId string, msg *message.Message, 
 	}
 
 	return rest.SendJson[message.Message](ctx, http.MethodPost, c.sendUrl(userId), msg, c.fetchOptions(options))
+}
+
+// Import adds the message to the given user's mailbox only, with the scanning
+// and classification of mail received over SMTP. Nothing is sent: the message
+// is filed as if it had been delivered, with the labels it carries.
+//
+// It is the way to notify an account of something. A message an account sends
+// to itself arrives already read and raises no notification, where one imported
+// with the UNREAD and INBOX labels is new mail. The message should have its Raw
+// field set to a base64url-encoded RFC 2822 email. Requires the gmail.insert
+// scope (or gmail.modify, or full mail access), which unlike gmail.send cannot
+// reach anyone else.
+func (c *Client) Import(
+	ctx context.Context,
+	userId string,
+	msg *message.Message,
+	options ...import_message_config.Option,
+) (*message.Message, error) {
+	if userId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
+	}
+	if msg == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("message"))
+	}
+
+	importConfig := import_message_config.New(options...)
+
+	return rest.SendJson[message.Message](
+		ctx,
+		http.MethodPost,
+		c.messagesUrl(userId, "", "import", importQuery(importConfig)),
+		msg,
+		c.fetchOptions(importConfig.FetchOptions),
+	)
+}
+
+// importQuery is the query parameters an import's options ask for; a flag left
+// false is left out, which is Gmail's default for each.
+func importQuery(config *import_message_config.Config) url.Values {
+	query := url.Values{}
+
+	if config.InternalDateSource != "" {
+		query.Set("internalDateSource", string(config.InternalDateSource))
+	}
+	if config.NeverMarkSpam {
+		query.Set("neverMarkSpam", "true")
+	}
+	if config.ProcessForCalendar {
+		query.Set("processForCalendar", "true")
+	}
+	if config.Deleted {
+		query.Set("deleted", "true")
+	}
+
+	return query
 }
 
 // Watch sets up or renews a push notification watch on the given user's mailbox.
