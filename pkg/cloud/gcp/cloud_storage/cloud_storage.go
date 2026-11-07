@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -269,6 +270,51 @@ func (c *Client) DeleteObject(ctx context.Context, bucketName string, objectName
 	options = append(append(c.config.FetchOptions, options...), fetch_config.WithMethod(http.MethodDelete))
 	_, _, err := altshiftHttpUtils.Fetch(ctx, urlString, options...)
 	if err != nil {
+		return altshiftErrors.New(fmt.Errorf("fetch: %w", err), urlString)
+	}
+
+	return nil
+}
+
+// DeleteObjectGeneration deletes an object only while generation is its live
+// generation. A name written again since its generation was read is left alone,
+// and the failure is a Non2xxStatusCodeError with status 412; a name already
+// gone fails with 404.
+//
+// It is the delete for a caller that decided from a listing: between the listing
+// and the delete, the name may have been written anew, and what was decided
+// about the old object says nothing about the new one.
+func (c *Client) DeleteObjectGeneration(
+	ctx context.Context,
+	bucketName string,
+	objectName string,
+	generation int64,
+	options ...fetch_config.Option,
+) error {
+	if bucketName == "" {
+		return altshiftErrors.NewWithTrace(empty_error.New("bucket name"))
+	}
+	if objectName == "" {
+		return altshiftErrors.NewWithTrace(empty_error.New("object name"))
+	}
+	if generation <= 0 {
+		return altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: generation %d is not positive", altshiftErrors.ErrValidationError, generation),
+		)
+	}
+
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("context err: %w", err)
+	}
+
+	u := *c.baseUrl
+	u.RawPath = u.Path + "b/" + url.PathEscape(bucketName) + "/o/" + url.PathEscape(objectName)
+	u.Path += "b/" + bucketName + "/o/" + objectName
+	u.RawQuery = url.Values{"ifGenerationMatch": {strconv.FormatInt(generation, 10)}}.Encode()
+	urlString := u.String()
+
+	options = slices.Concat(c.config.FetchOptions, options, []fetch_config.Option{fetch_config.WithMethod(http.MethodDelete)})
+	if _, _, err := altshiftHttpUtils.Fetch(ctx, urlString, options...); err != nil {
 		return altshiftErrors.New(fmt.Errorf("fetch: %w", err), urlString)
 	}
 
