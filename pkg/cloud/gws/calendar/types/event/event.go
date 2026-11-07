@@ -95,6 +95,11 @@ type Event struct {
 	Visibility   string `json:"visibility,omitzero"`
 	// EventType is "default", or one of Calendar's own kinds: "outOfOffice", "focusTime", "workingLocation", ...
 	EventType string `json:"eventType,omitzero"`
+	// OutOfOfficeProperties and FocusTimeProperties are those of an event of the type: what it declines, and says.
+	OutOfOfficeProperties *OutOfOfficeProperties `json:"outOfOfficeProperties,omitzero"`
+	FocusTimeProperties   *FocusTimeProperties   `json:"focusTimeProperties,omitzero"`
+	// Reminders are when the event reminds its guests: by the calendar's own, or by those it gives.
+	Reminders *Reminders `json:"reminders,omitzero"`
 
 	Attendees []*Attendee `json:"attendees,omitzero"`
 	// AttendeesOmitted says Attendees is not every guest: in a patch, that the attendees named are changed and the
@@ -105,4 +110,37 @@ type Event struct {
 
 	Created string `json:"created,omitzero"`
 	Updated string `json:"updated,omitzero"`
+}
+
+// The modes in which an out-of-office or a focus-time event declines the invitations it conflicts with.
+const (
+	AutoDeclineNone = "declineNone"
+	AutoDeclineAll  = "declineAllConflictingInvitations"
+	AutoDeclineNew  = "declineOnlyNewConflictingInvitations"
+)
+
+// OutOfOfficeProperties are an out-of-office event's: which invitations it declines, and with what message.
+type OutOfOfficeProperties struct {
+	AutoDeclineMode string `json:"autoDeclineMode,omitzero"`
+	DeclineMessage  string `json:"declineMessage,omitzero"`
+}
+
+// FocusTimeProperties are a focus-time event's: which invitations it declines, with what message, and the chat status
+// it sets ("available" or "doNotDisturb").
+type FocusTimeProperties struct {
+	AutoDeclineMode string `json:"autoDeclineMode,omitzero"`
+	DeclineMessage  string `json:"declineMessage,omitzero"`
+	ChatStatus      string `json:"chatStatus,omitzero"`
+}
+
+// Reminders are an event's reminders. UseDefault is written false too: false with no overrides is no reminder at all.
+type Reminders struct {
+	UseDefault bool        `json:"useDefault"`
+	Overrides  []*Reminder `json:"overrides,omitzero"`
+}
+
+// Reminder is one reminder: "popup" or "email", the minutes before the event, which may be none.
+type Reminder struct {
+	Method  string `json:"method"`
+	Minutes int    `json:"minutes"`
 }

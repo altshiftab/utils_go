@@ -20,6 +20,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/get_file_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/list_files_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/types/about"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/types/file"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/types/file_list"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/update_file_config"
@@ -92,6 +93,11 @@ func (c *Client) GetFile(ctx context.Context, fileId string, options ...get_file
 		c.urlString(c.fieldsQuery(getFileConfig.Fields), filePath(fileId)...),
 		c.fetchOptions(getFileConfig.FetchOptions),
 	)
+}
+
+// GetAbout is what Drive says of the user the request is made as: their name and address, as Drive shows them.
+func (c *Client) GetAbout(ctx context.Context, options ...fetch_config.Option) (*about.About, error) {
+	return rest.GetJson[about.About](ctx, c.urlString(url.Values{"fields": {"user(displayName,emailAddress)"}}, "about"), c.fetchOptions(options))
 }
 
 // DownloadFile retrieves a file's content, with the content type Drive serves it

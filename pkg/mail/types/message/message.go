@@ -177,6 +177,8 @@ type Message struct {
 	ReplyTo []*mail.Address
 	Domain  string
 	Headers []*message_header.Header
+	// Date is when the message is dated, in its own zone; the time it is written, if zero.
+	Date time.Time
 }
 
 // foldLength is the length a header line is folded at, the one RFC 5322 recommends.
@@ -269,7 +271,11 @@ func (message *Message) String() (string, error) {
 	}
 	// A subject outside ASCII is an encoded word (RFC 2047); one inside it is written as it is.
 	writeHeader(&builder, "Subject", mime.QEncoding.Encode("utf-8", message.Subject))
-	fmt.Fprintf(&builder, "Date: %s\r\n", timeNow.Format(time.RFC1123Z))
+	date := message.Date
+	if date.IsZero() {
+		date = timeNow
+	}
+	fmt.Fprintf(&builder, "Date: %s\r\n", date.Format(time.RFC1123Z))
 
 	domain := message.Domain
 	if domain == "" {
@@ -342,5 +348,6 @@ func New(from *mail.Address, to []*mail.Address, subject string, body *Body, opt
 		ReplyTo: config.ReplyTo,
 		Domain:  config.Domain,
 		Headers: config.Headers,
+		Date:    config.Date,
 	}, nil
 }

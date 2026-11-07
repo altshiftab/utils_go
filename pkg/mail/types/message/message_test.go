@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -590,5 +591,45 @@ func TestMessage_String_FoldsLongHeaders(t *testing.T) {
 	subject, err := new(mime.WordDecoder).DecodeHeader(parsed.Header.Get("Subject"))
 	if err != nil || subject != strings.Repeat("Räkning ", 20) {
 		t.Errorf("subject = %q, %v", subject, err)
+	}
+}
+
+func TestMessage_String_Date(t *testing.T) {
+	t.Parallel()
+
+	stockholm, err := time.LoadLocation("Europe/Stockholm")
+	if err != nil {
+		t.Fatalf("load location: %v", err)
+	}
+
+	testCases := []struct {
+		name    string
+		options []message_config.Option
+		want    string
+	}{
+		{
+			name:    "dated in its own zone",
+			options: []message_config.Option{message_config.WithDate(time.Date(2026, 11, 7, 19, 39, 14, 0, stockholm))},
+			want:    "\r\nDate: Sat, 07 Nov 2026 19:39:14 +0100\r\n",
+		},
+		{name: "dated when written", want: "\r\nDate: "},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			msg, err := New(validFrom(), validTo(), "subj", &Body{Content: []byte("hi"), ContentType: "text/plain"}, testCase.options...)
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+			out, err := msg.String()
+			if err != nil {
+				t.Fatalf("String: %v", err)
+			}
+			if !strings.Contains(out, testCase.want) {
+				t.Errorf("output missing %q:\n%s", testCase.want, out)
+			}
+		})
 	}
 }

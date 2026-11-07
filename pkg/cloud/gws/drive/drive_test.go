@@ -321,3 +321,23 @@ func TestEmptyArgumentErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAbout(t *testing.T) {
+	t.Parallel()
+
+	client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/drive/v3/about" || r.URL.Query().Get("fields") != "user(displayName,emailAddress)" {
+			t.Errorf("unexpected request: %s %s?%s", r.Method, r.URL.Path, r.URL.RawQuery)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"user":{"displayName":"Viktor Persson","emailAddress":"v@example.com"}}`))
+	})
+
+	about, err := client.GetAbout(t.Context())
+	if err != nil {
+		t.Fatalf("get about: %v", err)
+	}
+	if about == nil || about.User == nil || about.User.DisplayName != "Viktor Persson" || about.User.EmailAddress != "v@example.com" {
+		t.Errorf("about = %+v", about)
+	}
+}

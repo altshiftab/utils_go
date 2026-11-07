@@ -2,6 +2,7 @@ package message_config
 
 import (
 	"net/mail"
+	"time"
 
 	"github.com/altshiftab/utils_go/pkg/mail/types/message/message_header"
 )
@@ -12,6 +13,8 @@ type Config struct {
 	ReplyTo []*mail.Address
 	Domain  string
 	Headers []*message_header.Header
+	// Date is when the message is dated, in its own zone; the time it is written, in the process's, if zero.
+	Date time.Time
 }
 
 type Option func(*Config)
@@ -47,6 +50,13 @@ func WithReplyTo(replyTo []*mail.Address) Option {
 func WithDomain(domain string) Option {
 	return func(config *Config) {
 		config.Domain = domain
+	}
+}
+
+// WithDate dates the message, the Date header written in the time's own zone.
+func WithDate(date time.Time) Option {
+	return func(config *Config) {
+		config.Date = date
 	}
 }
 
