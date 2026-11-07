@@ -22,6 +22,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/directory/types/token"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/directory/types/user"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/directory/types/user/name"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {
@@ -32,7 +33,9 @@ func testServer(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(directory_config.WithBaseUrl(u))
+	// The server's own client: Close on any test's server closes the idle connections of http.DefaultTransport,
+	// which would break another parallel test's request on it.
+	return NewClient(directory_config.WithBaseUrl(u), directory_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 // jsonServer returns a client whose server verifies the method and path suffix

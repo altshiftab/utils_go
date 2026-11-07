@@ -41,38 +41,54 @@ func TestDevToolsEndpoint(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			port, err := FreePort(t.Context())
-			if err != nil {
-				t.Fatalf("free port: %v", err)
+			// A server's port is bound here and kept, not taken free and bound later: another test, or any connection
+			// made meanwhile, could be given it in between. Listening late is answering without an endpoint until then.
+			var port int
+			var listener net.Listener
+			if testCase.body != "" {
+				var err error
+				listener, err = (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+				if err != nil {
+					t.Fatalf("listen: %v", err)
+				}
+				address, ok := listener.Addr().(*net.TCPAddr)
+				if !ok || address == nil {
+					t.Fatalf("listener address: %v", listener.Addr())
+				}
+				port = address.Port
+			} else {
+				var err error
+				if port, err = FreePort(t.Context()); err != nil {
+					t.Fatalf("free port: %v", err)
+				}
 			}
 			exited := make(chan struct{})
 
-			go func() {
-				if testCase.body != "" {
-					time.Sleep(testCase.listenAt)
-					listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
-					if err != nil {
-						t.Errorf("listen: %v", err)
-						return
-					}
-					server := &http.Server{
-						Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-							if r.URL.Path != "/json/version" {
-								http.NotFound(w, r)
-								return
-							}
-							_, _ = w.Write([]byte(testCase.body))
-						}),
-						ReadHeaderTimeout: time.Second,
-					}
-					t.Cleanup(func() { _ = server.Close() })
-					go func() { _ = server.Serve(listener) }()
+			if listener != nil {
+				listeningAt := time.Now().Add(testCase.listenAt)
+				server := &http.Server{
+					Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if r.URL.Path != "/json/version" {
+							http.NotFound(w, r)
+							return
+						}
+						if time.Now().Before(listeningAt) {
+							_, _ = w.Write([]byte(`{}`))
+							return
+						}
+						_, _ = w.Write([]byte(testCase.body))
+					}),
+					ReadHeaderTimeout: time.Second,
 				}
-				if testCase.exit {
+				t.Cleanup(func() { _ = server.Close() })
+				go func() { _ = server.Serve(listener) }()
+			}
+			if testCase.exit {
+				go func() {
 					time.Sleep(100 * time.Millisecond)
 					close(exited)
-				}
-			}()
+				}()
+			}
 
 			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 			defer cancel()
@@ -97,20 +113,28 @@ func TestDevToolsEndpoint(t *testing.T) {
 func TestFreePort(t *testing.T) {
 	t.Parallel()
 
-	port, err := FreePort(t.Context())
-	if err != nil {
-		t.Fatalf("free port: %v", err)
-	}
-	if port <= 0 || port > 65535 {
-		t.Fatalf("unexpected port: %d", port)
-	}
+	// Free means a listener can have it -- unless something is given it first, as FreePort says may happen, so one of a
+	// few tries is enough.
+	const tries = 3
+	var err error
+	for range tries {
+		var port int
+		port, err = FreePort(t.Context())
+		if err != nil {
+			t.Fatalf("free port: %v", err)
+		}
+		if port <= 0 || port > 65535 {
+			t.Fatalf("unexpected port: %d", port)
+		}
 
-	// Free means a listener can have it.
-	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
-	if err != nil {
-		t.Fatalf("listen on the free port: %v", err)
+		var listener net.Listener
+		listener, err = (&net.ListenConfig{}).Listen(t.Context(), "tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+		if err == nil {
+			_ = listener.Close()
+			return
+		}
 	}
-	_ = listener.Close()
+	t.Fatalf("listen on a free port, %d tries: %v", tries, err)
 }
 
 // fakeTargets answers Target.createTarget and Target.attachToTarget.
