@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/reader_config"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
@@ -26,6 +27,10 @@ import (
 // A read broken off midway is resumed where it stopped, from the same object
 // generation: what it yields is one generation's bytes or an error, never the
 // start of one object followed by the rest of another written in its place.
+//
+// The bytes are the object's as stored. An object stored gzip-compressed comes
+// back compressed, as its size and CRC32C describe it, rather than
+// decompressed on the way by Cloud Storage or by the HTTP transport.
 type Reader struct {
 	//nolint:containedctx // io.Reader takes no context; the reader's requests use the one it was opened with.
 	ctx          context.Context
@@ -44,8 +49,26 @@ type Reader struct {
 	crc32c string
 	body   io.ReadCloser
 
-	reconnects    int
-	maxReconnects int
+	// failures counts the attempts in a row that brought no bytes; any byte
+	// that arrives resets it, so a long read survives any number of breaks
+	// that each made progress.
+	failures       int
+	maxReconnects  int
+	retryBaseDelay time.Duration
+	retryMaxDelay  time.Duration
+}
+
+// transientReadError is a failure to open a read that is worth trying again.
+type transientReadError struct {
+	err error
+}
+
+func (e *transientReadError) Error() string {
+	return e.err.Error()
+}
+
+func (e *transientReadError) Unwrap() error {
+	return e.err
 }
 
 // NewReader opens an object for reading, from the live generation unless
@@ -89,18 +112,20 @@ func (c *Client) NewReader(
 				fetch_config.WithRetryConfig(nil),
 			},
 		),
-		generation:    config.Generation,
-		offset:        config.Offset,
-		end:           -1,
-		size:          -1,
-		maxReconnects: config.MaxReconnects,
+		generation:     config.Generation,
+		offset:         config.Offset,
+		end:            -1,
+		size:           -1,
+		maxReconnects:  config.MaxReconnects,
+		retryBaseDelay: config.RetryBaseDelay,
+		retryMaxDelay:  config.RetryMaxDelay,
 	}
 	if config.Length > 0 {
 		reader.end = config.Offset + config.Length
 	}
 
-	if err := reader.open(); err != nil {
-		return nil, fmt.Errorf("open: %w", err)
+	if err := reader.openRetrying(); err != nil {
+		return nil, fmt.Errorf("open retrying: %w", err)
 	}
 
 	return reader, nil
@@ -128,16 +153,20 @@ func (r *Reader) Read(p []byte) (int, error) {
 		}
 
 		if r.body == nil {
-			if err := r.open(); err != nil {
-				return 0, fmt.Errorf("open: %w", err)
+			if err := r.openRetrying(); err != nil {
+				return 0, fmt.Errorf("open retrying: %w", err)
 			}
 			continue
 		}
 
 		n, err := r.body.Read(p)
 		r.offset += int64(n)
-		if n > 0 || err == nil {
+		if n > 0 {
+			r.failures = 0
 			return n, nil
+		}
+		if err == nil {
+			return 0, nil
 		}
 
 		r.closeBody()
@@ -146,20 +175,66 @@ func (r *Reader) Read(p []byte) (int, error) {
 		}
 
 		// The response ended before the range did, cleanly or not.
-		if r.reconnects >= r.maxReconnects {
+		r.failures++
+		if r.failures > r.maxReconnects {
 			if errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
 			return 0, altshiftErrors.NewWithTrace(
-				fmt.Errorf("read broken off at byte %d after %d reconnects: %w", r.offset, r.reconnects, err),
+				fmt.Errorf("read broken off at byte %d, %d times in a row: %w", r.offset, r.failures, err),
 				r.objectName,
 			)
 		}
-		r.reconnects++
-
-		if err := r.ctx.Err(); err != nil {
-			return 0, fmt.Errorf("context err: %w", err)
+		// A break after progress is met with a reconnect at once; one that
+		// follows another with nothing in between, with a wait.
+		if r.failures > 1 {
+			if err := r.wait(); err != nil {
+				return 0, fmt.Errorf("wait: %w", err)
+			}
 		}
+	}
+}
+
+// openRetrying opens the read, trying again after a wait while the failures
+// are transient and the budget lasts.
+func (r *Reader) openRetrying() error {
+	for {
+		err := r.open()
+		if err == nil {
+			return nil
+		}
+		if _, ok := errors.AsType[*transientReadError](err); !ok {
+			return fmt.Errorf("open: %w", err)
+		}
+
+		r.failures++
+		if r.failures > r.maxReconnects {
+			return altshiftErrors.New(fmt.Errorf("%d attempts in a row failed: %w", r.failures, err), r.objectName)
+		}
+		if err := r.wait(); err != nil {
+			return fmt.Errorf("wait: %w", err)
+		}
+	}
+}
+
+func (r *Reader) wait() error {
+	delay := r.retryBaseDelay
+	for range r.failures - 1 {
+		delay *= 2
+		if delay >= r.retryMaxDelay {
+			delay = r.retryMaxDelay
+			break
+		}
+	}
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-r.ctx.Done():
+		return fmt.Errorf("context done: %w", r.ctx.Err())
+	case <-timer.C:
+		return nil
 	}
 }
 
@@ -196,6 +271,10 @@ func (r *Reader) open() error {
 	if err != nil {
 		return altshiftErrors.NewWithTrace(fmt.Errorf("http new request with context: %w", err), urlString)
 	}
+	// Asked for, so that the transport leaves the body alone, and so that
+	// Cloud Storage serves an object stored compressed as it is stored rather
+	// than decompressing it and ignoring the range.
+	request.Header.Set("Accept-Encoding", "gzip")
 	ranged := r.offset > 0 || r.end >= 0
 	if ranged {
 		if r.end >= 0 {
@@ -207,7 +286,10 @@ func (r *Reader) open() error {
 
 	response, _, err := altshiftHttpUtils.FetchWithRequest(r.ctx, request, r.fetchOptions...)
 	if err != nil {
-		return fmt.Errorf("fetch with request: %w", err)
+		if ctxErr := r.ctx.Err(); ctxErr != nil {
+			return fmt.Errorf("context err: %w", ctxErr)
+		}
+		return &transientReadError{err: fmt.Errorf("fetch with request: %w", err)}
 	}
 	if response == nil {
 		return altshiftErrors.NewWithTrace(nil_error.New("http response"), urlString)
@@ -272,10 +354,14 @@ func (r *Reader) open() error {
 		return nil
 	default:
 		_ = body.Close()
-		return altshiftErrors.NewWithTrace(
+		statusError := altshiftErrors.NewWithTrace(
 			&altshiftHttpErrors.Non2xxStatusCodeError{StatusCode: response.StatusCode},
 			urlString,
 		)
+		if retryableStatus(response.StatusCode) {
+			return &transientReadError{err: statusError}
+		}
+		return statusError
 	}
 
 	r.body = struct {

@@ -1,6 +1,8 @@
 package cloud_storage
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json/v2"
 	"fmt"
 	"hash/crc32"
@@ -50,6 +52,8 @@ type fakeGcs struct {
 	cutAfter int
 	// ignoreRange answers every media GET with the whole object and a 200.
 	ignoreRange bool
+	// mediaStatus answers the Nth media GET (1-based) with a status alone.
+	mediaStatus map[int]int
 	// onMedia is called with the count of media GETs, before each is handled.
 	onMedia func(n int)
 }
@@ -57,6 +61,9 @@ type fakeGcs struct {
 type fakeObject struct {
 	data       []byte
 	generation int64
+	// gzipped marks data stored gzip-compressed, which Cloud Storage
+	// decompresses for a client that does not accept gzip, ignoring any range.
+	gzipped bool
 }
 
 type fakeSession struct {
@@ -85,10 +92,11 @@ func newFakeGcs(t *testing.T) (*fakeGcs, *Client) {
 	t.Helper()
 
 	fake := &fakeGcs{
-		t:         t,
-		objects:   map[string]*fakeObject{},
-		sessions:  map[string]*fakeSession{},
-		failChunk: map[int]*chunkFailure{},
+		t:           t,
+		objects:     map[string]*fakeObject{},
+		sessions:    map[string]*fakeSession{},
+		failChunk:   map[int]*chunkFailure{},
+		mediaStatus: map[int]int{},
 	}
 	fake.server = httptest.NewServer(http.HandlerFunc(fake.handle))
 	t.Cleanup(fake.server.Close)
@@ -321,6 +329,11 @@ func (f *fakeGcs) media(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f.mu.Lock()
+	if status := f.mediaStatus[n]; status != 0 {
+		f.mu.Unlock()
+		w.WriteHeader(status)
+		return
+	}
 	stored := f.objects[name]
 	if stored == nil {
 		f.mu.Unlock()
@@ -343,6 +356,28 @@ func (f *fakeGcs) media(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Goog-Generation", strconv.FormatInt(stored.generation, 10))
 	w.Header().Set("X-Goog-Hash", "crc32c="+crc32cString(data)+",md5=AAAAAAAAAAAAAAAAAAAAAA==")
 	w.Header().Set("X-Goog-Stored-Content-Length", strconv.FormatInt(size, 10))
+
+	if stored.gzipped {
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			// Decompressive transcoding: the whole object, decompressed, and
+			// no range honoured.
+			reader, err := gzip.NewReader(bytes.NewReader(data))
+			if err != nil {
+				f.t.Errorf("gzip new reader: %v", err)
+				return
+			}
+			decompressed, err := io.ReadAll(reader)
+			if err != nil {
+				f.t.Errorf("io read all (gzip): %v", err)
+				return
+			}
+			w.Header().Set("Content-Length", strconv.Itoa(len(decompressed)))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(decompressed)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+	}
 
 	start, end := int64(0), size
 	status := http.StatusOK

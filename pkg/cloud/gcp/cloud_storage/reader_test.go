@@ -2,10 +2,12 @@ package cloud_storage
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"io"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/reader_config"
 )
@@ -50,10 +52,10 @@ func TestReader(t *testing.T) {
 			wantRanges: []string{"bytes=10000-"},
 		},
 		{
-			name:       "broken off twice",
-			cutReads:   2,
-			cutAfter:   1000,
-			want:       data,
+			name:     "broken off twice",
+			cutReads: 2,
+			cutAfter: 1000,
+			want:     data,
 			// Once the first answer has told the size, the rest are bounded by it.
 			wantRanges: []string{"", "bytes=1000-9999", "bytes=2000-9999"},
 		},
@@ -163,12 +165,17 @@ func TestReaderFailures(t *testing.T) {
 			},
 		},
 		{
-			name: "broken off more often than allowed",
+			name: "broken off with nothing read, more often in a row than allowed",
 			setup: func(fake *fakeGcs) {
 				fake.cutReads = 3
-				fake.cutAfter = 1000
+				fake.cutAfter = 0
 			},
 			options: []reader_config.Option{reader_config.WithMaxReconnects(2)},
+		},
+		{
+			name:    "refused for good on reopening",
+			setup:   func(fake *fakeGcs) { fake.cutReads = 1; fake.cutAfter = 1000; fake.mediaStatus[2] = 403 },
+			options: []reader_config.Option{reader_config.WithMaxReconnects(5)},
 		},
 	}
 
@@ -182,7 +189,8 @@ func TestReaderFailures(t *testing.T) {
 				testCase.setup(fake)
 			}
 
-			reader, err := client.NewReader(context.Background(), "bucket", "name", testCase.options...)
+			options := append([]reader_config.Option{fastReads}, testCase.options...)
+			reader, err := client.NewReader(context.Background(), "bucket", "name", options...)
 			if testCase.failOpen {
 				if err == nil {
 					t.Errorf("new reader: err = nil")
@@ -198,6 +206,109 @@ func TestReaderFailures(t *testing.T) {
 				t.Errorf("io read all: err = nil")
 			}
 		})
+	}
+}
+
+// fastReads keeps the waits between attempts out of the test's run time.
+var fastReads = reader_config.WithRetryDelays(time.Millisecond, time.Millisecond)
+
+// TestReaderRecovers covers what a long read meets: breaks that each made
+// progress, and requests to resume that fail for a while before they work.
+func TestReaderRecovers(t *testing.T) {
+	t.Parallel()
+
+	const size = 10_000
+	data := randomBytes(size)
+
+	testCases := []struct {
+		name  string
+		setup func(fake *fakeGcs)
+		// wantRequests is how many media requests the read took.
+		wantRequests int
+	}{
+		{
+			name:         "more breaks than the budget, each after progress",
+			setup:        func(fake *fakeGcs) { fake.cutReads = 20; fake.cutAfter = 400 },
+			wantRequests: 21,
+		},
+		{
+			name:         "a reopen refused with 503, then served",
+			setup:        func(fake *fakeGcs) { fake.cutReads = 1; fake.cutAfter = 1000; fake.mediaStatus[2] = 503 },
+			wantRequests: 3,
+		},
+		{
+			name:         "the first request refused with 429 and 503",
+			setup:        func(fake *fakeGcs) { fake.mediaStatus[1] = 429; fake.mediaStatus[2] = 503 },
+			wantRequests: 3,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			fake, client := newFakeGcs(t)
+			fake.put("name", data)
+			testCase.setup(fake)
+
+			reader, err := client.NewReader(
+				context.Background(), "bucket", "name", fastReads, reader_config.WithMaxReconnects(2),
+			)
+			if err != nil {
+				t.Fatalf("new reader: %v", err)
+			}
+			defer func() { _ = reader.Close() }()
+
+			got, err := io.ReadAll(reader)
+			if err != nil {
+				t.Fatalf("io read all: %v", err)
+			}
+			if !bytes.Equal(got, data) {
+				t.Errorf("read %d bytes that differ from the %d stored", len(got), len(data))
+			}
+			if len(fake.mediaRequests) != testCase.wantRequests {
+				t.Errorf("%d media requests, want %d", len(fake.mediaRequests), testCase.wantRequests)
+			}
+		})
+	}
+}
+
+// TestReaderReadsStoredBytes reads an object stored gzip-compressed, which must
+// come back as stored, and whole: neither decompressed by Cloud Storage nor by
+// the transport and then cut at the stored length.
+func TestReaderReadsStoredBytes(t *testing.T) {
+	t.Parallel()
+
+	var compressed bytes.Buffer
+	writer := gzip.NewWriter(&compressed)
+	if _, err := writer.Write(bytes.Repeat([]byte("compressible "), 10_000)); err != nil {
+		t.Fatalf("gzip write: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("gzip close: %v", err)
+	}
+
+	fake, client := newFakeGcs(t)
+	fake.put("name", compressed.Bytes()).gzipped = true
+
+	for _, options := range [][]reader_config.Option{nil, {reader_config.WithRange(10, 100)}} {
+		reader, err := client.NewReader(context.Background(), "bucket", "name", options...)
+		if err != nil {
+			t.Fatalf("new reader: %v", err)
+		}
+		got, err := io.ReadAll(reader)
+		_ = reader.Close()
+		if err != nil {
+			t.Fatalf("io read all: %v", err)
+		}
+
+		want := compressed.Bytes()
+		if len(options) != 0 {
+			want = want[10:110]
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("read %d bytes, not the %d stored", len(got), len(want))
+		}
 	}
 }
 

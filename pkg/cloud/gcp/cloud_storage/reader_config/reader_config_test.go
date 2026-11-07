@@ -3,6 +3,7 @@ package reader_config
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
@@ -17,11 +18,15 @@ func TestNew(t *testing.T) {
 	if defaults.MaxReconnects != DefaultMaxReconnects {
 		t.Errorf("MaxReconnects = %d, want %d", defaults.MaxReconnects, DefaultMaxReconnects)
 	}
+	if defaults.RetryBaseDelay != DefaultRetryBaseDelay || defaults.RetryMaxDelay != DefaultRetryMaxDelay {
+		t.Errorf("retry delays = %v, %v", defaults.RetryBaseDelay, defaults.RetryMaxDelay)
+	}
 
 	config := New(
 		WithGeneration(42),
 		WithRange(100, 200),
 		WithMaxReconnects(1),
+		WithRetryDelays(time.Millisecond, time.Second),
 		WithFetchOptions(fetch_config.WithMethod(http.MethodGet)),
 		nil,
 	)
@@ -33,6 +38,9 @@ func TestNew(t *testing.T) {
 	}
 	if config.MaxReconnects != 1 {
 		t.Errorf("MaxReconnects = %d", config.MaxReconnects)
+	}
+	if config.RetryBaseDelay != time.Millisecond || config.RetryMaxDelay != time.Second {
+		t.Errorf("retry delays = %v, %v", config.RetryBaseDelay, config.RetryMaxDelay)
 	}
 	if len(config.FetchOptions) != 1 {
 		t.Errorf("FetchOptions len = %d, want 1", len(config.FetchOptions))
