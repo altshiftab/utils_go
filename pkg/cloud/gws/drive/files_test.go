@@ -14,6 +14,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/drive_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/get_file_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/list_comments_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/list_files_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/types/file"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/update_file_config"
@@ -37,6 +38,45 @@ func TestFileRequests(t *testing.T) {
 		// want is the result, as JSON.
 		want string
 	}{
+		{
+			name:      "list comments page",
+			allDrives: true,
+			call: func(client *Client) (any, error) {
+				return client.ListCommentsPage(
+					context.Background(), "d1",
+					list_comments_config.WithPageSize(100),
+					list_comments_config.WithPageToken("p1"),
+					list_comments_config.WithIncludeDeleted(true),
+				)
+			},
+			method: http.MethodGet,
+			path:   "/drive/v3/files/d1/comments",
+			// Without supportsAllDrives, which a listing of comments does not take.
+			query: url.Values{
+				"fields":         {commentFields},
+				"pageSize":       {"100"},
+				"pageToken":      {"p1"},
+				"includeDeleted": {"true"},
+			},
+			response: `{"comments":[{"id":"c1","createdTime":"2026-11-07T10:00:00.000Z","author":{"displayName":"Anna","me":false},` +
+				`"content":"Stämmer siffran?","quotedFileContent":{"mimeType":"text/html","value":"1 200 kr"},"anchor":"kix.1","resolved":true,` +
+				`"htmlContent":"Stämmer siffran?","replies":[{"id":"r1","author":{"displayName":"Viktor","me":true},"content":"Ja.","action":"resolve"}]}],` +
+				`"nextPageToken":"p2"}`,
+			want: `{"comments":[{"id":"c1","createdTime":"2026-11-07T10:00:00.000Z","author":{"displayName":"Anna"},"content":"Stämmer siffran?",` +
+				`"quotedFileContent":{"mimeType":"text/html","value":"1 200 kr"},"anchor":"kix.1","resolved":true,` +
+				`"replies":[{"id":"r1","author":{"displayName":"Viktor","me":true},"content":"Ja.","action":"resolve"}]}],"nextPageToken":"p2"}`,
+		},
+		{
+			name: "list comments page, its fields named",
+			call: func(client *Client) (any, error) {
+				return client.ListCommentsPage(context.Background(), "d#1", list_comments_config.WithFields("comments(id)"))
+			},
+			method:   http.MethodGet,
+			path:     "/drive/v3/files/d%231/comments",
+			query:    url.Values{"fields": {"comments(id)"}},
+			response: `{"comments":[{"id":"c1"}]}`,
+			want:     `{"comments":[{"id":"c1"}]}`,
+		},
 		{
 			name:      "list files page",
 			allDrives: true,
@@ -309,6 +349,7 @@ func TestFileArgumentErrors(t *testing.T) {
 		call func() error
 	}{
 		{name: "get, empty id", call: func() error { _, err := client.GetFile(ctx, ""); return err }},
+		{name: "list comments, empty id", call: func() error { _, err := client.ListCommentsPage(ctx, ""); return err }},
 		{name: "download, empty id", call: func() error { _, _, err := client.DownloadFile(ctx, ""); return err }},
 		{name: "export, empty id", call: func() error { _, err := client.ExportFile(ctx, "", "text/plain"); return err }},
 		{name: "export, empty type", call: func() error { _, err := client.ExportFile(ctx, "d1", ""); return err }},
