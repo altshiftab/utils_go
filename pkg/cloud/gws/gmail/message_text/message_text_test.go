@@ -18,6 +18,11 @@ func textPart(mimeType string, data string) *message_part.MessagePart {
 	}
 }
 
+// echoHtml is a reader of HTML that says what it was given.
+func echoHtml(source string) string {
+	return "[html]" + source
+}
+
 func multipart(mimeType string, parts ...*message_part.MessagePart) *message_part.MessagePart {
 	return &message_part.MessagePart{MimeType: mimeType, Parts: parts}
 }
@@ -64,7 +69,7 @@ func TestBody(t *testing.T) {
 				"text/plain",
 				"  <!DOCTYPE html><html><body><p>Hej</p><p>Kvitto</p></body></html>",
 			)},
-			want: "Hej\nKvitto",
+			want: "[html]  <!DOCTYPE html><html><body><p>Hej</p><p>Kvitto</p></body></html>",
 		},
 		{
 			name: "plain text that is an html document past a byte order mark and a comment is read as html",
@@ -72,7 +77,7 @@ func TestBody(t *testing.T) {
 				"text/plain",
 				"\ufeff<!-- generated --> <!-- twice -->\n<html><body><p>Hej</p></body></html>",
 			)},
-			want: "Hej",
+			want: "[html]<!-- generated --> <!-- twice -->\n<html><body><p>Hej</p></body></html>",
 		},
 		{
 			name: "plain text beginning with an unclosed comment stays plain",
@@ -102,12 +107,12 @@ func TestBody(t *testing.T) {
 			want: "plain",
 		},
 		{
-			name: "html only is read as text",
+			name: "html only is read by the reader",
 			msg: &message.Message{Payload: textPart(
 				"text/html",
 				`<html><head><title>T</title><style>p{color:red}</style></head><body><h1>Hi</h1><p>One &amp; two<br>three</p><!-- nothing --><script>alert(1)</script><div>four</div></body></html>`,
 			)},
-			want: "Hi\nOne & two\nthree\nfour",
+			want: "[html]" + `<html><head><title>T</title><style>p{color:red}</style></head><body><h1>Hi</h1><p>One &amp; two<br>three</p><!-- nothing --><script>alert(1)</script><div>four</div></body></html>`,
 		},
 		{
 			name: "nested mixed with an attachment",
@@ -167,96 +172,15 @@ func TestBody(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := Text(testCase.msg); got != testCase.want {
+			if got := Text(testCase.msg, echoHtml); got != testCase.want {
 				t.Errorf("body = %q, want %q", got, testCase.want)
 			}
 		})
 	}
 }
 
-func TestHtmlToText(t *testing.T) {
+func TestTextReader(t *testing.T) {
 	t.Parallel()
-
-	testCases := []struct {
-		name   string
-		source string
-		want   string
-	}{
-		{
-			name: "empty",
-		},
-		{
-			name:   "plain",
-			source: "just text",
-			want:   "just text",
-		},
-		{
-			name:   "paragraphs and breaks",
-			source: "<p>one</p><p>two<br/>three</p>",
-			want:   "one\ntwo\nthree",
-		},
-		{
-			name:   "list and table",
-			source: "<ul><li>a</li><li>b</li></ul><table><tr><td>c</td><td>d</td></tr></table>",
-			want:   "a\nb\ncd",
-		},
-		{
-			name:   "entities",
-			source: "caf&eacute; &lt;b&gt; &#8364;&nbsp;5",
-			want:   "café <b> € 5",
-		},
-		{
-			name:   "style and script dropped",
-			source: "<style>\np { color: red }\n</style>visible<script type=\"text/javascript\">alert('x')</script>",
-			want:   "visible",
-		},
-		{
-			name:   "tag across lines",
-			source: "<a\nhref=\"https://example.com\"\n>link</a>",
-			want:   "link <https://example.com>",
-		},
-		{
-			name:   "a link keeps its target",
-			source: `<p>Confirm <a class="b" href="https://example.com/c?a=1&amp;b=2">here</a>.</p>`,
-			want:   "Confirm here <https://example.com/c?a=1&b=2>.",
-		},
-		{
-			name:   "a link that says its target says it once",
-			source: `<a href="https://example.com">https://example.com</a> <a href='mailto:a@example.com'>a@example.com</a>`,
-			want:   "https://example.com a@example.com",
-		},
-		{
-			name:   "a link of an image alone is its target",
-			source: `<a href="https://example.com/x"><img src="logo.png"></a>`,
-			want:   "<https://example.com/x>",
-		},
-		{
-			name:   "a link elsewhere than the web keeps its text alone",
-			source: `<a href="javascript:alert(1)">click</a> <a href="#top">top</a>`,
-			want:   "click top",
-		},
-		{
-			name:   "blank lines collapsed",
-			source: "<p>a</p>\n\n\n\n<p>b</p>",
-			want:   "a\n\nb",
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			if got := HtmlToText(testCase.source); got != testCase.want {
-				t.Errorf("text = %q, want %q", got, testCase.want)
-			}
-		})
-	}
-}
-
-func TestTextWith(t *testing.T) {
-	t.Parallel()
-
-	converted := func(string) string { return "converted" }
 
 	testCases := []struct {
 		name       string
@@ -265,27 +189,29 @@ func TestTextWith(t *testing.T) {
 		want       string
 	}{
 		{
-			name:       "html part",
+			name:       "an html part is read by the reader",
 			msg:        &message.Message{Payload: textPart("text/html", "<p>html</p>")},
-			htmlToText: converted,
-			want:       "converted",
+			htmlToText: echoHtml,
+			want:       "[html]<p>html</p>",
 		},
 		{
-			name:       "plain part that is an html document",
-			msg:        &message.Message{Payload: textPart("text/plain", "<html><body>x</body></html>")},
-			htmlToText: converted,
-			want:       "converted",
-		},
-		{
-			name:       "plain part",
+			name:       "a plain part is not",
 			msg:        &message.Message{Payload: textPart("text/plain", "plain")},
-			htmlToText: converted,
+			htmlToText: echoHtml,
 			want:       "plain",
 		},
 		{
-			name: "no converter reads html with HtmlToText",
+			name: "without a reader, html alone is no text",
 			msg:  &message.Message{Payload: textPart("text/html", "<p>html</p>")},
-			want: "html",
+		},
+		{
+			name: "without a reader, a plain part that is an html document is no text",
+			msg:  &message.Message{Payload: textPart("text/plain", "<html><body>x</body></html>")},
+		},
+		{
+			name: "without a reader, a plain part is read all the same",
+			msg:  &message.Message{Payload: textPart("text/plain", "plain")},
+			want: "plain",
 		},
 	}
 
@@ -293,7 +219,7 @@ func TestTextWith(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := TextWith(testCase.msg, testCase.htmlToText); got != testCase.want {
+			if got := Text(testCase.msg, testCase.htmlToText); got != testCase.want {
 				t.Errorf("text = %q, want %q", got, testCase.want)
 			}
 		})
