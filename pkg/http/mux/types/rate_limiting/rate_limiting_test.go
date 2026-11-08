@@ -2,6 +2,7 @@ package rate_limiting
 
 import (
 	"net/http"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -82,4 +83,93 @@ func TestDefaultGetRateLimitingKey(t *testing.T) {
 			}
 		})
 	}
+}
+
+// limiterOf is the key's limiter, read under the lookup's lock.
+func limiterOf(lookup *RateLimitingLookup, key string) *TimerRateLimiter {
+	lookup.Mutex.Lock()
+	defer lookup.Mutex.Unlock()
+
+	return lookup.Map[key]
+}
+
+func TestRateLimitingLookup_Claim(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		lookup := &RateLimitingLookup{}
+		for _, key := range []string{"a", "a", "b"} {
+			if _, full := lookup.Claim(key, 2, 5); full {
+				t.Fatalf("%s: limited within capacity", key)
+			}
+		}
+		if _, full := lookup.Claim("a", 2, 5); !full {
+			t.Fatal("a third claim of a is not limited")
+		}
+		if _, full := lookup.Claim("b", 2, 5); full {
+			t.Fatal("b is limited by a's claims")
+		}
+
+		// The claims free a second before their window ends, and an idle limiter goes after twice it.
+		time.Sleep(10 * time.Second)
+		synctest.Wait()
+		if a, b := limiterOf(lookup, "a"), limiterOf(lookup, "b"); a != nil || b != nil {
+			t.Errorf("idle limiters kept: %v %v", a, b)
+		}
+	})
+}
+
+// An eviction finds the limiter it was set for or leaves the key alone: one that fired as its timer was
+// being reset, or one of a limiter removed and made anew since, must not remove the newer limiter.
+func TestRateLimitingLookup_EvictsOnlyItsOwnLimiter(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		lookup := &RateLimitingLookup{}
+		lookup.Claim("k", 1, 5)
+		first := limiterOf(lookup, "k")
+		time.Sleep(4 * time.Second)
+		synctest.Wait()
+
+		lookup.evict("k", first)
+		if limiterOf(lookup, "k") != nil {
+			t.Fatal("an idle limiter was not evicted")
+		}
+		lookup.Claim("k", 1, 5)
+		second := limiterOf(lookup, "k")
+
+		lookup.evict("k", first)
+		if limiterOf(lookup, "k") != second {
+			t.Error("a stale eviction removed the newer limiter")
+		}
+		lookup.evict("k", second)
+		if limiterOf(lookup, "k") != second {
+			t.Error("a limiter holding a claim was evicted")
+		}
+	})
+}
+
+// Evictions run while claims are made and freed, as idle timers fire among requests: the limiter's
+// count is read under its own lock.
+func TestRateLimitingLookup_EvictionsAmongClaims(t *testing.T) {
+	t.Parallel()
+
+	lookup := &RateLimitingLookup{}
+	var group sync.WaitGroup
+	for range 8 {
+		group.Go(func() {
+			for range 200 {
+				// A one-second window frees its claim at once, from the claim's own timer.
+				lookup.Claim("k", 4, 1)
+			}
+		})
+		group.Go(func() {
+			for range 200 {
+				if limiter := limiterOf(lookup, "k"); limiter != nil {
+					lookup.evict("k", limiter)
+				}
+			}
+		})
+	}
+	group.Wait()
 }

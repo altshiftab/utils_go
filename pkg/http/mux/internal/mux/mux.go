@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -58,38 +57,11 @@ func HandleRateLimiting(
 		}
 	}
 
-	rateLimitingConfiguration.Lookup.Mutex.Lock()
-	if rateLimitingConfiguration.Lookup.Map == nil {
-		rateLimitingConfiguration.Lookup.Map = make(map[string]*muxTypesRateLimiting.TimerRateLimiter)
-	}
-	rateLimitingConfiguration.Lookup.Mutex.Unlock()
-
-	timerRateLimiter, ok := rateLimitingConfiguration.Lookup.Map[key]
-	if !ok {
-		timerRateLimiter = &muxTypesRateLimiting.TimerRateLimiter{
-			RateLimiter: muxTypesRateLimiting.RateLimiter{
-				Bucket:           make([]*time.Time, rateLimitingConfiguration.NumRequests),
-				NumSecondsExpiry: rateLimitingConfiguration.NumSecondsExpiration,
-			},
-		}
-		rateLimitingConfiguration.Lookup.Map[key] = timerRateLimiter
-	}
-
-	if timerRateLimiter.Timer != nil {
-		timerRateLimiter.Timer.Stop()
-	}
-	timerRateLimiter.Timer = time.AfterFunc(
-		time.Duration(2*timerRateLimiter.NumSecondsExpiry)*time.Second,
-		func() {
-			rateLimitingConfiguration.Lookup.Mutex.Lock()
-			defer rateLimitingConfiguration.Lookup.Mutex.Unlock()
-			if timerRateLimiter.NumOccupied == 0 {
-				delete(rateLimitingConfiguration.Lookup.Map, key)
-			}
-		},
+	expirationTime, full := rateLimitingConfiguration.Lookup.Claim(
+		key,
+		rateLimitingConfiguration.NumRequests,
+		rateLimitingConfiguration.NumSecondsExpiration,
 	)
-
-	expirationTime, full := timerRateLimiter.Claim()
 	if full {
 		return &muxTypesResponseError.ResponseError{
 			ProblemDetail: problem_detail.New(http.StatusTooManyRequests),
