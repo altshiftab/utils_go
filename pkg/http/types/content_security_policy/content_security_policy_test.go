@@ -1,6 +1,7 @@
 package content_security_policy
 
 import (
+	"net/url"
 	"reflect"
 	"testing"
 )
@@ -253,5 +254,102 @@ func TestContentSecurityPolicy_String_SpecificPolicy(t *testing.T) {
 		to := got
 		want := expected
 		t.Errorf("String() got = %q, want %q", to, want)
+	}
+}
+
+func TestHostSourceFromUrl(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		url  string
+		want *HostSource
+		// rendered is the source as written; parsed says whether the CSP grammar reads it back, which
+		// it does not for an IPv6 literal.
+		rendered string
+		parsed   bool
+	}{
+		{
+			name: "no port", url: "https://login.vvvp.se",
+			want:     &HostSource{Scheme: "https", Host: "login.vvvp.se"},
+			rendered: "https://login.vvvp.se", parsed: true,
+		},
+		{
+			name: "the scheme's default port", url: "https://login.vvvp.se:443",
+			want:     &HostSource{Scheme: "https", Host: "login.vvvp.se", PortString: "443"},
+			rendered: "https://login.vvvp.se:443", parsed: true,
+		},
+		{
+			name: "another port", url: "http://localhost:8081",
+			want:     &HostSource{Scheme: "http", Host: "localhost", PortString: "8081"},
+			rendered: "http://localhost:8081", parsed: true,
+		},
+		{
+			name: "a port and a path", url: "https://api.example.test:8443/v1/",
+			want:     &HostSource{Scheme: "https", Host: "api.example.test", PortString: "8443", Path: "/v1/"},
+			rendered: "https://api.example.test:8443/v1/", parsed: true,
+		},
+		{
+			name: "an empty port", url: "https://example.test:/x",
+			want:     &HostSource{Scheme: "https", Host: "example.test", Path: "/x"},
+			rendered: "https://example.test/x", parsed: true,
+		},
+		{
+			name: "an IPv4 address and a port", url: "http://127.0.0.1:8080",
+			want:     &HostSource{Scheme: "http", Host: "127.0.0.1", PortString: "8080"},
+			rendered: "http://127.0.0.1:8080", parsed: true,
+		},
+		{
+			name: "an IPv6 literal and a port", url: "http://[::1]:8081",
+			want:     &HostSource{Scheme: "http", Host: "[::1]", PortString: "8081"},
+			rendered: "http://[::1]:8081",
+		},
+		{
+			name: "an IPv6 literal", url: "https://[2001:db8::1]",
+			want:     &HostSource{Scheme: "https", Host: "[2001:db8::1]"},
+			rendered: "https://[2001:db8::1]",
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			parsedUrl, err := url.Parse(testCase.url)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := HostSourceFromUrl(parsedUrl)
+			if got == nil || !reflect.DeepEqual(*got, *testCase.want) {
+				t.Fatalf("HostSourceFromUrl(%q) = %+v, want %+v", testCase.url, got, testCase.want)
+			}
+			if rendered := got.String(); rendered != testCase.rendered {
+				t.Errorf("String() = %q, want %q", rendered, testCase.rendered)
+			}
+			if !testCase.parsed {
+				return
+			}
+
+			// What it writes is what the parser reads back: the same host, the same port.
+			policy, err := Parse([]byte("connect-src " + testCase.rendered))
+			if err != nil {
+				t.Fatalf("parse %q: %v", testCase.rendered, err)
+			}
+			directive, ok := policy.GetDirective("connect-src")
+			if !ok {
+				t.Fatal("no connect-src")
+			}
+			sourceDirective, ok := directive.(interface{ GetSources() []SourceI })
+			if !ok || len(sourceDirective.GetSources()) != 1 {
+				t.Fatalf("sources %+v", directive)
+			}
+			read, ok := sourceDirective.GetSources()[0].(*HostSource)
+			if !ok || read.Scheme != got.Scheme || read.Host != got.Host || read.PortString != got.PortString || read.Path != got.Path {
+				t.Errorf("read back %+v, made %+v", read, got)
+			}
+		})
+	}
+
+	if HostSourceFromUrl(nil) != nil {
+		t.Error("a host source of no URL")
 	}
 }

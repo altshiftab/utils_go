@@ -1024,3 +1024,35 @@ func TestPatchCspTrustedTypes(t *testing.T) {
 		})
 	}
 }
+
+// A host with a port is written with it once: a local login service's origin, http://localhost:8081, was
+// written http://localhost:8081:8081, which a browser drops from the policy as invalid.
+func TestPatchCspConnectSrcWithHostSrc_Port(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{name: "another port", url: "http://localhost:8081", want: "http://localhost:8081"},
+		{name: "the scheme's default port", url: "https://login.example.com:443", want: "https://login.example.com:443"},
+		{name: "no port", url: "https://login.example.com", want: "https://login.example.com"},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			policy := &csp.ContentSecurityPolicy{}
+			PatchCspConnectSrcWithHostSrc(policy, mustParseURL(testCase.url))
+			directive := policy.GetConnectSrc()
+			if directive == nil {
+				t.Fatal("no connect-src")
+				return
+			}
+			if sources := sourceStrings(directive.Sources); !slices.Equal(sources, []string{"'self'", testCase.want}) {
+				t.Errorf("sources %v, want 'self' and %q", sources, testCase.want)
+			}
+		})
+	}
+}

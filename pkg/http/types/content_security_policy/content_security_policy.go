@@ -84,14 +84,24 @@ type HostSource struct {
 	Path       string `json:"path,omitempty"`
 }
 
+// HostSourceFromUrl is the host source a URL is: its scheme, its host, its port and its path, as a
+// parsed source has them -- the host without the port, which String writes from PortString. An IPv6
+// literal keeps its brackets, the port after them.
 func HostSourceFromUrl(url *url.URL) *HostSource {
 	if url == nil {
 		return nil
 	}
 
+	// url.Host is host[:port]. What follows the last colon outside an IPv6 literal's brackets is the
+	// port, empty or not, and is left out; url.Port() is what of it is kept.
+	host := url.Host
+	if colon := strings.LastIndexByte(host, ':'); colon > strings.LastIndexByte(host, ']') {
+		host = host[:colon]
+	}
+
 	return &HostSource{
 		Scheme:     url.Scheme,
-		Host:       url.Host,
+		Host:       host,
 		PortString: url.Port(),
 		Path:       url.Path,
 	}
