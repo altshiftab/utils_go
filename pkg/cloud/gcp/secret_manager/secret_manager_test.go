@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/secret_manager/secret_manager_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func TestAccessSecretVersion(t *testing.T) {
@@ -94,7 +95,7 @@ func TestAccessSecretVersion(t *testing.T) {
 				t.Fatalf("parse url: %v", err)
 			}
 
-			client := NewClient(secret_manager_config.WithBaseUrl(u))
+			client := NewClient(secret_manager_config.WithBaseUrl(u), secret_manager_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 			got, err := client.AccessSecretVersion(context.Background(), VersionName("p", "s", "latest"))
 			if (err != nil) != testCase.wantErr {
 				t.Fatalf("%s: err = %v, want error %t", testCase.name, err, testCase.wantErr)
@@ -160,7 +161,7 @@ func TestAddAndDestroySecretVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	client := NewClient(secret_manager_config.WithBaseUrl(u))
+	client := NewClient(secret_manager_config.WithBaseUrl(u), secret_manager_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 	ctx := context.Background()
 
 	name, err := client.AddSecretVersion(ctx, SecretName("p", "s"), data)
@@ -206,7 +207,7 @@ func TestListSecretVersions(t *testing.T) {
 		t.Fatalf("parse url: %v", err)
 	}
 
-	versions, err := NewClient(secret_manager_config.WithBaseUrl(u)).ListSecretVersions(context.Background(), SecretName("p", "s"))
+	versions, err := NewClient(secret_manager_config.WithBaseUrl(u), secret_manager_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client()))).ListSecretVersions(context.Background(), SecretName("p", "s"))
 	if err != nil || len(versions) != 2 || versions[0].State != StateEnabled || versions[1].Name != "projects/1/secrets/s/versions/2" {
 		t.Errorf("versions = %+v, %v", versions, err)
 	}

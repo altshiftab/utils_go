@@ -14,6 +14,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_sql/types/generate_ephemeral_cert_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_sql/types/generate_ephemeral_cert_response"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func testClient(t *testing.T, handler http.HandlerFunc) *Client {
@@ -24,7 +25,7 @@ func testClient(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(cloud_sql_config.WithBaseUrl(u))
+	return NewClient(cloud_sql_config.WithBaseUrl(u), cloud_sql_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func TestGetConnectSettings(t *testing.T) {

@@ -71,7 +71,7 @@ func newFakeGraph(t *testing.T, handle func(w http.ResponseWriter, r *request), 
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	authClient := &http.Client{Transport: bearerTransport{}}
+	authClient := &http.Client{Transport: bearerTransport{base: fake.server.Client().Transport}}
 	options = append(
 		[]drive_config.Option{drive_config.WithBaseUrl(baseUrl), drive_config.WithFetchOptions(fetch_config.WithHttpClient(authClient))},
 		options...,
@@ -79,12 +79,17 @@ func newFakeGraph(t *testing.T, handle func(w http.ResponseWriter, r *request), 
 	return fake, NewClient(options...)
 }
 
-type bearerTransport struct{}
+// bearerTransport sends through base, the server's own transport: a response without a body goes back to
+// http.DefaultTransport's pool before its caller has it, and another test's server Close, closing that pool's idle
+// connections, can break it there.
+type bearerTransport struct {
+	base http.RoundTripper
+}
 
-func (bearerTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+func (transport bearerTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	r = r.Clone(r.Context())
 	r.Header.Set("Authorization", "Bearer graph-token")
-	return http.DefaultTransport.RoundTrip(r)
+	return transport.base.RoundTrip(r)
 }
 
 func writeJson(t *testing.T, w http.ResponseWriter, status int, value any) {

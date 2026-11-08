@@ -105,7 +105,7 @@ func TestToken(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 
-			ts, err := New(context.Background(), mustParseURL(t, server.URL), testCase.scopes)
+			ts, err := New(context.Background(), mustParseURL(t, server.URL), testCase.scopes, fetch_config.WithHttpClient(server.Client()))
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -150,7 +150,7 @@ func TestToken_ServerError(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	ts, err := New(context.Background(), mustParseURL(t, server.URL), nil)
+	ts, err := New(context.Background(), mustParseURL(t, server.URL), nil, fetch_config.WithHttpClient(server.Client()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestToken_EmptyBody(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	ts, err := New(context.Background(), mustParseURL(t, server.URL), nil)
+	ts, err := New(context.Background(), mustParseURL(t, server.URL), nil, fetch_config.WithHttpClient(server.Client()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

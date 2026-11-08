@@ -14,6 +14,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/pubsub_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/types/message"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/pubsub/types/publish_request"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func TestPublish(t *testing.T) {
@@ -49,7 +50,7 @@ func TestPublish(t *testing.T) {
 		t.Fatalf("parse server url: %v", err)
 	}
 
-	client := pubsub.NewClient(pubsub_config.WithBaseUrl(baseUrl))
+	client := pubsub.NewClient(pubsub_config.WithBaseUrl(baseUrl), pubsub_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 	resp, err := client.Publish(
 		context.Background(),
 		project,

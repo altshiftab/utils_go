@@ -13,6 +13,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials/iam_credentials_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials/types/sign_blob_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/iam_credentials/types/sign_blob_response"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {
@@ -23,7 +24,7 @@ func testServer(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(iam_credentials_config.WithBaseUrl(u))
+	return NewClient(iam_credentials_config.WithBaseUrl(u), iam_credentials_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func TestSignBlob(t *testing.T) {

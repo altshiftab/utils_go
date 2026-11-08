@@ -9,6 +9,8 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cloud/entra/entra_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/gcp_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func TestTokenUrl(t *testing.T) {
@@ -98,9 +100,11 @@ func TestNewGoogleFederatedTokenSource(t *testing.T) {
 		t.Fatalf("parse url: %v", err)
 	}
 
-	tokenSource, err := NewClient(entra_config.WithAuthorityUrl(loginUrl)).NewGoogleFederatedTokenSource(
+	tokenSource, err := NewClient(
+		entra_config.WithAuthorityUrl(loginUrl), entra_config.WithFetchOptions(fetch_config.WithHttpClient(loginServer.Client())),
+	).NewGoogleFederatedTokenSource(
 		context.Background(),
-		gcp.NewClientWithUrls(metadataUrl, gcp.DefaultTokenUrl),
+		gcp.NewClientWithUrls(metadataUrl, gcp.DefaultTokenUrl, gcp_config.WithFetchOptions(fetch_config.WithHttpClient(metadataServer.Client()))),
 		"customer-tenant",
 		"app-1",
 		[]string{ScopeMicrosoftGraph},

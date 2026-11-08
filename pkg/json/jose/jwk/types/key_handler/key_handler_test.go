@@ -18,6 +18,7 @@ import (
 
 	altshiftCryptoEcdsa "github.com/altshiftab/utils_go/pkg/crypto/ecdsa"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	ecKey "github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key/ec"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler/key_handler_config"
 )
@@ -107,7 +108,7 @@ func TestHandler_GetNamedVerifier_Success(t *testing.T) {
 	keyMap, privateKey := ecJwk(t, "key-1")
 	server, hits := newTestServer(t, []map[string]any{keyMap})
 
-	handler, err := New(mustParseURL(t, server.URL))
+	handler, err := New(mustParseURL(t, server.URL), key_handler_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 	if err != nil {
 		t.Fatalf("new handler: %v", err)
 	}
@@ -157,7 +158,7 @@ func TestHandler_GetNamedVerifier_UnknownKid(t *testing.T) {
 	keyMap, _ := ecJwk(t, "key-1")
 	server, _ := newTestServer(t, []map[string]any{keyMap})
 
-	handler, err := New(mustParseURL(t, server.URL))
+	handler, err := New(mustParseURL(t, server.URL), key_handler_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 	if err != nil {
 		t.Fatalf("new handler: %v", err)
 	}
@@ -178,7 +179,7 @@ func TestHandler_GetNamedVerifier_MalformedKey(t *testing.T) {
 	malformed := map[string]any{"kty": "EC", "kid": "key-1", "alg": "ES256"}
 	server, _ := newTestServer(t, []map[string]any{malformed})
 
-	handler, err := New(mustParseURL(t, server.URL))
+	handler, err := New(mustParseURL(t, server.URL), key_handler_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 	if err != nil {
 		t.Fatalf("new handler: %v", err)
 	}
@@ -197,7 +198,7 @@ func TestHandler_GetNamedVerifier_InvalidJson(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	handler, err := New(mustParseURL(t, server.URL))
+	handler, err := New(mustParseURL(t, server.URL), key_handler_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 	if err != nil {
 		t.Fatalf("new handler: %v", err)
 	}
@@ -224,7 +225,7 @@ func TestHandler_GetNamedVerifier_ExpiresHeaderFallback(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	handler, err := New(mustParseURL(t, server.URL))
+	handler, err := New(mustParseURL(t, server.URL), key_handler_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 	if err != nil {
 		t.Fatalf("new handler: %v", err)
 	}
@@ -310,6 +311,7 @@ func TestHandler_GetNamedVerifier_RotatedKey(t *testing.T) {
 			handler, err := New(
 				mustParseURL(t, server.URL),
 				key_handler_config.WithUnknownKeyIdRefetchInterval(testCase.interval),
+				key_handler_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())),
 			)
 			if err != nil {
 				t.Fatalf("new handler: %v", err)
@@ -342,7 +344,7 @@ func TestHandler_GetNamedVerifier_UnknownKidRateLimited(t *testing.T) {
 	keyMap, _ := ecJwk(t, "key-1")
 	server, _, hits := newRotatingServer(t, "3600", []map[string]any{keyMap})
 
-	handler, err := New(mustParseURL(t, server.URL))
+	handler, err := New(mustParseURL(t, server.URL), key_handler_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 	if err != nil {
 		t.Fatalf("new handler: %v", err)
 	}
@@ -366,7 +368,7 @@ func TestHandler_GetNamedVerifier_ConcurrentRefresh(t *testing.T) {
 	// max-age=0 expires the set at once, so every call refreshes it while others read it.
 	server, _, _ := newRotatingServer(t, "0", []map[string]any{keyMap})
 
-	handler, err := New(mustParseURL(t, server.URL))
+	handler, err := New(mustParseURL(t, server.URL), key_handler_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 	if err != nil {
 		t.Fatalf("new handler: %v", err)
 	}

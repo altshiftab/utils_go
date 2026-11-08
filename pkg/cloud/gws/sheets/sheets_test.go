@@ -16,6 +16,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/sheets/types/spreadsheet/sheet"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/sheets/types/spreadsheet/sheet/sheet_properties"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/sheets/types/value_range"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {
@@ -26,7 +27,7 @@ func testServer(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(sheets_config.WithBaseUrl(u))
+	return NewClient(sheets_config.WithBaseUrl(u), sheets_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func TestGetSpreadsheet(t *testing.T) {

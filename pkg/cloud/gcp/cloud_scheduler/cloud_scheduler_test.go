@@ -38,7 +38,7 @@ func newClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.Serve
 		t.Fatalf("could not parse the server url: %v", err)
 	}
 
-	return NewClient(cloud_scheduler_config.WithBaseUrl(baseUrl)), server
+	return NewClient(cloud_scheduler_config.WithBaseUrl(baseUrl), cloud_scheduler_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client()))), server
 }
 
 func writeJson(t *testing.T, writer http.ResponseWriter, value any) {

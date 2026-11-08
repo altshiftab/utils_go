@@ -27,6 +27,13 @@ func testServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 	return server
 }
 
+// own is the options of a request to the server by its own client: a response without a body goes back to
+// http.DefaultTransport's pool before its caller has it, and another test's server Close, closing that pool's idle
+// connections, can break it there.
+func own(server *httptest.Server) []fetch_config.Option {
+	return []fetch_config.Option{fetch_config.WithHttpClient(server.Client())}
+}
+
 func TestGetJson(t *testing.T) {
 	t.Parallel()
 
@@ -40,7 +47,7 @@ func TestGetJson(t *testing.T) {
 		}
 	})
 
-	value, err := GetJson[testValue](context.Background(), server.URL, nil)
+	value, err := GetJson[testValue](context.Background(), server.URL, own(server))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -75,7 +82,7 @@ func TestGetBytes(t *testing.T) {
 				}
 			})
 
-			body, contentType, err := GetBytes(context.Background(), server.URL, nil)
+			body, contentType, err := GetBytes(context.Background(), server.URL, own(server))
 			if (err != nil) != testCase.wantErr {
 				t.Fatalf("%s: err = %v, want error %t", testCase.name, err, testCase.wantErr)
 			}
@@ -124,7 +131,7 @@ func TestSendJson(t *testing.T) {
 		http.MethodPut,
 		server.URL,
 		&testValue{Name: "value"},
-		nil,
+		own(server),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -155,7 +162,7 @@ func TestSendBytes(t *testing.T) {
 		}
 	})
 
-	value, err := SendBytes[testValue](context.Background(), http.MethodPut, server.URL, []byte("a,b\n1,2\n"), "text/csv", nil)
+	value, err := SendBytes[testValue](context.Background(), http.MethodPut, server.URL, []byte("a,b\n1,2\n"), "text/csv", own(server))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -173,7 +180,7 @@ func TestDo(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	if err := Do(context.Background(), http.MethodDelete, server.URL, nil); err != nil {
+	if err := Do(context.Background(), http.MethodDelete, server.URL, own(server)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if seenMethod != http.MethodDelete {
@@ -198,7 +205,7 @@ func TestDoWithBody(t *testing.T) {
 		}
 	})
 
-	err := DoWithBody(context.Background(), http.MethodPost, server.URL, &testValue{Name: "value"}, nil)
+	err := DoWithBody(context.Background(), http.MethodPost, server.URL, &testValue{Name: "value"}, own(server))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -232,7 +239,7 @@ func TestListPaginated(t *testing.T) {
 			return server.URL + "?pageToken=" + pageToken
 		},
 		func(response *testPage) ([]string, string) { return response.Items, response.NextPageToken },
-		[]fetch_config.Option{},
+		own(server),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

@@ -20,6 +20,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/send_as"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/watch_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/gmail/types/watch_response"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {
@@ -30,7 +31,7 @@ func testServer(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(gmail_config.WithBaseUrl(u))
+	return NewClient(gmail_config.WithBaseUrl(u), gmail_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func TestSend(t *testing.T) {

@@ -14,6 +14,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_tasks/types/list_tasks_response"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_tasks/types/oidc_token"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_tasks/types/task"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 // recorder is a stand-in for the API that records what it was asked and answers with what the test
@@ -35,7 +36,7 @@ func newClient(t *testing.T, handler http.HandlerFunc) *Client {
 		t.Fatalf("could not parse the server url: %v", err)
 	}
 
-	return NewClient(cloud_tasks_config.WithBaseUrl(baseUrl))
+	return NewClient(cloud_tasks_config.WithBaseUrl(baseUrl), cloud_tasks_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func writeJson(t *testing.T, writer http.ResponseWriter, value any) {

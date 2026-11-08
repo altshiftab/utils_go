@@ -13,6 +13,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/m365/excel/excel_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/m365/excel/request_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/m365/excel/types/table"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 type request struct {
@@ -50,7 +51,7 @@ func testClient(t *testing.T, status int, response any) (*Client, *[]*request) {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(excel_config.WithBaseUrl(baseUrl)), &requests
+	return NewClient(excel_config.WithBaseUrl(baseUrl), excel_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client()))), &requests
 }
 
 func TestRequests(t *testing.T) {

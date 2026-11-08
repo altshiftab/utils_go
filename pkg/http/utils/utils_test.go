@@ -25,6 +25,13 @@ func serve(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 	return server
 }
 
+// own is the option of a request to the server by its own client: a response without a body goes back to
+// http.DefaultTransport's pool before its caller has it, and another test's server Close, closing that pool's idle
+// connections, can break it there.
+func own(server *httptest.Server) fetch_config.Option {
+	return fetch_config.WithHttpClient(server.Client())
+}
+
 // writeJSON encodes v as the response body. Handlers run in a separate goroutine,
 // so it reports failures with t.Errorf (t.Fatal is unsafe off the test goroutine).
 func writeJSON(t *testing.T, w http.ResponseWriter, v any) {
@@ -46,7 +53,7 @@ func TestFetch_Success(t *testing.T) {
 		}
 	})
 
-	resp, body, err := Fetch(context.Background(), server.URL)
+	resp, body, err := Fetch(context.Background(), server.URL, own(server))
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
@@ -82,6 +89,7 @@ func TestFetch_PostSendsMethodBodyAndHeaders(t *testing.T) {
 	_, _, err := Fetch(
 		context.Background(),
 		server.URL,
+		own(server),
 		fetch_config.WithMethod(http.MethodPost),
 		fetch_config.WithBody([]byte("request-body")),
 		fetch_config.WithHeaders(map[string]string{"X-Test": "value"}),
@@ -98,7 +106,7 @@ func TestFetch_Non2xxStatusReturnsError(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	resp, _, err := Fetch(context.Background(), server.URL)
+	resp, _, err := Fetch(context.Background(), server.URL, own(server))
 
 	var non2xx *altshiftHttpErrors.Non2xxStatusCodeError
 	if !errors.As(err, &non2xx) {
@@ -120,7 +128,7 @@ func TestFetch_SkipErrorOnStatus(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	resp, _, err := Fetch(context.Background(), server.URL, fetch_config.WithSkipErrorOnStatus(true))
+	resp, _, err := Fetch(context.Background(), server.URL, own(server), fetch_config.WithSkipErrorOnStatus(true))
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
@@ -138,7 +146,7 @@ func TestFetch_SkipReadResponseBody(t *testing.T) {
 		}
 	})
 
-	resp, body, err := Fetch(context.Background(), server.URL, fetch_config.WithSkipReadResponseBody(true))
+	resp, body, err := Fetch(context.Background(), server.URL, own(server), fetch_config.WithSkipReadResponseBody(true))
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
@@ -163,7 +171,7 @@ func TestFetch_SkipReadResponseBodyClosedOnError(t *testing.T) {
 		}
 	})
 
-	resp, _, err := Fetch(context.Background(), server.URL, fetch_config.WithSkipReadResponseBody(true))
+	resp, _, err := Fetch(context.Background(), server.URL, own(server), fetch_config.WithSkipReadResponseBody(true))
 	if err == nil {
 		t.Fatal("Fetch: got no error for a 400")
 	}
@@ -213,7 +221,7 @@ func TestFetch_ContextTimeoutAbortsRequest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	_, _, err := Fetch(ctx, server.URL)
+	_, _, err := Fetch(ctx, server.URL, own(server))
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err = %v, want context.DeadlineExceeded", err)
 	}
@@ -233,7 +241,7 @@ func TestFetchWithRequest_Success(t *testing.T) {
 		t.Fatalf("new request: %v", err)
 	}
 
-	resp, body, err := FetchWithRequest(context.Background(), request)
+	resp, body, err := FetchWithRequest(context.Background(), request, own(server))
 	if err != nil {
 		t.Fatalf("FetchWithRequest: %v", err)
 	}
@@ -257,7 +265,7 @@ func TestFetchJson_Success(t *testing.T) {
 		writeJSON(t, w, payload{Name: "widget", Count: 5})
 	})
 
-	_, got, err := FetchJson[payload](context.Background(), server.URL)
+	_, got, err := FetchJson[payload](context.Background(), server.URL, own(server))
 	if err != nil {
 		t.Fatalf("FetchJson: %v", err)
 	}
@@ -276,7 +284,7 @@ func TestFetchJson_SetsAcceptHeader(t *testing.T) {
 		writeJSON(t, w, payload{})
 	})
 
-	if _, _, err := FetchJson[payload](context.Background(), server.URL); err != nil {
+	if _, _, err := FetchJson[payload](context.Background(), server.URL, own(server)); err != nil {
 		t.Fatalf("FetchJson: %v", err)
 	}
 }
@@ -288,7 +296,7 @@ func TestFetchJson_EmptyBodyReturnsZero(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	_, got, err := FetchJson[payload](context.Background(), server.URL)
+	_, got, err := FetchJson[payload](context.Background(), server.URL, own(server))
 	if err != nil {
 		t.Fatalf("FetchJson: %v", err)
 	}
@@ -306,7 +314,7 @@ func TestFetchJson_InvalidJson(t *testing.T) {
 		}
 	})
 
-	if _, _, err := FetchJson[payload](context.Background(), server.URL); err == nil {
+	if _, _, err := FetchJson[payload](context.Background(), server.URL, own(server)); err == nil {
 		t.Fatal("expected a JSON unmarshal error")
 	}
 }
@@ -335,7 +343,7 @@ func TestFetchJsonWithBody_MarshalsBodyAndSetsContentType(t *testing.T) {
 		writeJSON(t, w, response{OK: true})
 	})
 
-	_, got, err := FetchJsonWithBody[response](context.Background(), server.URL, request{Query: "hello"})
+	_, got, err := FetchJsonWithBody[response](context.Background(), server.URL, request{Query: "hello"}, own(server))
 	if err != nil {
 		t.Fatalf("FetchJsonWithBody: %v", err)
 	}
@@ -359,7 +367,7 @@ func TestFetch_RetriesThenSucceeds(t *testing.T) {
 	})
 
 	retryConfig := retry_config.New(retry_config.WithBaseDelay(time.Millisecond))
-	resp, body, err := Fetch(context.Background(), server.URL, fetch_config.WithRetryConfig(retryConfig))
+	resp, body, err := Fetch(context.Background(), server.URL, own(server), fetch_config.WithRetryConfig(retryConfig))
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
@@ -401,7 +409,7 @@ func TestFetch_RetryStopsAtTheDeadline(t *testing.T) {
 	defer cancel()
 
 	started := time.Now()
-	_, _, err := Fetch(ctx, server.URL, fetch_config.WithRetryConfig(retryConfig))
+	_, _, err := Fetch(ctx, server.URL, own(server), fetch_config.WithRetryConfig(retryConfig))
 	elapsed := time.Since(started)
 
 	if err == nil {
@@ -428,7 +436,7 @@ func TestFetch_RetryExhaustedReturnsError(t *testing.T) {
 	})
 
 	retryConfig := retry_config.New(retry_config.WithBaseDelay(time.Millisecond))
-	_, _, err := Fetch(context.Background(), server.URL, fetch_config.WithRetryConfig(retryConfig))
+	_, _, err := Fetch(context.Background(), server.URL, own(server), fetch_config.WithRetryConfig(retryConfig))
 	if err == nil {
 		t.Fatal("expected an error after retries are exhausted")
 	}

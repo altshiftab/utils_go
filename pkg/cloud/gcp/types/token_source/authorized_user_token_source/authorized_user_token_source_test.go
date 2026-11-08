@@ -134,7 +134,7 @@ func TestToken(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	ts, err := NewFromCredentialsFile(context.Background(), server.URL, credFile)
+	ts, err := NewFromCredentialsFile(context.Background(), server.URL, credFile, fetch_config.WithHttpClient(server.Client()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -177,7 +177,7 @@ func TestToken_ServerError(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	ts, err := NewFromCredentialsFile(context.Background(), server.URL, testCredentialsFile())
+	ts, err := NewFromCredentialsFile(context.Background(), server.URL, testCredentialsFile(), fetch_config.WithHttpClient(server.Client()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -194,7 +194,7 @@ func TestToken_EmptyBody(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	ts, err := NewFromCredentialsFile(context.Background(), server.URL, testCredentialsFile())
+	ts, err := NewFromCredentialsFile(context.Background(), server.URL, testCredentialsFile(), fetch_config.WithHttpClient(server.Client()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

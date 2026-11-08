@@ -346,7 +346,7 @@ func TestToken(t *testing.T) {
 			t.Cleanup(server.Close)
 			serverURL = server.URL
 
-			ts, err := NewFromCredentialsFileWithSubject(context.Background(), server.URL, credFile, scopes, testCase.subject)
+			ts, err := NewFromCredentialsFileWithSubject(context.Background(), server.URL, credFile, scopes, testCase.subject, fetch_config.WithHttpClient(server.Client()))
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

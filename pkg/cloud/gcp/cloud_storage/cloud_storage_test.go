@@ -16,6 +16,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/bucket"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/object"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/object_list"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 // fakeSigner records the payload it was asked to sign and returns a fixed signature.
@@ -40,7 +41,7 @@ func testServer(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(cloud_storage_config.WithBaseUrl(u))
+	return NewClient(cloud_storage_config.WithBaseUrl(u), cloud_storage_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func TestInsertBucket(t *testing.T) {

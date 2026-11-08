@@ -12,6 +12,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/drive_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/types/permission"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/drive/update_permission_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc, options ...drive_config.Option) *Client {
@@ -22,7 +23,9 @@ func testServer(t *testing.T, handler http.HandlerFunc, options ...drive_config.
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(append([]drive_config.Option{drive_config.WithBaseUrl(u)}, options...)...)
+	return NewClient(append([]drive_config.Option{
+		drive_config.WithBaseUrl(u), drive_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())),
+	}, options...)...)
 }
 
 func TestCreatePermission(t *testing.T) {

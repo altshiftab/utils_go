@@ -28,6 +28,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_sql/types/connect_settings"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_sql/types/generate_ephemeral_cert_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_sql/types/generate_ephemeral_cert_response"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/token"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/token_source"
 )
@@ -90,7 +91,11 @@ func (a *authority) sign(t *testing.T, template *x509.Certificate, publicKey any
 // fakeInstance is the Admin API and the server-side proxy of one instance.
 type fakeInstance struct {
 	adminUrl *url.URL
-	port     string
+	// adminClient is the admin server's own client: a response without a body goes back to http.DefaultTransport's pool
+	// before its caller has it, and another test's server Close, closing that pool's idle connections, can break it
+	// there.
+	adminClient *http.Client
+	port        string
 
 	mu            sync.Mutex
 	settingsCalls int
@@ -214,6 +219,7 @@ func newFakeInstance(t *testing.T, options fakeOptions) *fakeInstance {
 		t.Fatalf("parse url: %v", err)
 	}
 	instance.adminUrl = adminUrl
+	instance.adminClient = server.Client()
 
 	return instance
 }
@@ -221,7 +227,9 @@ func newFakeInstance(t *testing.T, options fakeOptions) *fakeInstance {
 func (f *fakeInstance) dialer(t *testing.T, loginTokenSource token_source.TokenSource, options ...dialer_config.Option) *Dialer {
 	t.Helper()
 	d, err := New(
-		cloud_sql.NewClient(cloud_sql_config.WithBaseUrl(f.adminUrl)),
+		cloud_sql.NewClient(
+			cloud_sql_config.WithBaseUrl(f.adminUrl), cloud_sql_config.WithFetchOptions(fetch_config.WithHttpClient(f.adminClient)),
+		),
 		loginTokenSource,
 		append([]dialer_config.Option{dialer_config.WithPort(f.port)}, options...)...,
 	)

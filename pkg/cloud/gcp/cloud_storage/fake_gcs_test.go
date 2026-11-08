@@ -17,6 +17,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/cloud_storage_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_storage/types/object"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 // fakeGcs stands in for Cloud Storage's resumable uploads, media reads and
@@ -106,7 +107,7 @@ func newFakeGcs(t *testing.T) (*fakeGcs, *Client) {
 		t.Fatalf("url parse: %v", err)
 	}
 
-	return fake, NewClient(cloud_storage_config.WithBaseUrl(u))
+	return fake, NewClient(cloud_storage_config.WithBaseUrl(u), cloud_storage_config.WithFetchOptions(fetch_config.WithHttpClient(fake.server.Client())))
 }
 
 func (f *fakeGcs) put(name string, data []byte) *fakeObject {

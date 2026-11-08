@@ -16,11 +16,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/gcp_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/credentials_file"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_response"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/authorized_user_token_source"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/metadata_token_source"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/types/token_source/service_account_token_source"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func testMetadataServer(t *testing.T, handler http.HandlerFunc) (*httptest.Server, *url.URL) {
@@ -32,6 +34,13 @@ func testMetadataServer(t *testing.T, handler http.HandlerFunc) (*httptest.Serve
 		t.Fatalf("parse url: %v", err)
 	}
 	return server, u
+}
+
+// ownClient has the client reach the server by the server's own client: a response without a body goes back to
+// http.DefaultTransport's pool before its caller has it, and another test's server Close, closing that pool's idle
+// connections, can break it there.
+func ownClient(server *httptest.Server) gcp_config.Option {
+	return gcp_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client()))
 }
 
 func testTokenServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
@@ -60,7 +69,7 @@ func encodePKCS1PEM(key *rsa.PrivateKey) string {
 func TestGetIdToken(t *testing.T) {
 	t.Parallel()
 
-	_, metadataUrl := testMetadataServer(t, func(w http.ResponseWriter, r *http.Request) {
+	metadataServer, metadataUrl := testMetadataServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, "/instance/service-accounts/default/identity") {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
@@ -74,7 +83,7 @@ func TestGetIdToken(t *testing.T) {
 		fmt.Fprint(w, "test-id-token")
 	})
 
-	client := NewClientWithUrls(metadataUrl, DefaultTokenUrl)
+	client := NewClientWithUrls(metadataUrl, DefaultTokenUrl, ownClient(metadataServer))
 	token, err := client.GetIdToken(context.Background(), "https://example.com")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -109,7 +118,7 @@ func TestGetIdToken_CancelledContext(t *testing.T) {
 func TestGetProjectId(t *testing.T) {
 	t.Parallel()
 
-	_, metadataUrl := testMetadataServer(t, func(w http.ResponseWriter, r *http.Request) {
+	metadataServer, metadataUrl := testMetadataServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, "/project/project-id") {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
@@ -119,7 +128,7 @@ func TestGetProjectId(t *testing.T) {
 		fmt.Fprint(w, "my-project-123")
 	})
 
-	client := NewClientWithUrls(metadataUrl, DefaultTokenUrl)
+	client := NewClientWithUrls(metadataUrl, DefaultTokenUrl, ownClient(metadataServer))
 	projectId, err := client.GetProjectId(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -227,6 +236,7 @@ func TestAuthorizedUserTokenSource(t *testing.T) {
 		context.Background(),
 		server.URL,
 		creds,
+		fetch_config.WithHttpClient(server.Client()),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error creating token source: %v", err)
@@ -308,6 +318,7 @@ func TestServiceAccountTokenSource(t *testing.T) {
 		server.URL,
 		creds,
 		[]string{"https://www.googleapis.com/auth/cloud-platform"},
+		fetch_config.WithHttpClient(server.Client()),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error creating token source: %v", err)
@@ -350,7 +361,7 @@ func TestServiceAccountTokenSource_CancelledContext(t *testing.T) {
 func TestMetadataTokenSource(t *testing.T) {
 	t.Parallel()
 
-	_, metadataUrl := testMetadataServer(t, func(w http.ResponseWriter, r *http.Request) {
+	metadataServer, metadataUrl := testMetadataServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, "/instance/service-accounts/default/token") {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
@@ -371,6 +382,7 @@ func TestMetadataTokenSource(t *testing.T) {
 		context.Background(),
 		metadataUrl,
 		[]string{"https://www.googleapis.com/auth/cloud-platform"},
+		fetch_config.WithHttpClient(metadataServer.Client()),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error creating token source: %v", err)
@@ -407,7 +419,7 @@ func TestMetadataTokenSource_CancelledContext(t *testing.T) {
 func TestMetadataTokenSource_WithScopes(t *testing.T) {
 	t.Parallel()
 
-	_, metadataUrl := testMetadataServer(t, func(w http.ResponseWriter, r *http.Request) {
+	metadataServer, metadataUrl := testMetadataServer(t, func(w http.ResponseWriter, r *http.Request) {
 		scopes := r.URL.Query().Get("scopes")
 		if scopes != "scope1,scope2" {
 			t.Errorf("unexpected scopes: %s", scopes)
@@ -426,6 +438,7 @@ func TestMetadataTokenSource_WithScopes(t *testing.T) {
 		context.Background(),
 		metadataUrl,
 		[]string{"scope1", "scope2"},
+		fetch_config.WithHttpClient(metadataServer.Client()),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error creating token source: %v", err)
@@ -462,7 +475,7 @@ func TestCredentialsFileTokenSource_AuthorizedUser(t *testing.T) {
 	}
 	data, _ := json.Marshal(creds) //nolint:gosec // test fixture
 
-	client := NewClientWithUrls(defaultMetadataBaseUrl, server.URL)
+	client := NewClientWithUrls(defaultMetadataBaseUrl, server.URL, ownClient(server))
 	ts, err := client.credentialsFileTokenSource(context.Background(), data, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -502,7 +515,7 @@ func TestCredentialsFileTokenSource_ServiceAccount(t *testing.T) {
 	}
 	data, _ := json.Marshal(creds) //nolint:gosec // test fixture
 
-	client := NewClientWithUrls(defaultMetadataBaseUrl, server.URL)
+	client := NewClientWithUrls(defaultMetadataBaseUrl, server.URL, ownClient(server))
 	ts, err := client.credentialsFileTokenSource(context.Background(), data, []string{"scope1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -542,7 +555,7 @@ func TestCredentialsFileTokenSource_ServiceAccount_FallbackTokenUrl(t *testing.T
 	}
 	data, _ := json.Marshal(creds) //nolint:gosec // test fixture
 
-	client := NewClientWithUrls(defaultMetadataBaseUrl, server.URL)
+	client := NewClientWithUrls(defaultMetadataBaseUrl, server.URL, ownClient(server))
 	ts, err := client.credentialsFileTokenSource(context.Background(), data, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -611,7 +624,7 @@ func TestFindDefaultCredentials_EnvVar(t *testing.T) {
 
 	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", tmpFile)
 
-	client := NewClientWithUrls(defaultMetadataBaseUrl, server.URL)
+	client := NewClientWithUrls(defaultMetadataBaseUrl, server.URL, ownClient(server))
 	ts, err := client.FindDefaultCredentials(context.Background(), []string{"scope1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -641,7 +654,7 @@ func TestFindDefaultCredentials_MetadataFallback(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("APPDATA", t.TempDir())
 
-	_, metadataUrl := testMetadataServer(t, func(w http.ResponseWriter, r *http.Request) {
+	metadataServer, metadataUrl := testMetadataServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.MarshalWrite(w, map[string]any{ //nolint:gosec // G101: fake OAuth token in test fixture
 			"access_token": "ya29.metadata-fallback",
@@ -652,7 +665,7 @@ func TestFindDefaultCredentials_MetadataFallback(t *testing.T) {
 		}
 	})
 
-	client := NewClientWithUrls(metadataUrl, DefaultTokenUrl)
+	client := NewClientWithUrls(metadataUrl, DefaultTokenUrl, ownClient(metadataServer))
 	ts, err := client.FindDefaultCredentials(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

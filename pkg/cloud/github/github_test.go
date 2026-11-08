@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/github/github_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 // clientFor returns a client pointed at a server the test controls.
@@ -29,6 +30,7 @@ func clientFor(t *testing.T, handler http.HandlerFunc) *Client {
 	return NewClient(
 		github_config.WithBaseUrl(serverUrl),
 		github_config.WithArchiveBaseUrl(serverUrl),
+		github_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())),
 	)
 }
 

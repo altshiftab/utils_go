@@ -15,6 +15,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/generate_content_response"
 	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/generation_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/google_ai/gemini/types/part"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {
@@ -25,7 +26,7 @@ func testServer(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(gemini_config.WithBaseUrl(u), gemini_config.WithApiKey("test-key"))
+	return NewClient(gemini_config.WithBaseUrl(u), gemini_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())), gemini_config.WithApiKey("test-key"))
 }
 
 func TestGenerateContent(t *testing.T) {

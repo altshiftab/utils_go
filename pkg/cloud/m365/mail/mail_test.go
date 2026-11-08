@@ -59,7 +59,7 @@ func newFakeGraph(t *testing.T, handle func(w http.ResponseWriter, r *request)) 
 	if err != nil {
 		t.Fatalf("url parse: %v", err)
 	}
-	return fake, NewClient(mail_config.WithBaseUrl(baseUrl))
+	return fake, NewClient(mail_config.WithBaseUrl(baseUrl), mail_config.WithFetchOptions(fetch_config.WithHttpClient(fake.server.Client())))
 }
 
 func (fake *fakeGraph) only(t *testing.T) *request {

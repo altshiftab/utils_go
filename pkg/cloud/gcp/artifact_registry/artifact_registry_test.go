@@ -16,6 +16,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/types/descriptor"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/types/index"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/artifact_registry/types/manifest"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	altshiftTestingCmp "github.com/altshiftab/utils_go/pkg/testing/cmp"
 )
 
@@ -27,7 +28,7 @@ func testServer(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient("", artifact_registry_config.WithBaseUrl(u))
+	return NewClient("", artifact_registry_config.WithBaseUrl(u), artifact_registry_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func TestGetManifest(t *testing.T) {
@@ -404,7 +405,7 @@ func fakeRegistryClient(t *testing.T, registry *fakeRegistry) (*Client, *url.URL
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient("", artifact_registry_config.WithBaseUrl(u)), u
+	return NewClient("", artifact_registry_config.WithBaseUrl(u), artifact_registry_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client()))), u
 }
 
 func TestDigest(t *testing.T) {
@@ -649,7 +650,7 @@ func TestHeadManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	client := NewClient("", artifact_registry_config.WithBaseUrl(u))
+	client := NewClient("", artifact_registry_config.WithBaseUrl(u), artifact_registry_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 
 	got, err := client.HeadManifest(context.Background(), "my-project/my-repo/my-image", Digest(data))
 	if err != nil {

@@ -10,8 +10,10 @@ import (
 	"testing"
 
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	altshiftJwkErrors "github.com/altshiftab/utils_go/pkg/json/jose/jwk/errors"
 	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler"
+	"github.com/altshiftab/utils_go/pkg/json/jose/jwk/types/key_handler/key_handler_config"
 )
 
 func makeTokenString(t *testing.T, header string, payload string) string {
@@ -21,7 +23,7 @@ func makeTokenString(t *testing.T, header string, payload string) string {
 	return encode([]byte(header)) + "." + encode([]byte(payload)) + "." + encode([]byte("signature"))
 }
 
-func makeKeyHandler(t *testing.T, jwkUrlString string) *key_handler.Handler {
+func makeKeyHandler(t *testing.T, jwkUrlString string, options ...key_handler_config.Option) *key_handler.Handler {
 	t.Helper()
 
 	jwkUrl, err := url.Parse(jwkUrlString)
@@ -29,7 +31,7 @@ func makeKeyHandler(t *testing.T, jwkUrlString string) *key_handler.Handler {
 		t.Fatalf("url parse: %v", err)
 	}
 
-	handler, err := key_handler.New(jwkUrl)
+	handler, err := key_handler.New(jwkUrl, options...)
 	if err != nil {
 		t.Fatalf("key handler new: %v", err)
 	}
@@ -73,7 +75,7 @@ func TestAuthenticatorWithKeyHandlerAuthenticateUnknownKid(t *testing.T) {
 	)
 	defer server.Close()
 
-	authenticator, err := NewWithKeyHandler(makeKeyHandler(t, server.URL))
+	authenticator, err := NewWithKeyHandler(makeKeyHandler(t, server.URL, key_handler_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client()))))
 	if err != nil {
 		t.Fatalf("new with key handler: %v", err)
 	}

@@ -11,11 +11,13 @@ import (
 	"time"
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 	oauth2Errors "github.com/altshiftab/utils_go/pkg/oauth2/errors"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/auth_code_option"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/endpoint"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/token"
+	"github.com/altshiftab/utils_go/pkg/oauth2/types/transport"
 )
 
 // capturedRequest records the parts of a token-endpoint request the tests assert on.
@@ -144,6 +146,7 @@ func TestConfigExchange(t *testing.T) {
 		ClientSecret: "csecret",
 		RedirectURL:  "https://app.test/cb",
 		Endpoint:     endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader},
+		FetchOptions: []fetch_config.Option{fetch_config.WithHttpClient(server.Client())},
 	}
 
 	before := time.Now()
@@ -198,6 +201,7 @@ func TestConfigClientCredentialsToken(t *testing.T) {
 		ClientSecret: "csecret",
 		Scopes:       []string{"a", "b"},
 		Endpoint:     endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInParams},
+		FetchOptions: []fetch_config.Option{fetch_config.WithHttpClient(server.Client())},
 	}
 
 	tok, err := cfg.ClientCredentialsToken(context.Background())
@@ -233,9 +237,10 @@ func TestConfigPasswordCredentialsToken(t *testing.T) {
 	server := jsonTokenServer(t, `{"access_token":"at"}`, &captured)
 
 	cfg := &Config{
-		ClientID: "cid",
-		Scopes:   []string{"scope1"},
-		Endpoint: endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInParams},
+		ClientID:     "cid",
+		Scopes:       []string{"scope1"},
+		Endpoint:     endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInParams},
+		FetchOptions: []fetch_config.Option{fetch_config.WithHttpClient(server.Client())},
 	}
 
 	tok, err := cfg.PasswordCredentialsToken(context.Background(), "user", "pass")
@@ -270,7 +275,8 @@ func TestConfigRetrieveTokenFormEncodedResponse(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	cfg := &Config{
-		Endpoint: endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader},
+		Endpoint:     endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader},
+		FetchOptions: []fetch_config.Option{fetch_config.WithHttpClient(server.Client())},
 	}
 
 	tok, err := cfg.ClientCredentialsToken(context.Background())
@@ -299,7 +305,8 @@ func TestConfigRetrieveTokenErrorResponse(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	cfg := &Config{
-		Endpoint: endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader},
+		Endpoint:     endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader},
+		FetchOptions: []fetch_config.Option{fetch_config.WithHttpClient(server.Client())},
 	}
 
 	_, err := cfg.ClientCredentialsToken(context.Background())
@@ -356,7 +363,8 @@ func TestConfigRetrieveTokenMissingAccessToken(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	cfg := &Config{
-		Endpoint: endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader},
+		Endpoint:     endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader},
+		FetchOptions: []fetch_config.Option{fetch_config.WithHttpClient(server.Client())},
 	}
 
 	_, err := cfg.ClientCredentialsToken(context.Background())
@@ -394,8 +402,9 @@ func TestConfigRetrieveTokenAutoDetectFallsBackToParams(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	cfg := &Config{
-		ClientID: "cid",
-		Endpoint: endpoint.Endpoint{TokenURL: server.URL}, // AuthStyleAutoDetect (zero value)
+		ClientID:     "cid",
+		Endpoint:     endpoint.Endpoint{TokenURL: server.URL}, // AuthStyleAutoDetect (zero value)
+		FetchOptions: []fetch_config.Option{fetch_config.WithHttpClient(server.Client())},
 	}
 
 	tok, err := cfg.ClientCredentialsToken(context.Background())
@@ -424,7 +433,7 @@ func TestConfigTokenSourceReusesValidToken(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	cfg := &Config{Endpoint: endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader}}
+	cfg := &Config{Endpoint: endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader}, FetchOptions: []fetch_config.Option{fetch_config.WithHttpClient(server.Client())}}
 
 	valid := &token.Token{AccessToken: "cached", Expiry: time.Now().Add(time.Hour), RefreshToken: "rt"}
 	src := cfg.TokenSource(context.Background(), valid)
@@ -447,7 +456,7 @@ func TestConfigTokenSourceRefreshesExpiredToken(t *testing.T) {
 	var captured capturedRequest
 	server := jsonTokenServer(t, `{"access_token":"refreshed","refresh_token":"rt2"}`, &captured)
 
-	cfg := &Config{Endpoint: endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader}}
+	cfg := &Config{Endpoint: endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader}, FetchOptions: []fetch_config.Option{fetch_config.WithHttpClient(server.Client())}}
 
 	expired := &token.Token{AccessToken: "old", Expiry: time.Now().Add(-time.Hour), RefreshToken: "rt1"}
 	src := cfg.TokenSource(context.Background(), expired)
@@ -476,7 +485,7 @@ func TestConfigTokenSourceRetainsRefreshTokenWhenAbsent(t *testing.T) {
 	// Response omits refresh_token; the refresher should keep the prior one.
 	server := jsonTokenServer(t, `{"access_token":"refreshed"}`, nil)
 
-	cfg := &Config{Endpoint: endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader}}
+	cfg := &Config{Endpoint: endpoint.Endpoint{TokenURL: server.URL, AuthStyle: endpoint.AuthStyleInHeader}, FetchOptions: []fetch_config.Option{fetch_config.WithHttpClient(server.Client())}}
 
 	expired := &token.Token{AccessToken: "old", Expiry: time.Now().Add(-time.Hour), RefreshToken: "keep-me"}
 	src := cfg.TokenSource(context.Background(), expired)
@@ -530,6 +539,13 @@ func TestConfigClientAttachesAuthorization(t *testing.T) {
 	if client == nil {
 		t.Fatal("Client() = nil, want non-nil")
 	}
+	// Through the server's own transport: a response without a body goes back to http.DefaultTransport's pool before its
+	// caller has it, and another test's server Close, closing that pool's idle connections, can break it there.
+	clientTransport, ok := client.Transport.(*transport.Transport)
+	if !ok {
+		t.Fatalf("Client().Transport = %T, want *transport.Transport", client.Transport)
+	}
+	clientTransport.Base = resource.Client().Transport
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, resource.URL, nil)
 	if err != nil {

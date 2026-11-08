@@ -27,7 +27,7 @@ func clientFor(t *testing.T, server *httptest.Server) *pubsub.Client {
 		t.Fatalf("parse server url: %v", err)
 	}
 
-	return pubsub.NewClient(pubsub_config.WithBaseUrl(baseUrl))
+	return pubsub.NewClient(pubsub_config.WithBaseUrl(baseUrl), pubsub_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func TestPull(t *testing.T) {

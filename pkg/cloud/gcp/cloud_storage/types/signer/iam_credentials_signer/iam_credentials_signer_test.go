@@ -28,7 +28,7 @@ func testClient(t *testing.T, handler http.HandlerFunc) *iam_credentials.Client 
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return iam_credentials.NewClient(iam_credentials_config.WithBaseUrl(u))
+	return iam_credentials.NewClient(iam_credentials_config.WithBaseUrl(u), iam_credentials_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func TestNew(t *testing.T) {

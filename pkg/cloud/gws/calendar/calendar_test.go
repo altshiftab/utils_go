@@ -16,6 +16,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/calendar/types/event"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/calendar/types/free_busy"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/calendar/write_event_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {
@@ -26,7 +27,7 @@ func testServer(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(calendar_config.WithBaseUrl(u))
+	return NewClient(calendar_config.WithBaseUrl(u), calendar_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 // TestRequests checks that each call asks Calendar what it should -- method, path, query and body -- and reads back

@@ -11,6 +11,7 @@ import (
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/groups_settings/groups_settings_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gws/groups_settings/types/group"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {
@@ -21,7 +22,7 @@ func testServer(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(groups_settings_config.WithBaseUrl(u))
+	return NewClient(groups_settings_config.WithBaseUrl(u), groups_settings_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func TestGet(t *testing.T) {

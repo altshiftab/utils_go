@@ -19,6 +19,7 @@ import (
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	altshiftHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	altshiftTestingCmp "github.com/altshiftab/utils_go/pkg/testing/cmp"
 )
 
@@ -32,7 +33,7 @@ func testServer(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(cloud_kms_config.WithBaseUrl(u))
+	return NewClient(cloud_kms_config.WithBaseUrl(u), cloud_kms_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func writeJson(t *testing.T, w http.ResponseWriter, value any) {

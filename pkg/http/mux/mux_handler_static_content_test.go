@@ -106,9 +106,10 @@ func TestHandlerWithStaticContent(t *testing.T) {
 				t.Fatalf("http new request: %v", err)
 			}
 
-			client := &http.Client{
-				CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-			}
+			// The server's own client: a response without a body goes back to http.DefaultTransport's pool before its caller
+			// has it, and another test's server Close, closing that pool's idle connections, can break it there.
+			client := httpServer.Client()
+			client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 			response, err := client.Do(request)
 			if err != nil {
 				t.Fatalf("client do: %v", err)
@@ -198,7 +199,7 @@ func TestEmptyStaticContent(t *testing.T) {
 				request.Header.Set("If-None-Match", testCase.ifNoneMatch)
 			}
 
-			response, err := http.DefaultClient.Do(request)
+			response, err := httpServer.Client().Do(request)
 			if err != nil {
 				t.Fatalf("client do: %v", err)
 			}

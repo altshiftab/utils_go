@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 var errMetadataDown = errors.New("metadata down")
@@ -52,6 +54,7 @@ func TestToken(t *testing.T) {
 		"app-1",
 		[]string{"https://graph.microsoft.com/.default", "other"},
 		staticAssertion("header.claims.signature"),
+		fetch_config.WithHttpClient(server.Client()),
 	)
 	if err != nil {
 		t.Fatalf("new: %v", err)
@@ -105,7 +108,7 @@ func TestTokenErrors(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 
-			tokenSource, err := New(context.Background(), server.URL, "app-1", []string{"s"}, testCase.assertion)
+			tokenSource, err := New(context.Background(), server.URL, "app-1", []string{"s"}, testCase.assertion, fetch_config.WithHttpClient(server.Client()))
 			if err != nil {
 				t.Fatalf("new: %v", err)
 			}

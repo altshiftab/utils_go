@@ -15,6 +15,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource_search_result"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_asset_inventory/types/resource_search_result_list"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 func testServer(t *testing.T, handler http.HandlerFunc) *Client {
@@ -25,7 +26,7 @@ func testServer(t *testing.T, handler http.HandlerFunc) *Client {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	return NewClient(cloud_asset_inventory_config.WithBaseUrl(u))
+	return NewClient(cloud_asset_inventory_config.WithBaseUrl(u), cloud_asset_inventory_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())))
 }
 
 func TestListAssets(t *testing.T) {

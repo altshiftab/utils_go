@@ -59,7 +59,13 @@ func TestArgs(t *testing.T, args *Args, serverUrl string) {
 		request.Header.Add(header[0], header[1])
 	}
 
+	// A transport of its own, keeping no connections: a response without a body goes back to http.DefaultTransport's
+	// pool before its caller has it, and another test's server Close, closing that pool's idle connections, can break it
+	// there.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DisableKeepAlives = true
 	client := &http.Client{
+		Transport: transport,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},

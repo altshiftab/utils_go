@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/auth_code_option"
 	oauth2Config "github.com/altshiftab/utils_go/pkg/oauth2/types/config"
 	"github.com/altshiftab/utils_go/pkg/oauth2/types/endpoint"
@@ -99,10 +100,11 @@ func TestAuthorize(t *testing.T) {
 			t.Cleanup(tokenServer.Close)
 
 			config := &oauth2Config.Config{
-				ClientID:    "client",
-				Endpoint:    endpoint.Endpoint{AuthURL: "https://accounts.example.com/auth", TokenURL: tokenServer.URL, AuthStyle: endpoint.AuthStyleInParams},
-				RedirectURL: "https://ignored.example.com/",
-				Scopes:      []string{"scope-a"},
+				ClientID:     "client",
+				Endpoint:     endpoint.Endpoint{AuthURL: "https://accounts.example.com/auth", TokenURL: tokenServer.URL, AuthStyle: endpoint.AuthStyleInParams},
+				FetchOptions: []fetch_config.Option{fetch_config.WithHttpClient(tokenServer.Client())},
+				RedirectURL:  "https://ignored.example.com/",
+				Scopes:       []string{"scope-a"},
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
