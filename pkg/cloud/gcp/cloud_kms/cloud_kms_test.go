@@ -2,22 +2,29 @@ package cloud_kms
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json/v2"
 	"errors"
+	"hash/crc32"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_kms/cloud_kms_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_kms/types/asymmetric_decrypt_request"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_kms/types/asymmetric_decrypt_response"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_kms/types/asymmetric_sign_response"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_kms/types/public_key"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	altshiftHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	altshiftTestingCmp "github.com/altshiftab/utils_go/pkg/testing/cmp"
@@ -207,6 +214,204 @@ func TestAsymmetricSignCancelledContext(t *testing.T) {
 
 	digest := sha256.Sum256([]byte("x"))
 	if _, err := NewClient().AsymmetricSign(ctx, testKeyVersion, digest[:]); err == nil {
+		t.Fatal("expected an error for a cancelled context")
+	}
+}
+
+const testDecryptKeyVersion = "projects/p/locations/europe-north1/keyRings/vvvp-secrets/cryptoKeys/drop/cryptoKeyVersions/1"
+
+func crc32cString(data []byte) string {
+	return strconv.FormatUint(uint64(crc32.Checksum(data, crc32.MakeTable(crc32.Castagnoli))), 10)
+}
+
+// The fake decrypts what it is sent with a real key, as KMS does, so the test
+// fails if the ciphertext is not delivered intact.
+func TestAsymmetricDecrypt(t *testing.T) {
+	t.Parallel()
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	plaintext := []byte("a content key of thirty-two byte")
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &privateKey.PublicKey, plaintext, nil)
+	if err != nil {
+		t.Fatalf("encrypt oaep: %v", err)
+	}
+
+	var requestMethod, requestUri string
+
+	client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		requestMethod = r.Method
+		requestUri = r.RequestURI
+
+		var request asymmetric_decrypt_request.Request
+		if err := json.UnmarshalRead(r.Body, &request); err != nil {
+			t.Errorf("decode body: %v", err)
+			return
+		}
+		received, err := base64.StdEncoding.DecodeString(request.Ciphertext)
+		if err != nil {
+			t.Errorf("decode ciphertext: %v", err)
+			return
+		}
+		if request.CiphertextCrc32c != crc32cString(received) {
+			t.Errorf("ciphertext crc32c = %q, want %q", request.CiphertextCrc32c, crc32cString(received))
+		}
+		decrypted, err := rsa.DecryptOAEP(sha256.New(), nil, privateKey, received, nil)
+		if err != nil {
+			t.Errorf("decrypt oaep: %v", err)
+			return
+		}
+
+		writeJson(t, w, &asymmetric_decrypt_response.Response{
+			Plaintext:                base64.StdEncoding.EncodeToString(decrypted),
+			PlaintextCrc32c:          crc32cString(decrypted),
+			VerifiedCiphertextCrc32c: true,
+		})
+	})
+
+	got, err := client.AsymmetricDecrypt(context.Background(), testDecryptKeyVersion, ciphertext)
+	if err != nil {
+		t.Fatalf("asymmetric decrypt: %v", err)
+	}
+
+	if string(got) != string(plaintext) {
+		t.Errorf("plaintext = %q, want %q", got, plaintext)
+	}
+	if requestMethod != http.MethodPost {
+		t.Errorf("method = %q, want POST", requestMethod)
+	}
+	if want := "/v1/" + testDecryptKeyVersion + ":asymmetricDecrypt"; requestUri != want {
+		t.Errorf("request uri = %q, want %q", requestUri, want)
+	}
+}
+
+func TestAsymmetricDecryptArgumentErrors(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		keyVersion string
+		ciphertext []byte
+		wantErr    error
+	}{
+		{name: "empty key version", keyVersion: "", ciphertext: []byte{1}, wantErr: empty_error.New("key version")},
+		{name: "empty ciphertext", keyVersion: testDecryptKeyVersion, ciphertext: nil, wantErr: empty_error.New("ciphertext")},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+				t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+			})
+
+			_, err := client.AsymmetricDecrypt(context.Background(), testCase.keyVersion, testCase.ciphertext)
+			altshiftTestingCmp.CompareErr(t, err, testCase.wantErr)
+		})
+	}
+}
+
+// Every response that does not prove itself is refused, whatever plaintext it
+// carries.
+func TestAsymmetricDecryptResponses(t *testing.T) {
+	t.Parallel()
+
+	plaintext := []byte("plaintext")
+	encoded := base64.StdEncoding.EncodeToString(plaintext)
+
+	testCases := []struct {
+		name           string
+		statusCode     int
+		body           string
+		wantStatusCode int
+		wantErr        error
+		wantErrIs      error
+	}{
+		{name: "permission denied", statusCode: http.StatusForbidden, body: `{}`, wantStatusCode: http.StatusForbidden},
+		{
+			name:       "ciphertext crc32c not verified",
+			statusCode: http.StatusOK,
+			body:       `{"plaintext":"` + encoded + `","plaintextCrc32c":"` + crc32cString(plaintext) + `"}`,
+			wantErrIs:  altshiftErrors.ErrVerificationError,
+		},
+		{
+			name:       "no plaintext",
+			statusCode: http.StatusOK,
+			body:       `{"verifiedCiphertextCrc32c":true}`,
+			wantErr:    empty_error.New("plaintext"),
+		},
+		{
+			name:       "a plaintext that is not base64",
+			statusCode: http.StatusOK,
+			body:       `{"plaintext":"not base64!","plaintextCrc32c":"1","verifiedCiphertextCrc32c":true}`,
+		},
+		{
+			name:       "no plaintext crc32c",
+			statusCode: http.StatusOK,
+			body:       `{"plaintext":"` + encoded + `","verifiedCiphertextCrc32c":true}`,
+			wantErr:    empty_error.New("plaintext crc32c"),
+		},
+		{
+			name:       "a plaintext crc32c that is not a number",
+			statusCode: http.StatusOK,
+			body:       `{"plaintext":"` + encoded + `","plaintextCrc32c":"abc","verifiedCiphertextCrc32c":true}`,
+		},
+		{
+			name:       "a plaintext crc32c that does not match",
+			statusCode: http.StatusOK,
+			body:       `{"plaintext":"` + encoded + `","plaintextCrc32c":"1","verifiedCiphertextCrc32c":true}`,
+			wantErr: mismatch_error.New(
+				"plaintext crc32c", uint64(1), crc32.Checksum(plaintext, crc32.MakeTable(crc32.Castagnoli)),
+			),
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(testCase.statusCode)
+				if _, err := io.WriteString(w, testCase.body); err != nil {
+					t.Errorf("write: %v", err)
+				}
+			})
+
+			got, err := client.AsymmetricDecrypt(context.Background(), testDecryptKeyVersion, []byte("ciphertext"))
+			if err == nil {
+				t.Fatalf("expected an error, got plaintext %q", got)
+			}
+
+			if testCase.wantStatusCode != 0 {
+				non2xxError, ok := errors.AsType[*altshiftHttpErrors.Non2xxStatusCodeError](err)
+				if !ok {
+					t.Fatalf("error = %v, want a non-2xx status code error", err)
+				}
+				if non2xxError.StatusCode != testCase.wantStatusCode {
+					t.Errorf("status code = %d, want %d", non2xxError.StatusCode, testCase.wantStatusCode)
+				}
+			}
+			if testCase.wantErrIs != nil && !errors.Is(err, testCase.wantErrIs) {
+				t.Errorf("error = %v, want one that is %v", err, testCase.wantErrIs)
+			}
+			if testCase.wantErr != nil {
+				altshiftTestingCmp.CompareErr(t, err, testCase.wantErr)
+			}
+		})
+	}
+}
+
+func TestAsymmetricDecryptCancelledContext(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, err := NewClient().AsymmetricDecrypt(ctx, testDecryptKeyVersion, []byte{1}); err == nil {
 		t.Fatal("expected an error for a cancelled context")
 	}
 }

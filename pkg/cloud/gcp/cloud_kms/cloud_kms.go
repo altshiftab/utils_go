@@ -5,21 +5,30 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"hash/crc32"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_kms/cloud_kms_config"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_kms/types/asymmetric_decrypt_request"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_kms/types/asymmetric_decrypt_response"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_kms/types/asymmetric_sign_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_kms/types/asymmetric_sign_response"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_kms/types/public_key"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/mismatch_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
 const Domain = "cloudkms.googleapis.com"
+
+// crc32cTable is the Castagnoli polynomial, the CRC32C KMS checks a request's
+// ciphertext and a response's plaintext against.
+var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
 
 var defaultBaseUrl = &url.URL{
 	Scheme: "https",
@@ -117,6 +126,82 @@ func (c *Client) AsymmetricSign(
 	}
 
 	return signature, nil
+}
+
+// AsymmetricDecrypt decrypts a ciphertext made with the public half of an
+// asymmetric decryption key version, RSA-OAEP with the digest the version's
+// algorithm names and no label, and returns the plaintext.
+//
+// The ciphertext goes with its CRC32C and the plaintext comes back with one,
+// and a response that does not confirm the first or match the second is
+// refused: the API carries both so that a corrupted request or response is
+// never taken for a decryption. The key never leaves KMS, so the caller needs
+// roles/cloudkms.cryptoKeyDecrypter on the key and nothing more.
+func (c *Client) AsymmetricDecrypt(
+	ctx context.Context,
+	keyVersion string,
+	ciphertext []byte,
+	options ...fetch_config.Option,
+) ([]byte, error) {
+	if keyVersion == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("key version"))
+	}
+	if len(ciphertext) == 0 {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("ciphertext"))
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context err: %w", err)
+	}
+
+	urlString := c.keyVersionUrl(keyVersion, ":asymmetricDecrypt")
+
+	body := &asymmetric_decrypt_request.Request{
+		Ciphertext:       base64.StdEncoding.EncodeToString(ciphertext),
+		CiphertextCrc32c: strconv.FormatUint(uint64(crc32.Checksum(ciphertext, crc32cTable)), 10),
+	}
+
+	options = append(append(c.config.FetchOptions, options...), fetch_config.WithMethod(http.MethodPost))
+	_, response, err := altshiftHttpUtils.FetchJsonWithBody[*asymmetric_decrypt_response.Response](
+		ctx, urlString, body, options...,
+	)
+	if err != nil {
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
+	}
+	if response == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("asymmetric decrypt response"))
+	}
+	if !response.VerifiedCiphertextCrc32c {
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: kms did not confirm the ciphertext's crc32c", altshiftErrors.ErrVerificationError),
+		)
+	}
+	if response.Plaintext == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("plaintext"))
+	}
+
+	plaintext, err := base64.StdEncoding.DecodeString(response.Plaintext)
+	if err != nil {
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("base64 std encoding decode string (plaintext): %w", err))
+	}
+
+	// A missing checksum is refused like a wrong one; a check skipped when absent
+	// is one a broken response skips.
+	if response.PlaintextCrc32c == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("plaintext crc32c"))
+	}
+	wantCrc32c, err := strconv.ParseUint(response.PlaintextCrc32c, 10, 32)
+	if err != nil {
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("strconv parse uint (plaintext crc32c): %w", err),
+			response.PlaintextCrc32c,
+		)
+	}
+	if gotCrc32c := crc32.Checksum(plaintext, crc32cTable); uint64(gotCrc32c) != wantCrc32c {
+		return nil, altshiftErrors.NewWithTrace(mismatch_error.New("plaintext crc32c", wantCrc32c, gotCrc32c))
+	}
+
+	return plaintext, nil
 }
 
 // GetPublicKey returns the public half of an asymmetric key version as KMS
