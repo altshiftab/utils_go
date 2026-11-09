@@ -10,7 +10,8 @@
 // SearchCode answers a different question from the rest: not what is in a
 // repository already named, but which repositories mention something. It is the
 // one call here that reaches across all of GitHub rather than into one project,
-// and it is metered far more tightly than the others.
+// and it is metered far more tightly than the others. LastCommitTimes dates what
+// it finds: when each file was last committed to, many files to a request.
 package github
 
 import (
