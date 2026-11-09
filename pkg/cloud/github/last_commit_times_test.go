@@ -208,11 +208,23 @@ func TestLastCommitTimesRefused(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name string
-		body string
+		name           string
+		body           string
+		wantGraphqlErr bool
 	}{
-		{name: "errors and no data", body: `{"errors": [{"type": "RATE_LIMITED", "message": "API rate limit exceeded"}]}`},
+		{name: "errors and no data", body: `{"errors": [{"type": "RATE_LIMITED", "message": "API rate limit exceeded"}]}`, wantGraphqlErr: true},
 		{name: "neither data nor errors", body: `{}`},
+		// A part the API could not run reads as a file nobody committed to unless it fails.
+		{
+			name:           "a part it could not run beside one it could",
+			body:           `{"data": {"f0": null, "f1": {"object": {"history": {"nodes": [{"committedDate": "2026-10-07T12:00:00Z"}]}}}}, "errors": [{"type": "SERVICE_UNAVAILABLE", "path": ["f0"], "message": "Something went wrong"}]}`,
+			wantGraphqlErr: true,
+		},
+		{
+			name:           "a part it could not run, saying no more",
+			body:           `{"data": {"f0": null}, "errors": [{"message": "Something went wrong while executing your query"}]}`,
+			wantGraphqlErr: true,
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -226,11 +238,14 @@ func TestLastCommitTimesRefused(t *testing.T) {
 				}
 			})
 
-			_, err := client.LastCommitTimes(t.Context(), []*File{{Owner: "acme", Repo: "infra", Path: "a.txt"}})
+			_, err := client.LastCommitTimes(t.Context(), []*File{
+				{Owner: "acme", Repo: "infra", Path: "a.txt"},
+				{Owner: "acme", Repo: "infra", Path: "b.txt"},
+			})
 			if err == nil {
 				t.Fatal("expected an error")
 			}
-			if testCase.name == "errors and no data" && !errors.Is(err, ErrGraphql) {
+			if testCase.wantGraphqlErr && !errors.Is(err, ErrGraphql) {
 				t.Errorf("err = %v, want ErrGraphql", err)
 			}
 		})

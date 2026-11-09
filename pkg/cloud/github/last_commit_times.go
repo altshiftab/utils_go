@@ -39,9 +39,10 @@ type File struct {
 // run to hundreds, spread over as many repositories. Through GraphQL a request asks about a batch
 // of files, and costs about one point of that allowance however many it names.
 //
-// A file the API could not answer for -- its repository deleted, renamed or made private since it
-// was found, or a path no commit on the default branch touches -- is absent from the result rather
-// than failing the rest. A request the API refused outright is an error.
+// A file the API could not resolve -- its repository deleted, renamed or made private since it was
+// found, or a path no commit on the default branch touches -- is absent from the result rather than
+// failing the rest. Any other error is: a request the API refused outright, and a part of one it
+// could not run, which would otherwise read as a file nobody has committed to.
 func (c *Client) LastCommitTimes(
 	ctx context.Context,
 	files []*File,
@@ -91,7 +92,19 @@ func (c *Client) LastCommitTimes(
 		}
 
 		// GraphQL answers a query it could partly run with the parts it could and an error for
-		// each part it could not. With nothing answered at all, the errors are about the request.
+		// each part it could not. A repository it could not resolve is an answer -- the file is
+		// left out -- and any other error is not: a part it timed out on, or was refused, would
+		// otherwise leave a file undated as though nothing had been committed to it.
+		for _, graphqlErr := range response.Errors {
+			if graphqlErr != nil && graphqlErr.Type != graphqlNotFound {
+				return nil, altshiftErrors.NewWithTrace(
+					fmt.Errorf("%w: %s: %s", ErrGraphql, graphqlErr.Type, graphqlErr.Message),
+					len(batch),
+				)
+			}
+		}
+
+		// With nothing answered at all, there was nothing to answer.
 		if len(response.Data) == 0 {
 			if len(response.Errors) != 0 && response.Errors[0] != nil {
 				return nil, altshiftErrors.NewWithTrace(
@@ -157,6 +170,9 @@ type graphqlRequest struct {
 	Query     string            `json:"query"`
 	Variables map[string]string `json:"variables"`
 }
+
+// graphqlNotFound is the type of the error GraphQL gives for a repository it could not resolve.
+const graphqlNotFound = "NOT_FOUND"
 
 type graphqlError struct {
 	Message string `json:"message,omitzero"`
