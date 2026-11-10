@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -13,15 +14,19 @@ import (
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
+	altshiftHttpErrors "github.com/altshiftab/utils_go/pkg/http/errors"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 )
 
 // GraphqlPath is where the GraphQL API is served.
 const GraphqlPath = "/graphql"
 
-// LastCommitBatchSize is how many files one request to LastCommitTimes asks about. It keeps a
-// request well inside the time GitHub gives a GraphQL query before abandoning it.
-const LastCommitBatchSize = 50
+// LastCommitBatchSize is how many files one request to LastCommitTimes asks about.
+//
+// GitHub abandons a GraphQL query after ten seconds, answering 502, and walking a file's history
+// takes a tenth of a second for an ordinary repository; fifty took five or six seconds, and one
+// slow file took a batch past the limit. Twenty leaves room for a slow one.
+const LastCommitBatchSize = 20
 
 // File names a file in a repository: the account the repository belongs to, its name, and the
 // file's path in it.
@@ -32,7 +37,7 @@ type File struct {
 }
 
 // LastCommitTimes returns when each file was last committed to on its repository's default
-// branch, which is the branch code search indexes.
+// branch, which is the branch code search indexes, and the files GitHub could not date.
 //
 // It is LatestCommit for many files at once. Asked through REST, every file is a request against
 // an allowance of five thousand an hour, and the files a code search turns up for one organisation
@@ -40,29 +45,34 @@ type File struct {
 // of files, and costs about one point of that allowance however many it names.
 //
 // A file the API could not resolve -- its repository deleted, renamed or made private since it was
-// found, or a path no commit on the default branch touches -- is absent from the result rather than
-// failing the rest. Any other error is: a request the API refused outright, and a part of one it
-// could not run, which would otherwise read as a file nobody has committed to.
+// found, or a path no commit on the default branch touches -- is in neither answer. A batch GitHub
+// could not run in the time it gives a query is split and asked again, until the file it could
+// not run is asked about alone; one it cannot answer for even then is undated. That is a property
+// of the file rather than a failure of the request: a mirror of a package repository has a history
+// GitHub cannot walk for one path in ten seconds, through GraphQL or REST, however often it is
+// asked. How many undated files are too many -- GitHub not answering at all, rather than a few files
+// it cannot date -- is the caller's to say. Anything else fails the call: a request refused
+// outright, or an error of any other kind.
 func (c *Client) LastCommitTimes(
 	ctx context.Context,
 	files []*File,
 	options ...fetch_config.Option,
-) (map[File]*time.Time, error) {
+) (map[File]*time.Time, []*File, error) {
 	if c == nil {
-		return nil, altshiftErrors.NewWithTrace(nil_error.New("client"))
+		return nil, nil, altshiftErrors.NewWithTrace(nil_error.New("client"))
 	}
 
 	unique := make([]File, 0, len(files))
 	seen := make(map[File]struct{}, len(files))
 	for _, file := range files {
 		if file == nil {
-			return nil, altshiftErrors.NewWithTrace(nil_error.New("file"))
+			return nil, nil, altshiftErrors.NewWithTrace(nil_error.New("file"))
 		}
 		if err := checkRepository(file.Owner, file.Repo); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if file.Path == "" {
-			return nil, altshiftErrors.NewWithTrace(empty_error.New("path"))
+			return nil, nil, altshiftErrors.NewWithTrace(empty_error.New("path"))
 		}
 
 		if _, ok := seen[*file]; ok {
@@ -72,62 +82,106 @@ func (c *Client) LastCommitTimes(
 		unique = append(unique, *file)
 	}
 
-	times := make(map[File]*time.Time, len(unique))
-
-	urlString := rest.Url(c.baseUrl, nil, strings.TrimPrefix(GraphqlPath, "/"))
+	lookup := &lastCommitLookup{
+		client:    c,
+		urlString: rest.Url(c.baseUrl, nil, strings.TrimPrefix(GraphqlPath, "/")),
+		// slices.Concat rather than append, for the reason SearchCode gives.
+		options: slices.Concat(c.config.FetchOptions, options),
+		times:   make(map[File]*time.Time, len(unique)),
+	}
 
 	for start := 0; start < len(unique); start += LastCommitBatchSize {
-		batch := unique[start:min(start+LastCommitBatchSize, len(unique))]
-
-		response, err := rest.SendJson[lastCommitResponse](
-			ctx,
-			http.MethodPost,
-			urlString,
-			lastCommitRequest(batch),
-			// slices.Concat rather than append, for the reason SearchCode gives.
-			slices.Concat(c.config.FetchOptions, options),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("send json: %w", err)
-		}
-
-		// GraphQL answers a query it could partly run with the parts it could and an error for
-		// each part it could not. A repository it could not resolve is an answer -- the file is
-		// left out -- and any other error is not: a part it timed out on, or was refused, would
-		// otherwise leave a file undated as though nothing had been committed to it.
-		for _, graphqlErr := range response.Errors {
-			if graphqlErr != nil && graphqlErr.Type != graphqlNotFound {
-				return nil, altshiftErrors.NewWithTrace(
-					fmt.Errorf("%w: %s: %s", ErrGraphql, graphqlErr.Type, graphqlErr.Message),
-					len(batch),
-				)
-			}
-		}
-
-		// With nothing answered at all, there was nothing to answer.
-		if len(response.Data) == 0 {
-			if len(response.Errors) != 0 && response.Errors[0] != nil {
-				return nil, altshiftErrors.NewWithTrace(
-					fmt.Errorf("%w: %s", ErrGraphql, response.Errors[0].Message),
-					len(batch),
-				)
-			}
-
-			return nil, altshiftErrors.NewWithTrace(nil_error.New("graphql data"))
-		}
-
-		for index, file := range batch {
-			at, err := response.Data[fileAlias(index)].lastCommitted()
-			if err != nil {
-				return nil, altshiftErrors.NewWithTrace(err, file.Owner, file.Repo, file.Path)
-			}
-			if at != nil {
-				times[file] = at
-			}
+		if err := lookup.ask(ctx, unique[start:min(start+LastCommitBatchSize, len(unique))]); err != nil {
+			return nil, nil, err
 		}
 	}
 
-	return times, nil
+	return lookup.times, lookup.undated, nil
+}
+
+// lastCommitLookup is one call to LastCommitTimes: where it asks, with what, and what it has learnt.
+type lastCommitLookup struct {
+	client    *Client
+	urlString string
+	options   []fetch_config.Option
+	times     map[File]*time.Time
+	undated   []*File
+}
+
+// ask asks about a batch, and splits it where GitHub could not run it.
+func (lookup *lastCommitLookup) ask(ctx context.Context, batch []File) error {
+	response, err := rest.SendJson[lastCommitResponse](
+		ctx,
+		http.MethodPost,
+		lookup.urlString,
+		lastCommitRequest(batch),
+		lookup.options,
+	)
+	if err != nil {
+		// A server error is GitHub abandoning the query, which a slow file in the batch is what
+		// makes it do.
+		if statusErr, ok := errors.AsType[*altshiftHttpErrors.Non2xxStatusCodeError](err); ok &&
+			statusErr.StatusCode >= http.StatusInternalServerError {
+			return lookup.split(ctx, batch)
+		}
+
+		return fmt.Errorf("send json: %w", err)
+	}
+
+	// GraphQL answers a query it could partly run with the parts it could and an error for each
+	// part it could not. A repository it could not resolve is an answer -- the file is left out. A
+	// part it could not run says so with no type, or as unavailable, and the batch is split. Any
+	// other error fails the call: a part it was refused would otherwise read as a file nobody has
+	// committed to.
+	ran := true
+	for _, graphqlErr := range response.Errors {
+		switch {
+		case graphqlErr == nil, graphqlErr.Type == graphqlNotFound:
+		case graphqlErr.Type == "", graphqlErr.Type == graphqlServiceUnavailable:
+			ran = false
+		default:
+			return altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: %s: %s", ErrGraphql, graphqlErr.Type, graphqlErr.Message),
+				len(batch),
+			)
+		}
+	}
+	if !ran {
+		return lookup.split(ctx, batch)
+	}
+
+	// With nothing answered at all, there was nothing to answer.
+	if len(response.Data) == 0 {
+		return altshiftErrors.NewWithTrace(nil_error.New("graphql data"))
+	}
+
+	for index, file := range batch {
+		at, err := response.Data[fileAlias(index)].lastCommitted()
+		if err != nil {
+			return altshiftErrors.NewWithTrace(err, file.Owner, file.Repo, file.Path)
+		}
+		if at != nil {
+			lookup.times[file] = at
+		}
+	}
+
+	return nil
+}
+
+// split asks about the halves of a batch GitHub could not run, until the file it could not run is
+// asked about alone and, failing again, is undated.
+func (lookup *lastCommitLookup) split(ctx context.Context, batch []File) error {
+	if len(batch) == 1 {
+		lookup.undated = append(lookup.undated, &batch[0])
+		return nil
+	}
+
+	half := len(batch) / 2
+	if err := lookup.ask(ctx, batch[:half]); err != nil {
+		return err
+	}
+
+	return lookup.ask(ctx, batch[half:])
 }
 
 // lastCommitRequest asks for the last commit touching each file of a batch. The names and paths go
@@ -171,8 +225,12 @@ type graphqlRequest struct {
 	Variables map[string]string `json:"variables"`
 }
 
-// graphqlNotFound is the type of the error GraphQL gives for a repository it could not resolve.
-const graphqlNotFound = "NOT_FOUND"
+// graphqlNotFound is the type of the error GraphQL gives for a repository it could not resolve, and
+// graphqlServiceUnavailable the one it gives for a part of a query it could not run.
+const (
+	graphqlNotFound           = "NOT_FOUND"
+	graphqlServiceUnavailable = "SERVICE_UNAVAILABLE"
+)
 
 type graphqlError struct {
 	Message string `json:"message,omitzero"`

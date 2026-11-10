@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,10 +14,14 @@ import (
 )
 
 // graphqlServer answers LastCommitTimes' queries from dates keyed by path. A path absent from dates
-// is answered as a repository that is not there, with an error beside it, as GitHub answers one.
+// is answered as a repository that is not there, with an error beside it, as GitHub answers one. A
+// query naming a path in slow is one GitHub could not run in time: answered with a 502, or, where
+// slowAsGraphql, with GraphQL's untyped error and no data.
 type graphqlServer struct {
-	t     *testing.T
-	dates map[string]string
+	t             *testing.T
+	dates         map[string]string
+	slow          map[string]bool
+	slowAsGraphql bool
 
 	mu       sync.Mutex
 	requests []*graphqlRequest
@@ -35,6 +40,21 @@ func (server *graphqlServer) handle(w http.ResponseWriter, r *http.Request) {
 	server.mu.Lock()
 	server.requests = append(server.requests, &request)
 	server.mu.Unlock()
+
+	for name, value := range request.Variables {
+		if strings.HasPrefix(name, "p") && server.slow[value] {
+			if !server.slowAsGraphql {
+				w.WriteHeader(http.StatusBadGateway)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := w.Write([]byte(`{"errors": [{"message": "Something went wrong while executing your query."}]}`)); err != nil {
+				server.t.Errorf("write: %v", err)
+			}
+			return
+		}
+	}
 
 	data := make(map[string]any)
 	var errs []map[string]any
@@ -74,13 +94,16 @@ func TestLastCommitTimes(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name         string
-		files        []*File
-		dates        map[string]string
-		wantRequests int
+		name          string
+		files         []*File
+		dates         map[string]string
+		slow          map[string]bool
+		slowAsGraphql bool
+		wantRequests  int
 		// wantAsked is how many files the requests asked about between them, where it matters.
-		wantAsked int
-		wantTimes map[string]string
+		wantAsked   int
+		wantTimes   map[string]string
+		wantUndated []string
 	}{
 		{
 			name: "each file dated by its last commit",
@@ -122,6 +145,34 @@ func TestLastCommitTimes(t *testing.T) {
 			wantAsked:    2*LastCommitBatchSize + 1,
 		},
 		{
+			// Split in halves until the slow file is alone: [a slow c], then [a], then [slow c],
+			// then [slow] and [c].
+			name: "a file GitHub cannot run in time is split out and undated",
+			files: []*File{
+				{Owner: "acme", Repo: "infra", Path: "a.txt"},
+				{Owner: "mirror", Repo: "huge", Path: "slow.txt"},
+				{Owner: "acme", Repo: "infra", Path: "c.txt"},
+			},
+			dates:        map[string]string{"a.txt": "2026-10-07T12:00:00Z", "slow.txt": "2019-01-01T00:00:00Z", "c.txt": "2026-10-08T12:00:00Z"},
+			slow:         map[string]bool{"slow.txt": true},
+			wantRequests: 5,
+			wantTimes:    map[string]string{"a.txt": "2026-10-07T12:00:00Z", "c.txt": "2026-10-08T12:00:00Z"},
+			wantUndated:  []string{"slow.txt"},
+		},
+		{
+			name: "the same, where GraphQL says so rather than the gateway",
+			files: []*File{
+				{Owner: "acme", Repo: "infra", Path: "a.txt"},
+				{Owner: "mirror", Repo: "huge", Path: "slow.txt"},
+			},
+			dates:         map[string]string{"a.txt": "2026-10-07T12:00:00Z", "slow.txt": "2019-01-01T00:00:00Z"},
+			slow:          map[string]bool{"slow.txt": true},
+			slowAsGraphql: true,
+			wantRequests:  3,
+			wantTimes:     map[string]string{"a.txt": "2026-10-07T12:00:00Z"},
+			wantUndated:   []string{"slow.txt"},
+		},
+		{
 			name:         "nothing to ask about asks nothing",
 			files:        nil,
 			wantRequests: 0,
@@ -133,12 +184,20 @@ func TestLastCommitTimes(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			server := &graphqlServer{t: t, dates: testCase.dates}
+			server := &graphqlServer{t: t, dates: testCase.dates, slow: testCase.slow, slowAsGraphql: testCase.slowAsGraphql}
 			client := clientFor(t, server.handle)
 
-			times, err := client.LastCommitTimes(t.Context(), testCase.files)
+			times, undated, err := client.LastCommitTimes(t.Context(), testCase.files)
 			if err != nil {
 				t.Fatalf("LastCommitTimes: %v", err)
+			}
+
+			undatedPaths := make([]string, 0, len(undated))
+			for _, file := range undated {
+				undatedPaths = append(undatedPaths, file.Path)
+			}
+			if !slices.Equal(undatedPaths, testCase.wantUndated) {
+				t.Errorf("undated = %v, want %v", undatedPaths, testCase.wantUndated)
 			}
 
 			if len(server.requests) != testCase.wantRequests {
@@ -187,7 +246,7 @@ func TestLastCommitTimesPassesNamesAsVariables(t *testing.T) {
 	server := &graphqlServer{t: t, dates: map[string]string{path: "2026-10-07T12:34:56Z"}}
 	client := clientFor(t, server.handle)
 
-	times, err := client.LastCommitTimes(t.Context(), []*File{{Owner: "acme", Repo: "infra", Path: path}})
+	times, _, err := client.LastCommitTimes(t.Context(), []*File{{Owner: "acme", Repo: "infra", Path: path}})
 	if err != nil {
 		t.Fatalf("LastCommitTimes: %v", err)
 	}
@@ -214,15 +273,10 @@ func TestLastCommitTimesRefused(t *testing.T) {
 	}{
 		{name: "errors and no data", body: `{"errors": [{"type": "RATE_LIMITED", "message": "API rate limit exceeded"}]}`, wantGraphqlErr: true},
 		{name: "neither data nor errors", body: `{}`},
-		// A part the API could not run reads as a file nobody committed to unless it fails.
+		// A part the API refused reads as a file nobody committed to unless it fails.
 		{
-			name:           "a part it could not run beside one it could",
-			body:           `{"data": {"f0": null, "f1": {"object": {"history": {"nodes": [{"committedDate": "2026-10-07T12:00:00Z"}]}}}}, "errors": [{"type": "SERVICE_UNAVAILABLE", "path": ["f0"], "message": "Something went wrong"}]}`,
-			wantGraphqlErr: true,
-		},
-		{
-			name:           "a part it could not run, saying no more",
-			body:           `{"data": {"f0": null}, "errors": [{"message": "Something went wrong while executing your query"}]}`,
+			name:           "a part it refused beside one it answered",
+			body:           `{"data": {"f0": null, "f1": {"object": {"history": {"nodes": [{"committedDate": "2026-10-07T12:00:00Z"}]}}}}, "errors": [{"type": "FORBIDDEN", "path": ["f0"], "message": "Resource not accessible"}]}`,
 			wantGraphqlErr: true,
 		},
 	}
@@ -238,7 +292,7 @@ func TestLastCommitTimesRefused(t *testing.T) {
 				}
 			})
 
-			_, err := client.LastCommitTimes(t.Context(), []*File{
+			_, _, err := client.LastCommitTimes(t.Context(), []*File{
 				{Owner: "acme", Repo: "infra", Path: "a.txt"},
 				{Owner: "acme", Repo: "infra", Path: "b.txt"},
 			})
@@ -273,7 +327,7 @@ func TestLastCommitTimesRejectsIncompleteFiles(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := client.LastCommitTimes(t.Context(), []*File{testCase.file}); err == nil {
+			if _, _, err := client.LastCommitTimes(t.Context(), []*File{testCase.file}); err == nil {
 				t.Error("expected an error")
 			}
 		})
