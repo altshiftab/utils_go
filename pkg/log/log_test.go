@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/url"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -825,5 +826,59 @@ func TestHandleContextExtractorError(t *testing.T) {
 	}
 	if got, _ := m[ExtractorErrorKey].(string); !bytes.Contains([]byte(got), []byte("context extractor handle: boom")) {
 		t.Errorf("%s = %q, want the context extractor's failure", ExtractorErrorKey, got)
+	}
+}
+
+// maskingExtractor masks a word in any text it is asked to, and extracts nothing.
+type maskingExtractor struct {
+	word string
+}
+
+func (maskingExtractor) Handle(context.Context, *slog.Record) error { return nil }
+
+func (extractor maskingExtractor) MaskText(text string) string {
+	return strings.ReplaceAll(text, extractor.word, "(MASKED)")
+}
+
+var errMaskingTest = errors.New("the request failed")
+
+// An error's message, the values it carries and the URL of a request it failed with are text, and
+// each of the context extractors that masks text masks it there.
+func TestErrorContextExtractorMasksText(t *testing.T) {
+	t.Parallel()
+
+	const word = "SECRET-WORD"
+	extractor := &ErrorContextExtractor{ContextExtractors: []ContextExtractor{maskingExtractor{word: word}}}
+
+	testCases := []struct {
+		name string
+		err  error
+	}{
+		{name: "a message", err: fmt.Errorf("put %s: %w", word, errMaskingTest)},
+		{name: "a value", err: altshiftErrors.New(errMaskingTest, "about "+word)},
+		{name: "a url", err: &url.Error{Op: "Put", URL: "https://example.com/" + word, Err: errMaskingTest}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			record := slog.NewRecord(time.Time{}, slog.LevelError, "failed", 0)
+			if err := extractor.Handle(context2.WithError(context.Background(), testCase.err), &record); err != nil {
+				t.Fatalf("handle: %v", err)
+			}
+
+			var text strings.Builder
+			record.Attrs(func(attr slog.Attr) bool {
+				text.WriteString(attr.String())
+				return true
+			})
+			if !strings.Contains(text.String(), "(MASKED)") {
+				t.Fatalf("nothing was masked, so the test shows nothing: %s", text.String())
+			}
+			if strings.Contains(text.String(), word) {
+				t.Errorf("the error kept %q: %s", word, text.String())
+			}
+		})
 	}
 }

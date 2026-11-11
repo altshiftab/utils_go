@@ -4,15 +4,23 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json/v2"
+	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"regexp"
 	"strings"
+	"sync"
 	"testing"
 
+	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
 	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
 	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor"
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
+	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 	"github.com/altshiftab/utils_go/pkg/log/entry_size_guard"
 	"github.com/altshiftab/utils_go/pkg/log/http_logger/http_logger_config"
 	"github.com/altshiftab/utils_go/pkg/schema"
@@ -198,4 +206,95 @@ func TestNewWithGcpMasksTheReferer(t *testing.T) {
 	if !strings.Contains(referer, "/verification") {
 		t.Errorf("httpRequest.referer lost the referring page: %q", referer)
 	}
+}
+
+// A name written into a URL's path is kept out of everything the service writes about a request
+// for it: the debug entry of a request that went, with its URL in the fields, the message and the
+// request line Cloud Logging reads, and the error of one that never reached its server, whose
+// message Go writes the URL into. The extractor masks the path; the logger has the error's message
+// masked by it too.
+//
+//nolint:paralleltest // The fetch writes its entry to the default logger, which this replaces.
+func TestNewWithGcpMasksAUrlPath(t *testing.T) {
+	const name = "Anna Andersson 2026-10-06.pptx"
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		_, _ = io.Copy(io.Discard, request.Body)
+		writer.WriteHeader(http.StatusCreated)
+	}))
+	target := server.URL + "/v1.0/drives/d/items/f:/" + url.PathEscape(name) + ":/content"
+
+	extractor := http_context_extractor.New(
+		http_context_extractor_config.WithReplaceableMessages(http_logger_config.DefaultReplaceableMessages...),
+		http_context_extractor_config.WithMaskedUrlPaths(&http_context_extractor_config.MaskedUrlPath{
+			Pattern: regexp.MustCompile(`:/([^:]+):`),
+		}),
+	)
+
+	var buffer lockedBuffer
+	logger := New(
+		http_logger_config.WithWriter(&buffer),
+		http_logger_config.WithGcp(true),
+		http_logger_config.WithLogLevel(slog.LevelDebug),
+		http_logger_config.WithHttpContextExtractor(extractor),
+	)
+
+	// Fetched through the package's own fetch, which writes its debug entry to the default logger.
+	previous := slog.Default()
+	slog.SetDefault(logger.Logger)
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	ctx := t.Context()
+	put := func() error {
+		_, _, err := altshiftHttpUtils.Fetch(
+			ctx,
+			target,
+			fetch_config.WithMethod(http.MethodPut),
+			fetch_config.WithBody([]byte("deck")),
+			fetch_config.WithHttpClient(&http.Client{}),
+		)
+		return err
+	}
+	if err := put(); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+
+	server.Close()
+	failed := put()
+	if failed == nil {
+		t.Fatal("expected an error once the server was gone")
+	}
+	if !strings.Contains(failed.Error(), url.PathEscape(name)) {
+		t.Fatalf("the error does not carry the URL, so the test shows nothing: %v", failed)
+	}
+	logger.ErrorContext(altshiftContext.WithError(ctx, failed), "The deck could not be filed.")
+
+	logged := buffer.String()
+	if !strings.Contains(logged, "/v1.0/drives/d/items/f:/") {
+		t.Fatalf("the log does not carry the exchange, so the test shows nothing: %s", logged)
+	}
+	for _, form := range []string{name, url.PathEscape(name), "Anna"} {
+		if strings.Contains(logged, form) {
+			t.Errorf("the log holds %q: %s", form, logged)
+		}
+	}
+}
+
+// lockedBuffer is a buffer two goroutines may write to: the fetch's entry may be written from the
+// client's.
+type lockedBuffer struct {
+	mutex  sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	return b.buffer.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	return b.buffer.String()
 }

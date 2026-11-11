@@ -26,6 +26,14 @@ type ContextExtractor interface {
 	Handle(context.Context, *slog.Record) error
 }
 
+// TextMasker is a context extractor that can also mask what a line of text says, which the error
+// context extractor asks of each of its extractors that is one: an error's message and the values it
+// carries are written out as text, and are masked as the extractor masks what it writes itself. The
+// HTTP context extractor is one, masking the URLs a text is written with.
+type TextMasker interface {
+	MaskText(text string) string
+}
+
 type ContextExtractorFunction func(context.Context, *slog.Record) error
 
 func (cef ContextExtractorFunction) Handle(ctx context.Context, record *slog.Record) error {
@@ -178,7 +186,7 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 				// signature, as a header carrying one does, so that it cannot be presented again -- including
 				// one attached by code written after the rule. It sees text only: a token attached as some
 				// other value is that value's own to write out safely, as jws_object.Object does.
-				textualRepresentations = append(textualRepresentations, altshiftJws.MaskSignatures(textualRepresentation))
+				textualRepresentations = append(textualRepresentations, extractor.maskText(altshiftJws.MaskSignatures(textualRepresentation)))
 			}
 
 			if len(textualRepresentations) != 0 {
@@ -270,10 +278,21 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 
 	if errorMessage != "" {
 		// Masked as the inputs are: a message that formats a token in with %s would write it whole.
-		attrs = append(attrs, slog.String("message", altshiftJws.MaskSignatures(errorMessage)))
+		attrs = append(attrs, slog.String("message", extractor.maskText(altshiftJws.MaskSignatures(errorMessage))))
 	}
 
 	return attrs
+}
+
+// maskText is text as each of the context extractors that masks text has it; see TextMasker.
+func (extractor *ErrorContextExtractor) maskText(text string) string {
+	for _, contextExtractor := range extractor.ContextExtractors {
+		if masker, ok := contextExtractor.(TextMasker); ok && masker != nil {
+			text = masker.MaskText(text)
+		}
+	}
+
+	return text
 }
 
 func (extractor *ErrorContextExtractor) Handle(ctx context.Context, record *slog.Record) error {
@@ -364,8 +383,10 @@ func (extractor *ErrorContextExtractor) Handle(ctx context.Context, record *slog
 		if urlErr, ok := errors.AsType[*url.Error](logErr); ok {
 			var contextAttrs []any
 
+			// Masked as the message is: it is the URL a request was for, which the masks declared
+			// for a URL apply to wherever it is written.
 			if urlStr := urlErr.URL; urlStr != "" {
-				contextAttrs = append(contextAttrs, slog.Group("url", slog.String("original", urlStr)))
+				contextAttrs = append(contextAttrs, slog.Group("url", slog.String("original", extractor.maskText(urlStr))))
 			}
 
 			if op := urlErr.Op; op != "" {

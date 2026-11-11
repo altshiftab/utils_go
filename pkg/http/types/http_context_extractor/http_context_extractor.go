@@ -470,8 +470,27 @@ func urlMatchesPattern(pattern *schema.Url, incoming *schema.Url) (bool, []strin
 	return true, paramsToMask, incomingErr != nil
 }
 
+// masksUrls reports whether anything is declared to be masked in a URL: a query parameter, or a part
+// of a path.
+func (e *Extractor) masksUrls() bool {
+	return len(e.MaskedUrlParams) > 0 || len(e.MaskedUrlPaths) > 0
+}
+
+// masksOnlyQueries reports whether what is masked in a URL is all in its query, so that a URL with
+// none is left as it is without being read.
+func (e *Extractor) masksOnlyQueries() bool {
+	return len(e.MaskedUrlPaths) == 0
+}
+
 func (e *Extractor) maskUrl(urlStruct *schema.Url) {
-	if urlStruct == nil || len(e.MaskedUrlParams) == 0 {
+	if urlStruct == nil || !e.masksUrls() {
+		return
+	}
+
+	// After the query: its patterns are matched on the path, which is the request's own until then.
+	defer e.maskUrlPath(urlStruct)
+
+	if len(e.MaskedUrlParams) == 0 {
 		return
 	}
 
@@ -568,6 +587,91 @@ func (e *Extractor) maskUrl(urlStruct *schema.Url) {
 	}
 }
 
+// maskUrlPath replaces, in the path of a URL the path masks match, what they declare not for the log;
+// see http_context_extractor_config.MaskedUrlPath. The patterns that apply are chosen before anything
+// is replaced, on the path the URL arrived with.
+func (e *Extractor) maskUrlPath(urlStruct *schema.Url) {
+	if urlStruct == nil || len(e.MaskedUrlPaths) == 0 {
+		return
+	}
+
+	var patterns []*regexp.Regexp
+	for _, entry := range e.MaskedUrlPaths {
+		if entry == nil || entry.Pattern == nil {
+			continue
+		}
+		if entry.Url != nil {
+			if matches, _, _ := urlMatchesPattern(entry.Url, urlStruct); !matches {
+				continue
+			}
+		}
+		patterns = append(patterns, entry.Pattern)
+	}
+	if len(patterns) == 0 {
+		return
+	}
+
+	maskPath := func(path string) string {
+		for _, pattern := range patterns {
+			path = maskPathMatches(pattern, path)
+		}
+		return path
+	}
+
+	// A URL written out in full is read for its path and written again encoded around the mask.
+	// One that cannot be read cannot be vouched for, and goes whole, as a query that cannot be read
+	// does.
+	maskFull := func(urlStr string) string {
+		if urlStr == "" {
+			return urlStr
+		}
+
+		parsedUrl, err := url.Parse(urlStr)
+		if err != nil {
+			return maskedValue
+		}
+
+		maskedPath := maskPath(parsedUrl.Path)
+		if maskedPath == parsedUrl.Path {
+			return urlStr
+		}
+
+		parsedUrl.Path = maskedPath
+		parsedUrl.RawPath = ""
+
+		return parsedUrl.String()
+	}
+
+	urlStruct.Full = maskFull(urlStruct.Full)
+	urlStruct.Original = maskFull(urlStruct.Original)
+	urlStruct.Path = maskPath(urlStruct.Path)
+}
+
+// maskPathMatches replaces every match of pattern in path with the masked value, or what its first
+// group matched where it has one.
+func maskPathMatches(pattern *regexp.Regexp, path string) string {
+	matches := pattern.FindAllStringSubmatchIndex(path, -1)
+	if len(matches) == 0 {
+		return path
+	}
+
+	var builder strings.Builder
+	last := 0
+	for _, match := range matches {
+		start, end := match[0], match[1]
+		if len(match) >= 4 && match[2] >= 0 {
+			start, end = match[2], match[3]
+		}
+
+		builder.WriteString(path[last:start])
+		builder.WriteString(maskedValue)
+		last = end
+	}
+	builder.WriteString(path[last:])
+
+	return builder.String()
+}
+
 // parseUrlString derives the schema URL a pattern is matched against from a URL written as a
 // string, the way ParseHttp derives it from a request. A reported URL arrives as a string, and a
 // pattern scoped by Domain or RegisteredDomain has to match it exactly as it matches a request.
@@ -604,14 +708,14 @@ func parseUrlString(raw string) *schema.Url {
 	return schemaUrl
 }
 
-// MaskUrlString applies the configured URL parameter masks to a URL written as a string, returning
-// it with the declared parameters replaced.
+// MaskUrlString applies the configured URL masks to a URL written as a string, returning it with
+// the declared parameters and parts of its path replaced.
 //
-// A URL carrying no query cannot carry a masked parameter, which disposes of the empty string and
-// of the sentinels a violation report uses in place of a URL -- "inline", "eval", "wasm-eval",
-// "trusted-types-policy" -- without naming them.
+// Where only query parameters are masked, a URL carrying no query cannot carry one, which disposes
+// of the empty string and of the sentinels a violation report uses in place of a URL -- "inline",
+// "eval", "wasm-eval", "trusted-types-policy" -- without naming them.
 func (e *Extractor) MaskUrlString(raw string) string {
-	if raw == "" || len(e.MaskedUrlParams) == 0 || !strings.Contains(raw, "?") {
+	if raw == "" || !e.masksUrls() || (e.masksOnlyQueries() && !strings.Contains(raw, "?")) {
 		return raw
 	}
 
@@ -646,11 +750,22 @@ var urlInTextPattern = regexp.MustCompile(`https?://[^\s"'<>]+`)
 // plain field a handler can rewrite, unlike its attributes, so this is the only reach the extractor
 // has into what a message says.
 func (e *Extractor) maskUrlsInText(text string) string {
-	if text == "" || len(e.MaskedUrlParams) == 0 || !strings.Contains(text, "?") {
+	if text == "" || !e.masksUrls() || (e.masksOnlyQueries() && !strings.Contains(text, "?")) {
 		return text
 	}
 
 	return urlInTextPattern.ReplaceAllStringFunc(text, e.MaskUrlString)
+}
+
+// MaskText masks every URL a line of text is written with, as a record's message is masked: an
+// error's message and the values it carries are text of that kind, and a request that never reached
+// its server fails with the URL it was for in its message -- the Go client writes it there.
+func (e *Extractor) MaskText(text string) string {
+	if e == nil {
+		return text
+	}
+
+	return e.maskUrlsInText(text)
 }
 
 // urlHeaders are the headers whose value is a URL, or the path and query of one, naming the request
@@ -675,7 +790,7 @@ var urlHeaders = []string{
 // A relative value -- a proxy writes the path and query without the host -- is matched as if on the
 // request's host, so that a pattern scoped to a domain applies to it as it does to the request.
 func (e *Extractor) maskUrlHeaders(header http.Header, requestUrl *schema.Url) http.Header {
-	if len(header) == 0 || len(e.MaskedUrlParams) == 0 {
+	if len(header) == 0 || !e.masksUrls() {
 		return header
 	}
 
@@ -720,7 +835,7 @@ func (e *Extractor) maskUrlHeaders(header http.Header, requestUrl *schema.Url) h
 // whole, on the reading the query masking takes of a query it cannot read: nothing can vouch for
 // what it holds.
 func (e *Extractor) maskUrlHeaderValue(raw string, requestUrl *schema.Url) string {
-	if !strings.Contains(raw, "?") {
+	if e.masksOnlyQueries() && !strings.Contains(raw, "?") {
 		return raw
 	}
 
@@ -742,8 +857,11 @@ func (e *Extractor) maskUrlHeaderValue(raw string, requestUrl *schema.Url) strin
 }
 
 type Extractor struct {
-	ReplaceableMessages    map[string]struct{}
-	MaskedUrlParams        []*schema.Url
+	ReplaceableMessages map[string]struct{}
+	MaskedUrlParams     []*schema.Url
+	// MaskedUrlPaths are the parts of URL paths that are not for the log; see
+	// http_context_extractor_config.MaskedUrlPath.
+	MaskedUrlPaths         []*http_context_extractor_config.MaskedUrlPath
 	MaskedHeaders          []*http_context_extractor_config.MaskedHeader
 	MaskedRequestBodyUrls  []*schema.Url
 	MaskedResponseBodyUrls []*schema.Url
@@ -846,7 +964,7 @@ func maskReports[T any](
 // pointer, and that context belongs to the request, which is logged again by the access line the
 // mux writes when it is done. Masking in place would reach back into request state.
 func (e *Extractor) maskReporting(reporting *schema.HttpReporting) *schema.HttpReporting {
-	if reporting == nil || len(e.MaskedUrlParams) == 0 {
+	if reporting == nil || !e.masksUrls() {
 		return reporting
 	}
 
@@ -903,7 +1021,7 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 			// wherever a URL carrying them appears in the entry, not only in the URL of the
 			// request itself: a page whose address is a credential hands that address to
 			// everything it goes on to request, as the Referer, and to everything it reports.
-			if len(e.MaskedUrlParams) > 0 {
+			if e.masksUrls() {
 				if baseUrl := base.Url; baseUrl != nil {
 					e.maskUrl(baseUrl)
 				}
@@ -1162,6 +1280,7 @@ func New(options ...http_context_extractor_config.Option) *Extractor {
 	return &Extractor{
 		ReplaceableMessages:      messagesMap,
 		MaskedUrlParams:          config.MaskedUrlParams,
+		MaskedUrlPaths:           config.MaskedUrlPaths,
 		MaskedHeaders:            config.MaskedHeaders,
 		MaskedRequestBodyUrls:    config.MaskedRequestBodyUrls,
 		MaskedResponseBodyUrls:   config.MaskedResponseBodyUrls,

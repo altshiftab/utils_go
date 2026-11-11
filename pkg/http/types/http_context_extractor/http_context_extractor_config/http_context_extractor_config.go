@@ -1,6 +1,10 @@
 package http_context_extractor_config
 
-import "github.com/altshiftab/utils_go/pkg/schema"
+import (
+	"regexp"
+
+	"github.com/altshiftab/utils_go/pkg/schema"
+)
 
 type MaskedHeader struct {
 	Url     *schema.Url
@@ -19,9 +23,26 @@ type MaskedBodyFields struct {
 	Fields []string
 }
 
+// MaskedUrlPath names, for the URLs Url matches, the part of their path that is not for the log:
+// every match of Pattern in the path is replaced, or where Pattern has a group, what its first group
+// matched. A nil Url matches every URL.
+//
+// It is for a name written into a path, which a query mask does not reach: Microsoft Graph addresses
+// an item by its path, so a file uploaded as {folder}:/{name}:/content puts its name in the URL, and
+// {Url: &schema.Url{Domain: "graph.microsoft.com"}, Pattern: regexp.MustCompile(`:/([^:]+):`)}
+// keeps it out of the log.
+//
+// The pattern is matched against the path as it reads decoded, and the URL is written out encoded
+// again around what replaced the match.
+type MaskedUrlPath struct {
+	Url     *schema.Url
+	Pattern *regexp.Regexp
+}
+
 type Config struct {
 	ReplaceableMessages      []string
 	MaskedUrlParams          []*schema.Url
+	MaskedUrlPaths           []*MaskedUrlPath
 	MaskedHeaders            []*MaskedHeader
 	MaskedRequestBodyUrls    []*schema.Url
 	MaskedResponseBodyUrls   []*schema.Url
@@ -61,6 +82,16 @@ func WithReplaceableMessages(replaceableMessages ...string) Option {
 func WithMaskedUrlParams(urlPatterns ...*schema.Url) Option {
 	return func(config *Config) {
 		config.MaskedUrlParams = urlPatterns
+	}
+}
+
+// WithMaskedUrlPaths names the parts of URL paths that are not for the log; see MaskedUrlPath. They
+// are masked wherever the query parameters of WithMaskedUrlParams are: in the URL of the request
+// being logged, in the URLs its headers and a browser's reports carry, in the URLs a message or an
+// error is written with.
+func WithMaskedUrlPaths(maskedUrlPaths ...*MaskedUrlPath) Option {
+	return func(config *Config) {
+		config.MaskedUrlPaths = maskedUrlPaths
 	}
 }
 
