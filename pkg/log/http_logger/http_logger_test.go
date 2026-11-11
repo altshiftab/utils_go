@@ -16,6 +16,7 @@ import (
 
 	altshiftContext "github.com/altshiftab/utils_go/pkg/context"
 	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	"github.com/altshiftab/utils_go/pkg/http/mux"
 	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor"
@@ -310,4 +311,86 @@ func (b *lockedBuffer) String() string {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	return b.buffer.String()
+}
+
+// The record of a request served is written at the level asked for whatever the logger is set to
+// beyond that, with the bodies only where the logger is at debug; below that, a request that failed
+// still has them on its error line.
+//
+//nolint:paralleltest // The callback logs to the default logger, which this replaces.
+func TestResponseServedCallback(t *testing.T) {
+	const secret = "SECRET-BODY"
+
+	request, err := http.ReadRequest(bufio.NewReader(strings.NewReader(
+		"POST /api/things HTTP/1.1\r\nHost: example.com\r\nContent-Type: application/json\r\n\r\n",
+	)))
+	if err != nil {
+		t.Fatalf("read request: %v", err)
+	}
+	httpContext := func() *altshiftHttpTypes.HttpContext {
+		return &altshiftHttpTypes.HttpContext{
+			Request:      request,
+			RequestBody:  []byte(`{"note":"` + secret + `"}`),
+			Response:     &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}},
+			ResponseBody: []byte(`{"echo":"` + secret + `"}`),
+		}
+	}
+
+	testCases := []struct {
+		name        string
+		loggerLevel slog.Level
+		wantLine    bool
+		wantBodies  bool
+	}{
+		{name: "a logger at info", loggerLevel: slog.LevelInfo, wantLine: true},
+		{name: "a logger at debug", loggerLevel: slog.LevelDebug, wantLine: true, wantBodies: true},
+		{name: "a logger at warn", loggerLevel: slog.LevelWarn},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			var buffer bytes.Buffer
+			logger := New(
+				http_logger_config.WithWriter(&buffer),
+				http_logger_config.WithLogLevel(testCase.loggerLevel),
+				http_logger_config.WithHttpContextExtractor(http_context_extractor.New(
+					http_context_extractor_config.WithReplaceableMessages(http_logger_config.DefaultReplaceableMessages...),
+				)),
+			)
+			previous := slog.Default()
+			slog.SetDefault(logger.Logger)
+			t.Cleanup(func() { slog.SetDefault(previous) })
+
+			mux.ResponseServedCallback(slog.LevelInfo)(altshiftHttpContext.WithHttpContextValue(t.Context(), httpContext()))
+
+			logged := buffer.String()
+			if gotLine := strings.Contains(logged, "/api/things"); gotLine != testCase.wantLine {
+				t.Fatalf("the request was logged: %t, want %t: %s", gotLine, testCase.wantLine, logged)
+			}
+			if !testCase.wantLine {
+				return
+			}
+			if !strings.Contains(logged, `"level":"INFO"`) {
+				t.Errorf("the request was not logged at INFO: %s", logged)
+			}
+			if gotBodies := strings.Contains(logged, secret); gotBodies != testCase.wantBodies {
+				t.Errorf("the bodies were logged: %t, want %t: %s", gotBodies, testCase.wantBodies, logged)
+			}
+		})
+	}
+
+	// A request that failed keeps its bodies on its error line, the logger at info as in production.
+	t.Run("an error line at info", func(t *testing.T) {
+		var buffer bytes.Buffer
+		logger := New(
+			http_logger_config.WithWriter(&buffer),
+			http_logger_config.WithLogLevel(slog.LevelInfo),
+			http_logger_config.WithHttpContextExtractor(http_context_extractor.New()),
+		)
+		logger.WarnContext(altshiftHttpContext.WithHttpContextValue(t.Context(), httpContext()), mux.ClientErrorMessage)
+
+		if !strings.Contains(buffer.String(), secret) {
+			t.Errorf("the error line lost the bodies: %s", buffer.String())
+		}
+	})
 }

@@ -1049,6 +1049,15 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 			}
 		}
 
+		// A record marked to go without the bodies is written from a copy that has none, the
+		// HTTP context being the request's own rather than the record's to change.
+		if altshiftHttpContext.BodiesOmitted(ctx) && (httpContext.RequestBody != nil || httpContext.ResponseBody != nil) {
+			withoutBodies := *httpContext
+			withoutBodies.RequestBody = nil
+			withoutBodies.ResponseBody = nil
+			httpContext = &withoutBodies
+		}
+
 		base, err := schemaUtils.ParseHttpContextWithBodyLimit(httpContext, e.BodyLimit)
 		if err != nil {
 			return altshiftErrors.New(fmt.Errorf("parse http context: %w", err), httpContext)

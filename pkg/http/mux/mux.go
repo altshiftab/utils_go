@@ -54,6 +54,13 @@ const (
 	ResponseServedMessage = muxInternal.ResponseServedMessage
 )
 
+// ResponseServedCallback is a done callback that logs each response served at level, the bodies only
+// where the logger is at debug; see the internal package. Assign it to a mux's DoneCallback to keep
+// the record of every request served at INFO.
+func ResponseServedCallback(level slog.Level) func(context.Context) {
+	return muxInternal.ResponseServedCallback(level)
+}
+
 type muxHttpContextContextType struct{}
 
 var MuxHttpContextContextKey muxHttpContextContextType

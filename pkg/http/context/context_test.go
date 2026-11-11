@@ -71,3 +71,18 @@ func TestRequestIdRoundTrip(t *testing.T) {
 		t.Errorf("stored value = %q, want %q", stored, "request-id")
 	}
 }
+
+func TestWithBodiesOmitted(t *testing.T) {
+	t.Parallel()
+
+	if BodiesOmitted(context.Background()) {
+		t.Error("an unmarked context reads as marked")
+	}
+	if !BodiesOmitted(WithBodiesOmitted(context.Background())) {
+		t.Error("a marked context reads as unmarked")
+	}
+	//nolint:staticcheck // SA1012: a nil context is what the guard is for.
+	if BodiesOmitted(nil) {
+		t.Error("a nil context reads as marked")
+	}
+}

@@ -54,6 +54,37 @@ func DefaultDoneCallback(ctx context.Context) {
 	)
 }
 
+// ResponseServedCallback is a done callback that logs each response served at level, whatever more
+// the logger is set to: a service that keeps the record of every request it served -- who asked for
+// what, from where, and how it ended -- writes it at INFO, and has it whether or not it logs debug.
+//
+// The bodies of the request and the response are written only where the logger is at debug, as
+// they are by DefaultDoneCallback. Below that the line is the summary of the request, and what was
+// sent is the error lines' to write where a request failed.
+func ResponseServedCallback(level slog.Level) func(context.Context) {
+	return func(ctx context.Context) {
+		logger := slog.Default()
+		if !logger.Enabled(ctx, level) {
+			return
+		}
+
+		if !logger.Enabled(ctx, slog.LevelDebug) {
+			ctx = altshiftHttpContext.WithBodiesOmitted(ctx)
+		}
+
+		logger.Log(
+			ctx,
+			level,
+			ResponseServedMessage,
+			slog.Group(
+				"event",
+				slog.String("action", "http_response_served"),
+				slog.String("reason", ResponseServedMessage),
+			),
+		)
+	}
+}
+
 func DefaultResponseErrorHandler(
 	ctx context.Context,
 	responseError *muxTypesResponseError.ResponseError,
