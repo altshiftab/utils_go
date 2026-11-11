@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -829,15 +830,22 @@ func TestHandleContextExtractorError(t *testing.T) {
 	}
 }
 
-// maskingExtractor masks a word in any text it is asked to, and extracts nothing.
+// maskingExtractor masks a word in the URLs it is asked to, and extracts nothing. Given text, it
+// finds the URLs in it as the HTTP context extractor does, each ending at the first space.
 type maskingExtractor struct {
 	word string
 }
 
 func (maskingExtractor) Handle(context.Context, *slog.Record) error { return nil }
 
+var maskingTestUrlInText = regexp.MustCompile(`https?://\S+`)
+
 func (extractor maskingExtractor) MaskText(text string) string {
-	return strings.ReplaceAll(text, extractor.word, "(MASKED)")
+	return maskingTestUrlInText.ReplaceAllStringFunc(text, extractor.MaskUrlString)
+}
+
+func (extractor maskingExtractor) MaskUrlString(raw string) string {
+	return strings.ReplaceAll(raw, extractor.word, "(MASKED)")
 }
 
 var errMaskingTest = errors.New("the request failed")
@@ -854,9 +862,16 @@ func TestErrorContextExtractorMasksText(t *testing.T) {
 		name string
 		err  error
 	}{
-		{name: "a message", err: fmt.Errorf("put %s: %w", word, errMaskingTest)},
-		{name: "a value", err: altshiftErrors.New(errMaskingTest, "about "+word)},
+		{name: "a message", err: fmt.Errorf("put https://example.com/%s: %w", word, errMaskingTest)},
+		{name: "a value", err: altshiftErrors.New(errMaskingTest, "about https://example.com/"+word)},
 		{name: "a url", err: &url.Error{Op: "Put", URL: "https://example.com/" + word, Err: errMaskingTest}},
+		{
+			// A URL that failed to parse may hold a space, which ends what is found of it in text:
+			// the URL the error carries is masked as the URL it is, in the message of every error
+			// wrapping it as well.
+			name: "a url that did not parse, wrapped",
+			err:  fmt.Errorf("upload: %w", &url.Error{Op: "parse", URL: "https://example.com/Anna " + word + " 100%.pptx", Err: errMaskingTest}),
+		},
 	}
 
 	for _, testCase := range testCases {

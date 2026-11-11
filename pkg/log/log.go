@@ -34,6 +34,13 @@ type TextMasker interface {
 	MaskText(text string) string
 }
 
+// UrlMasker is a context extractor that can mask a URL known to be one, which finding it in a text
+// cannot always do: a URL that failed to parse, which a *url.Error carries, may hold a space that
+// ends what a text matcher takes for it. The HTTP context extractor is one.
+type UrlMasker interface {
+	MaskUrlString(raw string) string
+}
+
 type ContextExtractorFunction func(context.Context, *slog.Record) error
 
 func (cef ContextExtractorFunction) Handle(ctx context.Context, record *slog.Record) error {
@@ -137,6 +144,14 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 
 	errorMessage := err.Error()
 	errType := reflect.TypeOf(err).String()
+
+	// The URL a request failed for is written into the message whole, and masked there as the URL it
+	// is rather than as whatever a text matcher finds of it.
+	if urlErr, ok := errors.AsType[*url.Error](err); ok && urlErr.URL != "" {
+		if masked := extractor.maskUrl(urlErr.URL); masked != urlErr.URL {
+			errorMessage = strings.ReplaceAll(errorMessage, urlErr.URL, masked)
+		}
+	}
 
 	var attrs []any
 
@@ -284,6 +299,17 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 	return attrs
 }
 
+// maskUrl is a URL as each of the context extractors that masks URLs has it; see UrlMasker.
+func (extractor *ErrorContextExtractor) maskUrl(raw string) string {
+	for _, contextExtractor := range extractor.ContextExtractors {
+		if masker, ok := contextExtractor.(UrlMasker); ok && masker != nil {
+			raw = masker.MaskUrlString(raw)
+		}
+	}
+
+	return raw
+}
+
 // maskText is text as each of the context extractors that masks text has it; see TextMasker.
 func (extractor *ErrorContextExtractor) maskText(text string) string {
 	for _, contextExtractor := range extractor.ContextExtractors {
@@ -383,10 +409,10 @@ func (extractor *ErrorContextExtractor) Handle(ctx context.Context, record *slog
 		if urlErr, ok := errors.AsType[*url.Error](logErr); ok {
 			var contextAttrs []any
 
-			// Masked as the message is: it is the URL a request was for, which the masks declared
-			// for a URL apply to wherever it is written.
+			// The URL a request was for, which the masks declared for a URL apply to wherever it is
+			// written; masked as a URL, being known to be one.
 			if urlStr := urlErr.URL; urlStr != "" {
-				contextAttrs = append(contextAttrs, slog.Group("url", slog.String("original", extractor.maskText(urlStr))))
+				contextAttrs = append(contextAttrs, slog.Group("url", slog.String("original", extractor.maskUrl(urlStr))))
 			}
 
 			if op := urlErr.Op; op != "" {

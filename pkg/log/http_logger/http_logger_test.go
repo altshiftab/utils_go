@@ -269,6 +269,19 @@ func TestNewWithGcpMasksAUrlPath(t *testing.T) {
 	}
 	logger.ErrorContext(altshiftContext.WithError(ctx, failed), "The deck could not be filed.")
 
+	// And one whose URL was written without escaping the name, which does not parse: Go's client
+	// writes the URL into the error whole, spaces and all.
+	_, _, unparsed := altshiftHttpUtils.Fetch(
+		ctx,
+		"https://graph.microsoft.com/v1.0/drives/d/items/f:/"+name+" 100%:/content",
+		fetch_config.WithMethod(http.MethodPut),
+		fetch_config.WithHttpClient(&http.Client{}),
+	)
+	if unparsed == nil || !strings.Contains(unparsed.Error(), name) {
+		t.Fatalf("the unparsed URL did not fail with the name in its error, so the test shows nothing: %v", unparsed)
+	}
+	logger.ErrorContext(altshiftContext.WithError(ctx, unparsed), "The deck could not be filed.")
+
 	logged := buffer.String()
 	if !strings.Contains(logged, "/v1.0/drives/d/items/f:/") {
 		t.Fatalf("the log does not carry the exchange, so the test shows nothing: %s", logged)
