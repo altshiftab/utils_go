@@ -336,6 +336,8 @@ type EmailAddress struct {
 	// NOTE: Custom
 	Name    string `json:"name,omitzero"`
 	Address string `json:"address,omitzero"`
+	// NOTE: Custom
+	Hash string `json:"hash,omitzero"`
 }
 
 type Email struct {

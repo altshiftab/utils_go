@@ -245,6 +245,31 @@ func TestMarshalOmitzero(t *testing.T) {
 			},
 		},
 		{
+			name: "email address given by its hash alone",
+			value: Base{
+				Email: &Email{
+					To: []*EmailAddress{{Hash: "f4ec100211f13d19d596a3b4a8d60f6a5ccf3d3a3c3c9fece41d1ff21e5475dd"}},
+				},
+			},
+			assert: func(t *testing.T, m map[string]any) {
+				to, ok := lookup(t, m, "email", "to")
+				if !ok {
+					t.Fatalf("email.to missing: %v", m)
+				}
+				addresses, ok := to.([]any)
+				if !ok || len(addresses) != 1 {
+					t.Fatalf("email.to = %v, want one address", to)
+				}
+				address, ok := addresses[0].(map[string]any)
+				if !ok || len(address) != 1 {
+					t.Fatalf("email.to[0] = %v, want the hash alone", addresses[0])
+				}
+				if address["hash"] != "f4ec100211f13d19d596a3b4a8d60f6a5ccf3d3a3c3c9fece41d1ff21e5475dd" {
+					t.Errorf("email.to[0].hash = %v, want the hash", address["hash"])
+				}
+			},
+		},
+		{
 			name:  "int64 numeric field",
 			value: AutonomousSystem{Number: 64512, Organization: &Organization{Name: "Example ISP"}},
 			assert: func(t *testing.T, m map[string]any) {
