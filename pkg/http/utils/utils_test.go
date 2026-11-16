@@ -5,8 +5,10 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -1013,4 +1015,69 @@ func TestIfModifiedSinceCacheHit(t *testing.T) {
 			t.Fatal("expected an error")
 		}
 	})
+}
+
+func TestFetch_MaxResponseBodySize(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		body    string
+		limit   int64
+		chunked bool
+		wantErr bool
+	}{
+		{name: "under the limit", body: "hello", limit: 10},
+		{name: "exactly the limit", body: "0123456789", limit: 10},
+		{name: "one byte past, with no declared length", body: "0123456789!", limit: 10, chunked: true, wantErr: true},
+		{name: "a declared length past the limit", body: "0123456789!", limit: 10, wantErr: true},
+		{name: "no limit", body: strings.Repeat("x", 4096)},
+		{name: "the largest limit does not overflow", body: "hello", limit: math.MaxInt64},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var requests atomic.Int32
+			server := serve(t, func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				if testCase.chunked {
+					// Flushing before the body is complete sends it chunked, with no Content-Length.
+					_, _ = io.WriteString(w, testCase.body[:1])
+					w.(http.Flusher).Flush()
+					_, _ = io.WriteString(w, testCase.body[1:])
+					return
+				}
+				_, _ = io.WriteString(w, testCase.body)
+			})
+
+			_, body, err := Fetch(
+				context.Background(),
+				server.URL,
+				own(server),
+				fetch_config.WithMaxResponseBodySize(testCase.limit),
+				fetch_config.WithRetryConfig(retry_config.New(retry_config.WithCount(2), retry_config.WithBaseDelay(time.Millisecond))),
+			)
+			if testCase.wantErr {
+				if !errors.Is(err, altshiftHttpErrors.ErrResponseBodyTooLarge) {
+					t.Fatalf("%s: fetch = %v, want too large", testCase.name, err)
+				}
+				if body != nil {
+					t.Errorf("%s: body %q with the error", testCase.name, body)
+				}
+				// A body that is too large will be as large again: it is not retried.
+				if count := requests.Load(); count != 1 {
+					t.Errorf("%s: %d requests, want 1", testCase.name, count)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("%s: fetch: %v", testCase.name, err)
+			}
+			if string(body) != testCase.body {
+				t.Errorf("%s: body %q, want %q", testCase.name, body, testCase.body)
+			}
+		})
+	}
 }

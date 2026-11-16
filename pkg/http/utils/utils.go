@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"maps"
+	"math"
 	"net/http"
 	"net/http/httptrace"
 	"slices"
@@ -185,13 +186,34 @@ func fetch(ctx context.Context, request *http.Request, fetchConfig *fetch_config
 
 	var responseBodyData []byte
 	if !fetchConfig.SkipReadResponseBody {
-		responseBodyData, err = io.ReadAll(responseBody)
 		defer closeResponseBody(ctx, responseBody)
 
+		// A limit of MaxInt64 is no limit, and one past it would overflow.
+		limit := fetchConfig.MaxResponseBodySize
+		limited := limit > 0 && limit < math.MaxInt64
+		if limited && response.ContentLength > limit {
+			return response, nil, altshiftErrors.NewWithTraceCtx(
+				ctxWithHttpContext,
+				fmt.Errorf("%w: content length %d, limit %d", altshiftHttpErrors.ErrResponseBodyTooLarge, response.ContentLength, limit),
+			)
+		}
+
+		reader := io.Reader(responseBody)
+		if limited {
+			// One byte past the limit tells a body that fits exactly from one that does not.
+			reader = io.LimitReader(responseBody, limit+1)
+		}
+		responseBodyData, err = io.ReadAll(reader)
 		if err != nil {
 			return response, nil, altshiftErrors.NewWithTraceCtx(
 				ctxWithHttpContext,
 				fmt.Errorf("io read all (response body): %w", err),
+			)
+		}
+		if limited && int64(len(responseBodyData)) > limit {
+			return response, nil, altshiftErrors.NewWithTraceCtx(
+				ctxWithHttpContext,
+				fmt.Errorf("%w: more than %d bytes", altshiftHttpErrors.ErrResponseBodyTooLarge, limit),
 			)
 		}
 

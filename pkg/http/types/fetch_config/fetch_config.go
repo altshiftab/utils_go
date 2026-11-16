@@ -21,8 +21,10 @@ type Config struct {
 	// As with http.Client.Do, a response returned with an error has its body closed already.
 	SkipReadResponseBody bool
 	SkipErrorOnStatus    bool
-	RetryConfig          *retry_config.Config
-	HttpClient           *http.Client
+	// MaxResponseBodySize bounds the bytes read from a response body; zero reads it whole, and it has no effect when the body is left unread.
+	MaxResponseBodySize int64
+	RetryConfig         *retry_config.Config
+	HttpClient          *http.Client
 }
 
 func New(options ...Option) *Config {
@@ -74,6 +76,13 @@ func WithSkipReadResponseBody(skipReadResponseBody bool) Option {
 func WithSkipErrorOnStatus(skipErrorOnStatus bool) Option {
 	return func(configuration *Config) {
 		configuration.SkipErrorOnStatus = skipErrorOnStatus
+	}
+}
+
+// WithMaxResponseBodySize makes a response whose body is larger than size bytes an error rather than reading it all.
+func WithMaxResponseBodySize(size int64) Option {
+	return func(configuration *Config) {
+		configuration.MaxResponseBodySize = size
 	}
 }
 

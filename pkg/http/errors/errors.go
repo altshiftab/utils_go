@@ -13,6 +13,7 @@ var (
 	ErrMultipleHeaderValues         = errors.New("multiple header values")
 	ErrMissingQueryParameter        = errors.New("missing query parameter")
 	ErrMultipleQueryParameterValues = errors.New("multiple query parameter values")
+	ErrResponseBodyTooLarge         = errors.New("response body too large")
 )
 
 type Non2xxStatusCodeError struct {
