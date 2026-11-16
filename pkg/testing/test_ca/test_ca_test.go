@@ -3,6 +3,9 @@ package test_ca_test
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
@@ -142,5 +145,40 @@ func TestServeHttpRefusesGarbage(t *testing.T) {
 	}
 	if response.Status.Status != 2 {
 		t.Errorf("status %d, want rejection", response.Status.Status)
+	}
+}
+
+// TestIssueSeal issues a sealing certificate for a key held elsewhere, chained like the authority's own.
+func TestIssueSeal(t *testing.T) {
+	t.Parallel()
+
+	authority, err := test_ca.New(time.Now(), "Test AB")
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	elsewhere, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("ecdsa generate key: %v", err)
+	}
+
+	certificate, err := authority.IssueSeal(elsewhere.Public())
+	if err != nil {
+		t.Fatalf("issue seal: %v", err)
+	}
+	if !certificate.PublicKey.(interface{ Equal(crypto.PublicKey) bool }).Equal(elsewhere.Public()) {
+		t.Error("the certificate is not for the key given")
+	}
+	roots := x509.NewCertPool()
+	roots.AddCert(authority.Root)
+	intermediates := x509.NewCertPool()
+	intermediates.AddCert(authority.Issuing)
+	if _, err := certificate.Verify(x509.VerifyOptions{Roots: roots, Intermediates: intermediates}); err != nil {
+		t.Errorf("verify: %v", err)
+	}
+	if certificate.Subject.CommonName != authority.Seal.Subject.CommonName {
+		t.Errorf("subject %q, want the authority's seal subject", certificate.Subject.CommonName)
+	}
+	if _, err := authority.IssueSeal(nil); err == nil {
+		t.Error("issue seal without a key succeeded")
 	}
 }

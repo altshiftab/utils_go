@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -49,6 +50,29 @@ var (
 	ErrReservationTooSmall = errors.New("signature contents larger than reserved")
 )
 
+// ErrInvalidRectangle is a field rectangle that is not a box on a page.
+var ErrInvalidRectangle = errors.New("invalid field rectangle")
+
+// Rectangle is a box on a page, in points from its lower-left corner.
+type Rectangle struct {
+	Left   float64
+	Bottom float64
+	Right  float64
+	Top    float64
+}
+
+func (r *Rectangle) validate() error {
+	for _, value := range []float64{r.Left, r.Bottom, r.Right, r.Top} {
+		if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+			return altshiftErrors.NewWithTrace(fmt.Errorf("%w: %v", ErrInvalidRectangle, *r))
+		}
+	}
+	if r.Right <= r.Left || r.Top <= r.Bottom {
+		return altshiftErrors.NewWithTrace(fmt.Errorf("%w: %v", ErrInvalidRectangle, *r))
+	}
+	return nil
+}
+
 // Sealer seals documents with one key and its certificate chain.
 type Sealer struct {
 	Signer crypto.Signer
@@ -56,7 +80,9 @@ type Sealer struct {
 	Certificates []*x509.Certificate
 	Timestamper  tsa.Timestamper
 	Collector    *validation_data.Collector
-	Now          func() time.Time
+	// SealRectangle places the seal's field on the last page, over what the page prints for it, so a reader opens its check of the seal there; nil leaves the field off the page.
+	SealRectangle *Rectangle
+	Now           func() time.Time
 }
 
 func (s *Sealer) now() time.Time {
@@ -131,7 +157,7 @@ func unusedFieldName(document *file.File, catalog object.Dictionary, name string
 }
 
 // addSignatureField appends an update with a signature dictionary, its invisible field on the last page, and the form that lists it.
-func addSignatureField(data []byte, fieldName string, dictionaryEntries string, contentsSize int) (*file.Written, *placeholder, error) {
+func addSignatureField(data []byte, fieldName string, dictionaryEntries string, contentsSize int, rectangle *Rectangle) (*file.Written, *placeholder, error) {
 	document, err := file.Open(data)
 	if err != nil {
 		return nil, nil, fmt.Errorf("file open: %w", err)
@@ -175,6 +201,21 @@ func addSignatureField(data []byte, fieldName string, dictionaryEntries string, 
 		"P":       lastPage.Reference,
 		"Rect":    object.Array{object.Integer(0), object.Integer(0), object.Integer(0), object.Integer(0)},
 		"F":       object.Integer(widgetFlags),
+	}
+	if rectangle != nil {
+		field["Rect"] = object.Array{object.Real(rectangle.Left), object.Real(rectangle.Bottom), object.Real(rectangle.Right), object.Real(rectangle.Top)}
+		// A field on the page needs an appearance; an empty one, since the page itself prints the mark beneath.
+		appearanceReference := update.NewObject()
+		appearance := &object.Stream{Dictionary: object.Dictionary{
+			"Type":      object.Name("XObject"),
+			"Subtype":   object.Name("Form"),
+			"BBox":      object.Array{object.Real(0), object.Real(0), object.Real(rectangle.Right - rectangle.Left), object.Real(rectangle.Top - rectangle.Bottom)},
+			"Resources": object.Dictionary{},
+		}}
+		if err := update.Set(appearanceReference, appearance); err != nil {
+			return nil, nil, fmt.Errorf("update set (appearance): %w", err)
+		}
+		field["AP"] = object.Dictionary{"N": appearanceReference}
 	}
 	if err := update.Set(fieldReference, field); err != nil {
 		return nil, nil, fmt.Errorf("update set (field): %w", err)
@@ -279,7 +320,7 @@ func (s *Sealer) sign(ctx context.Context, data []byte) ([]byte, []byte, error) 
 		return nil, nil, fmt.Errorf("object append (date): %w", err)
 	}
 	entries := "/Type /Sig /Filter /Adobe.PPKLite /SubFilter /ETSI.CAdES.detached /M " + string(date)
-	written, p, err := addSignatureField(data, sealFieldName, entries, signatureContentsSize)
+	written, p, err := addSignatureField(data, sealFieldName, entries, signatureContentsSize, s.SealRectangle)
 	if err != nil {
 		return nil, nil, fmt.Errorf("add signature field: %w", err)
 	}
@@ -375,7 +416,7 @@ func addDss(data []byte, validationData *validation_data.ValidationData) ([]byte
 }
 
 func (s *Sealer) documentTimestamp(ctx context.Context, data []byte) ([]byte, error) {
-	written, p, err := addSignatureField(data, timestampFieldName, "/Type /DocTimeStamp /Filter /Adobe.PPKLite /SubFilter /ETSI.RFC3161", timestampContentsSize)
+	written, p, err := addSignatureField(data, timestampFieldName, "/Type /DocTimeStamp /Filter /Adobe.PPKLite /SubFilter /ETSI.RFC3161", timestampContentsSize, nil)
 	if err != nil {
 		return nil, fmt.Errorf("add signature field: %w", err)
 	}
@@ -408,6 +449,11 @@ func (s *Sealer) Seal(ctx context.Context, data []byte) ([]byte, error) {
 	}
 	if s.Collector == nil {
 		return nil, altshiftErrors.NewWithTrace(nil_error.New("collector"))
+	}
+	if s.SealRectangle != nil {
+		if err := s.SealRectangle.validate(); err != nil {
+			return nil, fmt.Errorf("seal rectangle validate: %w", err)
+		}
 	}
 	publicKey, ok := s.Certificates[0].PublicKey.(interface{ Equal(x crypto.PublicKey) bool })
 	if !ok || !publicKey.Equal(s.Signer.Public()) {

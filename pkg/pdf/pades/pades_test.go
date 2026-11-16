@@ -412,3 +412,104 @@ func TestQualifiedForSeals(t *testing.T) {
 		t.Error("nil: qualified for seals")
 	}
 }
+
+func fieldsOf(t *testing.T, sealed []byte) map[string]object.Dictionary {
+	t.Helper()
+	document, err := file.Open(sealed)
+	if err != nil {
+		t.Fatalf("file open: %v", err)
+	}
+	catalog, _, err := document.Catalog()
+	if err != nil {
+		t.Fatalf("catalog: %v", err)
+	}
+	form, err := document.ResolveDictionary(catalog["AcroForm"])
+	if err != nil {
+		t.Fatalf("acro form: %v", err)
+	}
+	fields, err := document.ResolveArray(form["Fields"])
+	if err != nil {
+		t.Fatalf("fields: %v", err)
+	}
+	byName := map[string]object.Dictionary{}
+	for _, field := range fields {
+		dictionary, err := document.ResolveDictionary(field)
+		if err != nil {
+			t.Fatalf("field: %v", err)
+		}
+		title, _ := dictionary["T"].(*object.String)
+		if title != nil {
+			// The appearance is resolved here, while the file is open.
+			if appearance, ok := dictionary["AP"].(object.Dictionary); ok {
+				normal, err := document.ResolveDictionary(appearance["N"])
+				if err != nil {
+					t.Fatalf("appearance: %v", err)
+				}
+				dictionary = dictionary.Clone()
+				dictionary["AP"] = normal
+			}
+			byName[string(title.Value)] = dictionary
+		}
+	}
+	return byName
+}
+
+// TestSealRectangle places the seal's field over a box on the last page, with an empty appearance, and leaves the document timestamp off the page.
+func TestSealRectangle(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		rectangle *pades.Rectangle
+		wantRect  object.Array
+		wantErr   error
+	}{
+		{name: "off the page", wantRect: object.Array{object.Integer(0), object.Integer(0), object.Integer(0), object.Integer(0)}},
+		{
+			name:      "over the mark",
+			rectangle: &pades.Rectangle{Left: 100, Bottom: 200, Right: 175.5, Top: 275.5},
+			wantRect:  object.Array{object.Real(100), object.Real(200), object.Real(175.5), object.Real(275.5)},
+		},
+		{name: "inside out", rectangle: &pades.Rectangle{Left: 100, Bottom: 200, Right: 90, Top: 275}, wantErr: pades.ErrInvalidRectangle},
+		{name: "off the edge", rectangle: &pades.Rectangle{Left: -5, Bottom: 200, Right: 90, Top: 275}, wantErr: pades.ErrInvalidRectangle},
+		{name: "not a number", rectangle: &pades.Rectangle{Left: math.NaN(), Bottom: 200, Right: 90, Top: 275}, wantErr: pades.ErrInvalidRectangle},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			sealer, _ := newSealer(t)
+			sealer.SealRectangle = testCase.rectangle
+			sealed, err := sealer.Seal(context.Background(), onePagePdf())
+			if testCase.wantErr != nil {
+				if !errors.Is(err, testCase.wantErr) {
+					t.Errorf("%s: seal = %v, want %v", testCase.name, err, testCase.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("%s: seal: %v", testCase.name, err)
+			}
+
+			fields := fieldsOf(t, sealed)
+			seal := fields["Seal"]
+			if fmt.Sprint(seal["Rect"]) != fmt.Sprint(testCase.wantRect) {
+				t.Errorf("%s: seal /Rect %v, want %v", testCase.name, seal["Rect"], testCase.wantRect)
+			}
+			appearance, hasAppearance := seal["AP"].(object.Dictionary)
+			if (testCase.rectangle != nil) != hasAppearance {
+				t.Errorf("%s: appearance %v", testCase.name, seal["AP"])
+			}
+			if hasAppearance {
+				box, _ := appearance["BBox"].(object.Array)
+				if fmt.Sprint(box) != fmt.Sprint(object.Array{object.Real(0), object.Real(0), object.Real(75.5), object.Real(75.5)}) {
+					t.Errorf("%s: appearance /BBox %v", testCase.name, box)
+				}
+			}
+			if timestamp := fields["DocumentTimestamp"]; fmt.Sprint(timestamp["Rect"]) != fmt.Sprint(object.Array{object.Integer(0), object.Integer(0), object.Integer(0), object.Integer(0)}) {
+				t.Errorf("%s: the document timestamp is on the page: %v", testCase.name, timestamp["Rect"])
+			}
+		})
+	}
+}

@@ -15,6 +15,7 @@ import (
 
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
+	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 )
 
 // The CRL addresses are under .invalid, so a validator can only use the CRLs the document carries.
@@ -127,17 +128,7 @@ func New(now time.Time, organization string) (*Authority, error) {
 		return nil, fmt.Errorf("issue (issuing): %w", err)
 	}
 
-	seal, err := issue(
-		&x509.Certificate{
-			Subject:               pkix.Name{Country: []string{"SE"}, Organization: []string{organization}, CommonName: organization + " e-seal (test)"},
-			NotBefore:             notBefore,
-			NotAfter:              notAfter,
-			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageContentCommitment,
-			BasicConstraintsValid: true,
-			CRLDistributionPoints: []string{issuingCrlUrl},
-		},
-		sealKey.Public(), issuing, issuingKey,
-	)
+	seal, err := issue(sealTemplate(organization, notBefore, notAfter), sealKey.Public(), issuing, issuingKey)
 	if err != nil {
 		return nil, fmt.Errorf("issue (seal): %w", err)
 	}
@@ -163,6 +154,32 @@ func New(now time.Time, organization string) (*Authority, error) {
 	}
 
 	return &Authority{Root: root, Issuing: issuing, Seal: seal, SealKey: sealKey, Tsa: tsa, tsaKey: tsaKey, rootKey: rootKey, issuingKey: issuingKey}, nil
+}
+
+func sealTemplate(organization string, notBefore time.Time, notAfter time.Time) *x509.Certificate {
+	return &x509.Certificate{
+		Subject:               pkix.Name{Country: []string{"SE"}, Organization: []string{organization}, CommonName: organization + " e-seal (test)"},
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageContentCommitment,
+		BasicConstraintsValid: true,
+		CRLDistributionPoints: []string{issuingCrlUrl},
+	}
+}
+
+// IssueSeal issues a sealing certificate for a key the authority does not hold, such as one in an HSM, from its issuing CA, valid as long as the authority's own.
+func (a *Authority) IssueSeal(publicKey crypto.PublicKey) (*x509.Certificate, error) {
+	if a == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("authority"))
+	}
+	if publicKey == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("public key"))
+	}
+	certificate, err := issue(sealTemplate(a.Seal.Subject.Organization[0], a.Seal.NotBefore, a.Seal.NotAfter), publicKey, a.Issuing, a.issuingKey)
+	if err != nil {
+		return nil, fmt.Errorf("issue (seal): %w", err)
+	}
+	return certificate, nil
 }
 
 // Chain is the sealing certificate and its issuing CA, as a signature carries them.
