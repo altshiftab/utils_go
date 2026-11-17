@@ -34,11 +34,13 @@ type Signer struct {
 	client     *Client
 	keyVersion string
 	publicKey  crypto.PublicKey
-	// ctx is what Sign calls KMS under, since crypto.Signer's Sign takes no context.
+	// ctx is what Sign calls KMS under, since crypto.Signer's Sign takes no context: the construction context's values, without its cancellation.
 	ctx context.Context //nolint:containedctx // crypto.Signer has no context of its own.
 }
 
 // NewSigner reads the key version's public half and algorithm, and refuses an algorithm a Signer cannot sign with.
+//
+// ctx bounds the reading of the public half. Sign, which takes no context, calls KMS under ctx's values with its cancellation and deadline dropped (context.WithoutCancel): a Signer outlives the request it was made in, and one kept for later signatures would otherwise fail every one of them once that request ended. A Sign is bounded by the client's HTTP timeout instead.
 func NewSigner(ctx context.Context, client *Client, keyVersion string) (*Signer, error) {
 	if client == nil {
 		return nil, altshiftErrors.NewWithTrace(nil_error.New("cloud kms client"))
@@ -65,7 +67,7 @@ func NewSigner(ctx context.Context, client *Client, keyVersion string) (*Signer,
 		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w: a %T public key", ErrUnsupportedAlgorithm, parsed), keyVersion)
 	}
 
-	return &Signer{client: client, keyVersion: keyVersion, publicKey: parsed, ctx: ctx}, nil
+	return &Signer{client: client, keyVersion: keyVersion, publicKey: parsed, ctx: context.WithoutCancel(ctx)}, nil
 }
 
 // Public returns the key version's public half.

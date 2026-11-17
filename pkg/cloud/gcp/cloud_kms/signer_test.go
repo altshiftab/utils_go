@@ -126,6 +126,39 @@ func TestSigner(t *testing.T) {
 	}
 }
 
+// contextKey carries a value through a construction context, to see it reach the signatures.
+type contextKey struct{}
+
+// TestSignerOutlivesItsConstructionContext signs after the context the Signer was made with is cancelled, as a Signer kept for
+// later requests is: each signature still reaches KMS, under the construction context's values.
+func TestSignerOutlivesItsConstructionContext(t *testing.T) {
+	t.Parallel()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("ecdsa generate key: %v", err)
+	}
+	client := testServer(t, fakeKms(t, "EC_SIGN_P256_SHA256", key, key))
+
+	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), contextKey{}, "kept"))
+	signer, err := NewSigner(ctx, client, testKeyVersion)
+	if err != nil {
+		t.Fatalf("new signer: %v", err)
+	}
+	cancel()
+
+	for i := range 2 {
+		digest := sha256.Sum256([]byte{byte(i)})
+		signature, err := signer.Sign(rand.Reader, digest[:], crypto.SHA256)
+		if err != nil || !ecdsa.VerifyASN1(&key.PublicKey, digest[:], signature) {
+			t.Fatalf("sign %d after the construction context was cancelled: %x, %v", i, signature, err)
+		}
+	}
+	if value, _ := signer.ctx.Value(contextKey{}).(string); value != "kept" {
+		t.Errorf("the construction context's values were not kept: %q", value)
+	}
+}
+
 func TestNewSignerArguments(t *testing.T) {
 	t.Parallel()
 
