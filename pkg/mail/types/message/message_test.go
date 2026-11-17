@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"mime/multipart"
 	"mime/quotedprintable"
 	"net/mail"
 	"reflect"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 	altshiftMailErrors "github.com/altshiftab/utils_go/pkg/mail/errors"
@@ -629,6 +631,198 @@ func TestMessage_String_Date(t *testing.T) {
 			}
 			if !strings.Contains(out, testCase.want) {
 				t.Errorf("output missing %q:\n%s", testCase.want, out)
+			}
+		})
+	}
+}
+
+func TestCheckFilename(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		filename string
+		wantErr  bool
+	}{
+		{name: "a plain name", filename: "request.csr"},
+		{name: "a name outside ASCII", filename: "Årsredovisning 2025 – slutlig.pdf"},
+		{name: "a name in another script", filename: "Счёт.pdf"},
+		{name: "spaces, parentheses and a semicolon", filename: "scan (1); signed.pdf"},
+		{name: "a name of the longest length", filename: strings.Repeat("a", MaxFilenameBytes-4) + ".pdf"},
+		{name: "empty", filename: "", wantErr: true},
+		{name: "a name too long", filename: strings.Repeat("a", MaxFilenameBytes-3) + ".pdf", wantErr: true},
+		{name: "the directory itself", filename: ".", wantErr: true},
+		{name: "the directory above", filename: "..", wantErr: true},
+		{name: "a line break that would add a header", filename: "a.pdf\r\nBcc: x@example.com", wantErr: true},
+		{name: "a bare newline", filename: "a\nb.pdf", wantErr: true},
+		{name: "a tab", filename: "a\tb.pdf", wantErr: true},
+		{name: "a NUL", filename: "a\x00.pdf", wantErr: true},
+		{name: "a DEL", filename: "a\x7f.pdf", wantErr: true},
+		{name: "a C1 control", filename: "a\u0085.pdf", wantErr: true},
+		{name: "a right-to-left override", filename: "invoice\u202efdp.exe", wantErr: true},
+		{name: "a quote", filename: `a".pdf`, wantErr: true},
+		{name: "a backslash", filename: `a\b.pdf`, wantErr: true},
+		{name: "a slash", filename: "../etc/passwd", wantErr: true},
+		{name: "not UTF-8", filename: "a\xff.pdf", wantErr: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := CheckFilename(testCase.filename)
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("%s: err = %v, want error %t", testCase.name, err, testCase.wantErr)
+			}
+			if err != nil && !errors.Is(err, altshiftErrors.ErrValidationError) {
+				t.Errorf("%s: err = %v, want a validation error", testCase.name, err)
+			}
+		})
+	}
+}
+
+func TestAttachment_ContentType(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name        string
+		contentType string
+		want        string
+	}{
+		{name: "none is a stream of bytes", contentType: "", want: "application/octet-stream; name=x.pdf"},
+		{name: "a type", contentType: "application/pdf", want: "application/pdf; name=x.pdf"},
+		{name: "a type with a parameter, in capitals", contentType: "TEXT/Plain; charset=utf-8", want: "text/plain; charset=utf-8; name=x.pdf"},
+		{name: "a type whose name is given", contentType: `application/pdf; name="other.pdf"`, want: "application/pdf; name=x.pdf"},
+		{name: "a type with a parameter that does not parse", contentType: "application/pdf; charset", want: "application/pdf; name=x.pdf"},
+		{name: "a line break that would add a header", contentType: "text/plain\r\nBcc: x@example.com", want: "application/octet-stream; name=x.pdf"},
+		{name: "no subtype", contentType: "pdf", want: "application/octet-stream; name=x.pdf"},
+		{name: "not a type", contentType: "a b/c", want: "application/octet-stream; name=x.pdf"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := Attachment("x.pdf", testCase.contentType, []byte("x")).ContentType; got != testCase.want {
+				t.Errorf("%s: ContentType = %q, want %q", testCase.name, got, testCase.want)
+			}
+		})
+	}
+}
+
+// TestAttachment_FilenameRoundTrip writes each name into a message and reads it back from the headers as written, so
+// that a name is what a mail client reads, and none adds a header or a line longer than mail allows.
+func TestAttachment_FilenameRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		filename string
+	}{
+		{name: "plain", filename: "request.csr"},
+		{name: "spaces and a semicolon, quoted", filename: "scan (1); signed.pdf"},
+		{name: "outside ASCII, as RFC 2231 has it", filename: "Årsredovisning – slutlig.pdf"},
+		{name: "the longest, every byte encoded", filename: strings.Repeat("å", MaxFilenameBytes/2)},
+		{name: "a quote, escaped", filename: `a".pdf`},
+		{name: "a line break, encoded rather than ending the line", filename: "a.pdf\r\nBcc: x@example.com"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			msg, err := New(validFrom(), validTo(), "s", &Body{
+				Subtype: "mixed",
+				Parts:   []*Body{Text("see attached"), Attachment(testCase.filename, "application/pdf", []byte("%PDF"))},
+			})
+			if err != nil {
+				t.Fatalf("%s: New: %v", testCase.name, err)
+			}
+			out, err := msg.String()
+			if err != nil {
+				t.Fatalf("%s: String: %v", testCase.name, err)
+			}
+			for index, line := range strings.Split(out, "\r\n") {
+				if len(line) > 998 {
+					t.Errorf("%s: line %d is %d octets", testCase.name, index, len(line))
+				}
+			}
+
+			parsed, err := mail.ReadMessage(strings.NewReader(out))
+			if err != nil {
+				t.Fatalf("%s: read message: %v", testCase.name, err)
+			}
+			if bcc := parsed.Header.Get("Bcc"); bcc != "" {
+				t.Errorf("%s: a Bcc header was added: %q", testCase.name, bcc)
+			}
+			_, params, err := mime.ParseMediaType(parsed.Header.Get("Content-Type"))
+			if err != nil {
+				t.Fatalf("%s: parse media type: %v", testCase.name, err)
+			}
+			reader := multipart.NewReader(parsed.Body, params["boundary"])
+			var parts []*multipart.Part
+			for {
+				part, err := reader.NextPart()
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				if err != nil {
+					t.Fatalf("%s: next part: %v", testCase.name, err)
+				}
+				parts = append(parts, part)
+			}
+			if len(parts) != 2 {
+				t.Fatalf("%s: %d parts, want 2", testCase.name, len(parts))
+			}
+			file := parts[1]
+			if bcc := file.Header.Get("Bcc"); bcc != "" {
+				t.Errorf("%s: a part's Bcc header was added: %q", testCase.name, bcc)
+			}
+			_, disposition, err := mime.ParseMediaType(file.Header.Get("Content-Disposition"))
+			if err != nil {
+				t.Fatalf("%s: parse disposition: %v", testCase.name, err)
+			}
+			_, typeParams, err := mime.ParseMediaType(file.Header.Get("Content-Type"))
+			if err != nil {
+				t.Fatalf("%s: parse content type: %v", testCase.name, err)
+			}
+			if disposition["filename"] != testCase.filename || typeParams["name"] != testCase.filename {
+				t.Errorf("%s: filename %q, name %q, want %q", testCase.name, disposition["filename"], typeParams["name"], testCase.filename)
+			}
+		})
+	}
+}
+
+func TestMessage_String_PartHeaderInjection(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		part *Body
+	}{
+		{name: "a content type with a line break", part: &Body{Content: []byte("x"), ContentType: "text/plain\r\nBcc: x@example.com"}},
+		{name: "a subtype with a line break", part: &Body{Subtype: "mixed\r\nBcc: x@example.com", Parts: []*Body{Text("x")}}},
+		{name: "a header's value with a line break", part: &Body{
+			Content: []byte("x"), ContentType: "text/plain",
+			Headers: []*message_header.Header{{Name: "Content-Disposition", Value: "attachment\r\nBcc: x@example.com"}},
+		}},
+		{name: "a header's name with a colon", part: &Body{
+			Content: []byte("x"), ContentType: "text/plain",
+			Headers: []*message_header.Header{{Name: "Bcc: x@example.com\r\nX", Value: "y"}},
+		}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := &Body{Subtype: "mixed", Parts: []*Body{Text("x"), testCase.part}}
+			if _, err := New(validFrom(), validTo(), "s", body); !errors.Is(err, altshiftMailErrors.ErrHeaderInjection) {
+				t.Errorf("%s: New err = %v, want header injection", testCase.name, err)
+			}
+			msg := &Message{From: validFrom(), To: validTo(), Subject: "s", Body: body}
+			if _, err := msg.String(); !errors.Is(err, altshiftMailErrors.ErrHeaderInjection) {
+				t.Errorf("%s: String err = %v, want header injection", testCase.name, err)
 			}
 		})
 	}

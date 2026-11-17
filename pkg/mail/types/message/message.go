@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"mime"
 	"mime/quotedprintable"
 	"net/mail"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
@@ -27,9 +30,14 @@ type Body struct {
 	Subtype     string
 }
 
+// Validate refuses a body that cannot be written: a multipart one without its subtype, a part without its content
+// type, and a part whose headers would end their lines (ErrHeaderInjection).
 func (body *Body) Validate() error {
 	if body == nil {
 		return nil
+	}
+	if err := body.checkLines(); err != nil {
+		return err
 	}
 	if len(body.Parts) > 0 {
 		if body.Subtype == "" {
@@ -47,6 +55,26 @@ func (body *Body) Validate() error {
 	}
 	if body.ContentType == "" {
 		return empty_error.New("content type")
+	}
+	return nil
+}
+
+// checkLines refuses the part's own headers where one would end its line: its content type, its multipart subtype, and
+// the headers of its own. What follows a line break is read as a header no one asked for, or as the part's content.
+func (body *Body) checkLines() error {
+	if strings.ContainsAny(body.ContentType, "\r\n") || strings.ContainsAny(body.Subtype, "\r\n") {
+		return fmt.Errorf("%w: a part's content type has a line break", altshiftMailErrors.ErrHeaderInjection)
+	}
+	for _, header := range body.Headers {
+		if header == nil {
+			continue
+		}
+		if strings.ContainsAny(header.Name, "\r\n:") {
+			return fmt.Errorf("%w: a part's header's name has a line break or a colon", altshiftMailErrors.ErrHeaderInjection)
+		}
+		if strings.ContainsAny(header.Value, "\r\n") {
+			return fmt.Errorf("%w: a part's %s header's value has a line break", altshiftMailErrors.ErrHeaderInjection, header.Name)
+		}
 	}
 	return nil
 }
@@ -113,15 +141,53 @@ func Text(text string) *Body {
 	}
 }
 
-func Attachment(filename, contentType string, content []byte) *Body {
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
+// defaultContentType is what a file is sent as whose type is not known.
+const defaultContentType = "application/octet-stream"
 
+// MaxFilenameBytes bounds a file's name CheckFilename takes: written into Content-Type and Content-Disposition, its
+// every byte percent-encoded at worst, it keeps either line well within the 998 octets RFC 5322 allows one.
+const MaxFilenameBytes = 255
+
+// CheckFilename refuses, as ErrValidationError, a name a file is not to be attached under: an empty one, "." or "..",
+// one longer than MaxFilenameBytes or not UTF-8, and one with a control character, a bidirectional one (a name that
+// displays as other than it is, as "invoice\u202efdp.exe" does), a quote, a backslash or a slash -- a path's
+// separators, and what Attachment would write encoded or escaped where mail clients read either differently. A name
+// taken from someone else is checked before it is attached.
+func CheckFilename(filename string) error {
+	switch {
+	case filename == "":
+		return altshiftErrors.NewWithTrace(fmt.Errorf("%w: %w", altshiftErrors.ErrValidationError, empty_error.New("filename")))
+	case len(filename) > MaxFilenameBytes:
+		return altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: the filename is %d bytes, more than %d", altshiftErrors.ErrValidationError, len(filename), MaxFilenameBytes),
+		)
+	case filename == "." || filename == "..":
+		return altshiftErrors.NewWithTrace(fmt.Errorf("%w: the filename %q names no file", altshiftErrors.ErrValidationError, filename))
+	case !utf8.ValidString(filename):
+		return altshiftErrors.NewWithTrace(fmt.Errorf("%w: the filename %q is not UTF-8", altshiftErrors.ErrValidationError, filename))
+	}
+	for _, r := range filename {
+		if unicode.IsControl(r) || unicode.Is(unicode.Bidi_Control, r) || r == '"' || r == '\\' || r == '/' {
+			return altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: the filename %q has a character not taken in one: %q", altshiftErrors.ErrValidationError, filename, r),
+			)
+		}
+	}
+	return nil
+}
+
+// Attachment is a part carrying the content, base64, as a file of the content type, named filename when one is given.
+// A content type that is not one, or not given, is application/octet-stream, rather than written as it is: what
+// follows a line break in it would be a header of its own; one with a parameter that does not parse is kept without
+// its parameters. The name is written as a parameter of Content-Type and of
+// Content-Disposition, quoted where it needs to be, and encoded as RFC 2231 has it where it is not printable ASCII.
+func Attachment(filename, contentType string, content []byte) *Body {
 	mediaType, params, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		mediaType = contentType
+	switch {
+	case errors.Is(err, mime.ErrInvalidMediaParameter) && strings.Contains(mediaType, "/"):
 		params = map[string]string{}
+	case err != nil || !strings.Contains(mediaType, "/"):
+		mediaType, params = defaultContentType, map[string]string{}
 	}
 
 	dispositionParams := map[string]string{}
@@ -132,7 +198,7 @@ func Attachment(filename, contentType string, content []byte) *Body {
 
 	contentTypeValue := mime.FormatMediaType(mediaType, params)
 	if contentTypeValue == "" {
-		contentTypeValue = contentType
+		contentTypeValue = defaultContentType
 	}
 	dispositionValue := mime.FormatMediaType("attachment", dispositionParams)
 	if dispositionValue == "" {
@@ -231,6 +297,9 @@ func (message *Message) String() (string, error) {
 				fmt.Errorf("%w: a header's name has a line break or a colon", altshiftMailErrors.ErrHeaderInjection),
 			)
 		}
+	}
+	if err := message.Body.Validate(); err != nil {
+		return "", altshiftErrors.NewWithTrace(err)
 	}
 
 	var builder strings.Builder
