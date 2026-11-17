@@ -345,6 +345,30 @@ func TestAttachment_WithFilenameAndType(t *testing.T) {
 	}
 }
 
+// TestAttachment_UnwritableParameter keeps the media type and the name when a parameter parses but cannot be written.
+func TestAttachment_UnwritableParameter(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name        string
+		filename    string
+		contentType string
+		want        string
+	}{
+		{name: "a parameter with no name", filename: "report.pdf", contentType: "application/pdf; *=utf-8''foo", want: "application/pdf; name=report.pdf"},
+		{name: "a continuation with no name", filename: "report.pdf", contentType: "application/pdf; *0=foo", want: "application/pdf; name=report.pdf"},
+		{name: "no filename", contentType: "application/pdf; *=utf-8''foo", want: "application/pdf"},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			if got := Attachment(testCase.filename, testCase.contentType, []byte("x")).ContentType; got != testCase.want {
+				t.Errorf("%s: ContentType = %q, want %q", testCase.name, got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestAttachment_NonASCIIFilename(t *testing.T) {
 	t.Parallel()
 
@@ -660,6 +684,11 @@ func TestCheckFilename(t *testing.T) {
 		{name: "a DEL", filename: "a\x7f.pdf", wantErr: true},
 		{name: "a C1 control", filename: "a\u0085.pdf", wantErr: true},
 		{name: "a right-to-left override", filename: "invoice\u202efdp.exe", wantErr: true},
+		{name: "a line separator", filename: "invoice.pdf\u2028.exe", wantErr: true},
+		{name: "a paragraph separator", filename: "a\u2029b.pdf", wantErr: true},
+		{name: "a zero-width space", filename: "a\u200bb.pdf", wantErr: true},
+		{name: "a byte order mark", filename: "\ufeffa.pdf", wantErr: true},
+		{name: "a soft hyphen", filename: "a\u00adb.pdf", wantErr: true},
 		{name: "a quote", filename: `a".pdf`, wantErr: true},
 		{name: "a backslash", filename: `a\b.pdf`, wantErr: true},
 		{name: "a slash", filename: "../etc/passwd", wantErr: true},
