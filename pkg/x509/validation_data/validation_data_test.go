@@ -207,6 +207,73 @@ func TestCollectPrefersTheSelfSignedRoot(t *testing.T) {
 	}
 }
 
+// TestCollectEndsAtASelfSignedLeaf collects for a self-signed certificate that is no CA, as an organization's own seal
+// certificate is: it is its whole chain, and has no issuer to find and no CRL to fetch.
+func TestCollectEndsAtASelfSignedLeaf(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		keyUsage x509.KeyUsage
+	}{
+		{name: "no key usage"},
+		{name: "a seal's key usage", keyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageContentCommitment},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			leaf := newNode(t, "seal", nil, false, "", "")
+			if testCase.keyUsage != 0 {
+				template := *leaf.certificate
+				template.KeyUsage = testCase.keyUsage
+				der, err := x509.CreateCertificate(rand.Reader, &template, &template, leaf.key.Public(), leaf.key)
+				if err != nil {
+					t.Fatalf("%s: x509 create certificate: %v", testCase.name, err)
+				}
+				if leaf.certificate, err = x509.ParseCertificate(der); err != nil {
+					t.Fatalf("%s: x509 parse certificate: %v", testCase.name, err)
+				}
+			}
+			// The library's own check refuses it as its own parent, which is what the walk must not rely on.
+			if err := leaf.certificate.CheckSignatureFrom(leaf.certificate); err == nil {
+				t.Fatalf("%s: the leaf passes as its own CA; the case tests nothing", testCase.name)
+			}
+
+			data, err := (&Collector{}).Collect(context.Background(), leaf.certificate)
+			if err != nil {
+				t.Fatalf("%s: collect: %v", testCase.name, err)
+			}
+			if len(data.Certificates) != 1 || !data.Certificates[0].Equal(leaf.certificate) || len(data.Crls) != 0 {
+				t.Errorf("%s: %d certificates and %d crls, want the leaf alone", testCase.name, len(data.Certificates), len(data.Crls))
+			}
+		})
+	}
+}
+
+// TestCollectRefusesAForgedSelfSignature does not end the walk at a certificate that names itself as its issuer but is
+// signed by another key: it is not self-signed, and with nothing that issued it, it has no chain.
+func TestCollectRefusesAForgedSelfSignature(t *testing.T) {
+	t.Parallel()
+
+	leaf := newNode(t, "seal", nil, false, "", "")
+	other := newNode(t, "other", nil, false, "", "")
+	template := *leaf.certificate
+	// Issued under the leaf's own name by the other key, which x509 checks against the parent's public key.
+	parent := *leaf.certificate
+	parent.PublicKey = other.key.Public()
+	der, err := x509.CreateCertificate(rand.Reader, &template, &parent, leaf.key.Public(), other.key)
+	if err != nil {
+		t.Fatalf("x509 create certificate: %v", err)
+	}
+	forged, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("x509 parse certificate: %v", err)
+	}
+	if _, err := (&Collector{}).Collect(context.Background(), forged); !errors.Is(err, ErrNoIssuer) {
+		t.Errorf("collect = %v, want %v", err, ErrNoIssuer)
+	}
+}
+
 // TestCollectFetched walks a chain whose issuer and CRL are only reachable at the URLs the certificate names.
 func TestCollectFetched(t *testing.T) {
 	t.Parallel()

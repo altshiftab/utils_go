@@ -73,8 +73,12 @@ func (c *Collector) now() time.Time {
 	return time.Now()
 }
 
+// isSelfSigned reports whether the certificate is signed by its own key. The signature is checked as it stands rather
+// than with CheckSignatureFrom, which refuses a parent that is no CA: a self-signed end-entity certificate, such as a
+// seal certificate an organization issues itself, is the whole of its chain and ends the walk as a root does.
 func isSelfSigned(certificate *x509.Certificate) bool {
-	return bytes.Equal(certificate.RawIssuer, certificate.RawSubject) && certificate.CheckSignatureFrom(certificate) == nil
+	return bytes.Equal(certificate.RawIssuer, certificate.RawSubject) &&
+		certificate.CheckSignature(certificate.SignatureAlgorithm, certificate.RawTBSCertificate, certificate.Signature) == nil
 }
 
 func (c *Collector) fetch(ctx context.Context, address string, maxSize int64) ([]byte, error) {
@@ -202,6 +206,7 @@ func (c *Collector) crl(ctx context.Context, given [][]byte, certificate *x509.C
 }
 
 // Collect walks each certificate up to a self-signed root, gathering every certificate on the way and a current CRL for each one that is not a root.
+// A self-signed certificate is a chain of its own, root or not, and needs no CRL.
 func (c *Collector) Collect(ctx context.Context, certificates ...*x509.Certificate) (*ValidationData, error) {
 	if c == nil {
 		return nil, altshiftErrors.NewWithTrace(nil_error.New("collector"))

@@ -261,6 +261,68 @@ func TestSealRejects(t *testing.T) {
 	}
 }
 
+// TestSealWithASelfSignedCertificate seals with a certificate the key issued itself, as an organization's interim seal
+// certificate is: no CA, a digital signature and content commitment key usage, and no CRL to find. The chain is that one
+// certificate, the DSS carries it, and the seal verifies by it.
+func TestSealWithASelfSignedCertificate(t *testing.T) {
+	t.Parallel()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("ecdsa generate key: %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{Country: []string{"SE"}, Organization: []string{"Test AB"}, CommonName: "Test AB e-seal (interim)"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().AddDate(1, 0, 0),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageContentCommitment,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, key.Public(), key)
+	if err != nil {
+		t.Fatalf("x509 create certificate: %v", err)
+	}
+	certificate, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("x509 parse certificate: %v", err)
+	}
+
+	// The timestamps are the test authority's, whose chain has CRLs; the seal's chain has none to give.
+	sealer, authority := newSealer(t)
+	sealer.Signer = key
+	sealer.Certificates = []*x509.Certificate{certificate}
+	sealer.Collector.Certificates = append(sealer.Collector.Certificates, authority.Issuing)
+
+	document := onePagePdf()
+	sealed, err := sealer.Seal(context.Background(), document)
+	if err != nil {
+		t.Fatalf("seal: %v", err)
+	}
+
+	found := signatures(t, sealed)
+	if len(found) != 2 {
+		t.Fatalf("%d signatures, want the seal and the document timestamp", len(found))
+	}
+	signedData, err := cms.ParseSignedData(found[0].contents)
+	if err != nil {
+		t.Fatalf("parse signed data: %v", err)
+	}
+	signer, err := signedData.Verify(found[0].covered)
+	if err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if !signer.Equal(certificate) {
+		t.Errorf("signed by %q, want the self-signed certificate", signer.Subject)
+	}
+	if !bytes.Contains(sealed, certificate.Raw) {
+		t.Error("the self-signed certificate is not in the sealed file")
+	}
+	if !bytes.Contains(sealed, authority.Tsa.Raw) {
+		t.Error("the timestamping unit's certificate is not in the sealed file")
+	}
+}
+
 func TestByteRangeContent(t *testing.T) {
 	t.Parallel()
 
