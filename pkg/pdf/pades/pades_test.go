@@ -323,6 +323,65 @@ func TestSealWithASelfSignedCertificate(t *testing.T) {
 	}
 }
 
+// countingTimestamper counts the timestamps asked of the test authority.
+type countingTimestamper struct {
+	authority *test_ca.Authority
+	count     int
+}
+
+func (c *countingTimestamper) Timestamp(ctx context.Context, digest []byte) ([]byte, error) {
+	c.count++
+	return c.authority.Timestamp(ctx, digest)
+}
+
+// TestSealRefusesACertificateNotValidNow refuses a sealing certificate that has expired or is not valid yet, as of the
+// sealer's clock, before anything is timestamped; one valid at that moment seals.
+func TestSealRefusesACertificateNotValidNow(t *testing.T) {
+	t.Parallel()
+
+	sealer, authority := newSealer(t)
+	seal := authority.Seal
+
+	testCases := []struct {
+		name    string
+		now     time.Time
+		wantErr error
+	}{
+		{name: "valid", now: seal.NotBefore.Add(time.Hour)},
+		{name: "expired", now: seal.NotAfter.Add(time.Second), wantErr: pades.ErrCertificateNotValid},
+		{name: "not valid yet", now: seal.NotBefore.Add(-time.Second), wantErr: pades.ErrCertificateNotValid},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			timestamper := &countingTimestamper{authority: authority}
+			clocked := *sealer
+			clocked.Timestamper = timestamper
+			clocked.Now = func() time.Time { return testCase.now }
+			// The CRLs are issued at the moment collected, as a CA's are current when fetched.
+			collector := *sealer.Collector
+			collector.Now = clocked.Now
+			collector.CrlSource = func(time.Time) ([][]byte, error) { return authority.Crls(testCase.now) }
+			clocked.Collector = &collector
+
+			_, err := clocked.Seal(context.Background(), onePagePdf())
+			if testCase.wantErr == nil {
+				if err != nil {
+					t.Fatalf("%s: seal: %v", testCase.name, err)
+				}
+				return
+			}
+			if !errors.Is(err, testCase.wantErr) {
+				t.Errorf("%s: seal = %v, want %v", testCase.name, err, testCase.wantErr)
+			}
+			if timestamper.count != 0 {
+				t.Errorf("%s: %d timestamps asked for", testCase.name, timestamper.count)
+			}
+		})
+	}
+}
+
 func TestByteRangeContent(t *testing.T) {
 	t.Parallel()
 

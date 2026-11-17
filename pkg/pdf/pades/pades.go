@@ -48,6 +48,9 @@ const (
 var (
 	ErrKeyMismatch         = errors.New("the sealing certificate is not for the signer's key")
 	ErrReservationTooSmall = errors.New("signature contents larger than reserved")
+	// ErrCertificateNotValid is a sealing certificate whose validity does not hold now: expired, or not valid yet. A seal
+	// made with it fails validation whatever else holds, so none is made.
+	ErrCertificateNotValid = errors.New("the sealing certificate is not valid now")
 )
 
 // ErrInvalidRectangle is a field rectangle that is not a box on a page.
@@ -433,7 +436,9 @@ func (s *Sealer) documentTimestamp(ctx context.Context, data []byte) ([]byte, er
 	return stamped, nil
 }
 
-// Seal returns the document with a B-LTA seal appended as three incremental updates.
+// Seal returns the document with a B-LTA seal appended as three incremental updates. It refuses, before anything is
+// signed or timestamped, a signer the sealing certificate is not for (ErrKeyMismatch) and a certificate not valid at
+// the sealer's now (ErrCertificateNotValid).
 func (s *Sealer) Seal(ctx context.Context, data []byte) ([]byte, error) {
 	if s == nil {
 		return nil, altshiftErrors.NewWithTrace(nil_error.New("sealer"))
@@ -458,6 +463,16 @@ func (s *Sealer) Seal(ctx context.Context, data []byte) ([]byte, error) {
 	publicKey, ok := s.Certificates[0].PublicKey.(interface{ Equal(x crypto.PublicKey) bool })
 	if !ok || !publicKey.Equal(s.Signer.Public()) {
 		return nil, altshiftErrors.NewWithTrace(ErrKeyMismatch)
+	}
+	// Refused before anything is signed or timestamped, a timestamp being what an authority may charge for.
+	if now, certificate := s.now(), s.Certificates[0]; now.Before(certificate.NotBefore) || now.After(certificate.NotAfter) {
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf(
+			"%w: valid %s to %s, and it is %s",
+			ErrCertificateNotValid,
+			certificate.NotBefore.UTC().Format(time.RFC3339),
+			certificate.NotAfter.UTC().Format(time.RFC3339),
+			now.UTC().Format(time.RFC3339),
+		))
 	}
 
 	signed, signatureToken, err := s.sign(ctx, data)
