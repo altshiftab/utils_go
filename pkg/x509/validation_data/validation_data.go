@@ -113,11 +113,24 @@ func parseIssuerCertificates(data []byte) []*x509.Certificate {
 	return certificates
 }
 
+// issuer is the certificate that issued certificate: one of the collector's, a self-signed one first, else one its AIA
+// names. A root may also come cross-signed by an older root, as DigiCert's timestamping tokens carry theirs: both verify
+// the certificate, and only the self-signed one ends the chain at the root that is trusted.
 func (c *Collector) issuer(ctx context.Context, certificate *x509.Certificate) (*x509.Certificate, error) {
+	var found *x509.Certificate
 	for _, candidate := range c.Certificates {
-		if candidate != nil && bytes.Equal(candidate.RawSubject, certificate.RawIssuer) && certificate.CheckSignatureFrom(candidate) == nil {
+		if candidate == nil || !bytes.Equal(candidate.RawSubject, certificate.RawIssuer) || certificate.CheckSignatureFrom(candidate) != nil {
+			continue
+		}
+		if isSelfSigned(candidate) {
 			return candidate, nil
 		}
+		if found == nil {
+			found = candidate
+		}
+	}
+	if found != nil {
+		return found, nil
 	}
 
 	// A failed fetch is one source less, not the end: another URL may still answer.

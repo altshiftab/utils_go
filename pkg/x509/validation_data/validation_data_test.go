@@ -157,6 +157,56 @@ func TestCollectGiven(t *testing.T) {
 	}
 }
 
+// crossSigned is n's certificate as another CA issues it: the same subject and key, a different issuer.
+func (n *node) crossSigned(t *testing.T, by *node) *x509.Certificate {
+	t.Helper()
+	template := *n.certificate
+	template.SerialNumber = big.NewInt(time.Now().UnixNano())
+	der, err := x509.CreateCertificate(rand.Reader, &template, by.certificate, n.key.Public(), by.key)
+	if err != nil {
+		t.Fatalf("x509 create certificate (cross-signed): %v", err)
+	}
+	certificate, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("x509 parse certificate (cross-signed): %v", err)
+	}
+	return certificate
+}
+
+// TestCollectPrefersTheSelfSignedRoot ends the chain at the root itself when it is also given cross-signed by an older
+// root, whatever the order: the older root is nowhere to be found, and is not needed.
+func TestCollectPrefersTheSelfSignedRoot(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	older := newNode(t, "older root", nil, true, "", "")
+	root := newNode(t, "root", nil, true, "", "")
+	issuing := newNode(t, "issuing", root, true, "", "")
+	leaf := newNode(t, "leaf", issuing, false, "", "")
+	cross := root.crossSigned(t, older)
+	crls := [][]byte{root.crl(t, now), issuing.crl(t, now)}
+
+	testCases := []struct {
+		name         string
+		certificates []*x509.Certificate
+	}{
+		{name: "the cross-signed one first", certificates: []*x509.Certificate{cross, root.certificate, issuing.certificate}},
+		{name: "the self-signed one first", certificates: []*x509.Certificate{root.certificate, cross, issuing.certificate}},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			data, err := (&Collector{Certificates: testCase.certificates, Crls: crls}).Collect(context.Background(), leaf.certificate)
+			if err != nil {
+				t.Fatalf("%s: collect: %v", testCase.name, err)
+			}
+			if len(data.Certificates) != 3 || !data.Certificates[2].Equal(root.certificate) {
+				t.Errorf("%s: %d certificates, the last %q", testCase.name, len(data.Certificates), data.Certificates[len(data.Certificates)-1].Issuer)
+			}
+		})
+	}
+}
+
 // TestCollectFetched walks a chain whose issuer and CRL are only reachable at the URLs the certificate names.
 func TestCollectFetched(t *testing.T) {
 	t.Parallel()
