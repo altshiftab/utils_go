@@ -32,6 +32,10 @@ const (
 	// ScopeMicrosoftGraph requests the application permissions granted to the
 	// app on Microsoft Graph; app-only tokens take only ".default" scopes.
 	ScopeMicrosoftGraph = "https://graph.microsoft.com/.default"
+
+	// ScopeAzureStorage requests a token for Azure Storage's data plane, which
+	// the roles assigned to the app's service principal then authorize.
+	ScopeAzureStorage = "https://storage.azure.com/.default"
 )
 
 // multiTenantAliases are the authority aliases Entra refuses for app-only tokens.
