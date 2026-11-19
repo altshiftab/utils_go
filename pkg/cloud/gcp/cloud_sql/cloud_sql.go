@@ -2,16 +2,20 @@ package cloud_sql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_sql/cloud_sql_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_sql/types/connect_settings"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_sql/types/export_context"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_sql/types/generate_ephemeral_cert_request"
 	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_sql/types/generate_ephemeral_cert_response"
+	"github.com/altshiftab/utils_go/pkg/cloud/gcp/cloud_sql/types/operation"
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	"github.com/altshiftab/utils_go/pkg/errors/types/empty_error"
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -29,13 +33,17 @@ const (
 	serviceAccountSuffix = ".gserviceaccount.com"
 )
 
+// ErrOperationFailed is an operation that finished with errors; the error wrapping it gives them.
+var ErrOperationFailed = errors.New("cloud sql operation failed")
+
 var defaultBaseUrl = &url.URL{
 	Scheme: "https",
 	Host:   Domain,
 }
 
-// Client calls the two Cloud SQL Admin API methods a connection needs. Authentication is the
-// caller's: pass an authenticating http.Client through cloud_sql_config.WithFetchOptions.
+// Client calls the Cloud SQL Admin API methods a connection needs, and those an export does.
+// Authentication is the caller's: pass an authenticating http.Client through
+// cloud_sql_config.WithFetchOptions.
 type Client struct {
 	baseUrl *url.URL
 	config  *cloud_sql_config.Config
@@ -125,6 +133,117 @@ func (c *Client) GenerateEphemeralCert(
 	}
 
 	return response, nil
+}
+
+// Export starts an export of the instance and returns its operation, which WaitForOperation
+// follows to its end. An instance runs one operation at a time: an export asked for while
+// another runs is refused with a 409.
+func (c *Client) Export(
+	ctx context.Context,
+	project string,
+	instance string,
+	exportContext *export_context.ExportContext,
+	options ...fetch_config.Option,
+) (*operation.Operation, error) {
+	if project == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("project"))
+	}
+	if instance == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("instance"))
+	}
+	if exportContext == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("export context"))
+	}
+	if exportContext.Uri == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("export uri"))
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context err: %w", err)
+	}
+
+	urlString := c.instanceUrl(project, instance, "/export")
+	body := &export_context.Request{ExportContext: exportContext}
+
+	options = slices.Concat(c.config.FetchOptions, options, []fetch_config.Option{fetch_config.WithMethod(http.MethodPost)})
+	_, response, err := altshiftHttpUtils.FetchJsonWithBody[*operation.Operation](ctx, urlString, body, options...)
+	if err != nil {
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json with body: %w", err), urlString)
+	}
+	if response == nil || response.Name == "" {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("export operation"))
+	}
+
+	return response, nil
+}
+
+// GetOperation returns an operation of the project as it stands.
+func (c *Client) GetOperation(ctx context.Context, project string, name string, options ...fetch_config.Option) (*operation.Operation, error) {
+	if project == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("project"))
+	}
+	if name == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("operation name"))
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context err: %w", err)
+	}
+
+	u := *c.baseUrl
+	u.Path += "projects/" + project + "/operations/" + name
+	u.RawPath = c.baseUrl.Path + "projects/" + url.PathEscape(project) + "/operations/" + url.PathEscape(name)
+	urlString := u.String()
+
+	options = slices.Concat(c.config.FetchOptions, options)
+	_, response, err := altshiftHttpUtils.FetchJson[*operation.Operation](ctx, urlString, options...)
+	if err != nil {
+		return nil, altshiftErrors.New(fmt.Errorf("fetch json: %w", err), urlString)
+	}
+	if response == nil {
+		return nil, altshiftErrors.NewWithTrace(nil_error.New("operation"))
+	}
+
+	return response, nil
+}
+
+// WaitForOperation polls an operation every interval until it is done, and returns it. One that
+// finished with errors is returned with an error wrapping ErrOperationFailed. A poll that fails is
+// returned as it is: the operation goes on regardless, and a caller can look again.
+func (c *Client) WaitForOperation(
+	ctx context.Context,
+	project string,
+	name string,
+	interval time.Duration,
+	options ...fetch_config.Option,
+) (*operation.Operation, error) {
+	if interval <= 0 {
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: a poll interval of %s", altshiftErrors.ErrValidationError, interval),
+		)
+	}
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		current, err := c.GetOperation(ctx, project, name, options...)
+		if err != nil {
+			return nil, fmt.Errorf("get operation: %w", err)
+		}
+		if current.Done() {
+			if failure := current.Failure(); failure != "" {
+				return current, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %s", ErrOperationFailed, failure), project, name)
+			}
+			return current, nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("context done: %w", ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
 
 // DatabaseUsername returns the Postgres role Cloud SQL creates for an IAM principal, given as an
