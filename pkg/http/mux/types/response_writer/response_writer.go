@@ -56,9 +56,14 @@ type ResponseWriter struct {
 	WriteHeaderCalled  bool
 	WriteCalled        bool
 	NoStoreWrittenBody bool
+	// MaxStoredBodySize is how much of the body WrittenBody keeps, for the request's log line; zero keeps
+	// all of it. Every byte goes to the client either way, and WrittenBodySize counts them all.
+	MaxStoredBodySize int
 
 	WrittenStatusCode int
 	WrittenBody       []byte
+	// WrittenBodySize is how many bytes of body were written, kept or not.
+	WrittenBodySize int
 
 	DefaultHeaders         map[string]string
 	DefaultDocumentHeaders map[string]string
@@ -103,8 +108,13 @@ func (responseWriter *ResponseWriter) Write(data []byte) (int, error) {
 		return 0, nil
 	}
 
+	responseWriter.WrittenBodySize += len(data)
 	if !responseWriter.NoStoreWrittenBody {
-		responseWriter.WrittenBody = append(responseWriter.WrittenBody, data...)
+		kept := data
+		if limit := responseWriter.MaxStoredBodySize; limit > 0 {
+			kept = data[:min(len(data), max(limit-len(responseWriter.WrittenBody), 0))]
+		}
+		responseWriter.WrittenBody = append(responseWriter.WrittenBody, kept...)
 	}
 
 	n, err := responseWriter.ResponseWriter.Write(data)

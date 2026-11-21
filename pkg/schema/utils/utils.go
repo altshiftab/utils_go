@@ -99,8 +99,10 @@ func isBinary(data []byte) bool {
 // makeBody renders a body for an entry. A text body is rendered up to the limit,
 // made valid UTF-8 and marked when cut; a binary one is rendered by its size
 // alone, since made valid it would be nothing but replacement characters. Bytes
-// is the whole length either way, and only what is rendered is copied.
-func makeBody(data []byte, limit int) *schema.Body {
+// is the whole length either way, and only what is rendered is copied. size is
+// the body's whole length where data is only its start, and zero where data is
+// all of it.
+func makeBody(data []byte, size int, limit int) *schema.Body {
 	if len(data) == 0 {
 		return nil
 	}
@@ -109,7 +111,8 @@ func makeBody(data []byte, limit int) *schema.Body {
 		limit = DefaultBodyLimit
 	}
 
-	body := &schema.Body{Bytes: len(data)}
+	size = max(size, len(data))
+	body := &schema.Body{Bytes: size}
 
 	// Cut at the start of a character rather than inside one, looking back no
 	// further than a character can be long: text that is not UTF-8 has no
@@ -124,7 +127,7 @@ func makeBody(data []byte, limit int) *schema.Body {
 
 	prefix := data[:cut]
 	if isBinary(prefix) {
-		body.Content = fmt.Sprintf("[binary, %d bytes]", len(data))
+		body.Content = fmt.Sprintf("[binary, %d bytes]", size)
 		return body
 	}
 
@@ -134,8 +137,8 @@ func makeBody(data []byte, limit int) *schema.Body {
 		body.Content = string(bytes.ToValidUTF8(prefix, []byte("\uFFFD")))
 	}
 
-	if cut < len(data) {
-		body.Content += fmt.Sprintf("... [truncated, %d bytes in full]", len(data))
+	if cut < size {
+		body.Content += fmt.Sprintf("... [truncated, %d bytes in full]", size)
 	}
 
 	return body
@@ -168,7 +171,7 @@ func ParseHttp(
 	response *http.Response,
 	responseBodyData []byte,
 ) (*schema.Base, error) {
-	return parseHttp(request, requestBodyData, response, responseBodyData, DefaultBodyLimit)
+	return parseHttp(request, requestBodyData, response, responseBodyData, 0, DefaultBodyLimit)
 }
 
 func parseHttp(
@@ -176,6 +179,7 @@ func parseHttp(
 	requestBodyData []byte,
 	response *http.Response,
 	responseBodyData []byte,
+	responseBodySize int,
 	bodyLimit int,
 ) (*schema.Base, error) {
 	if request == nil && len(requestBodyData) == 0 && response == nil && len(responseBodyData) == 0 {
@@ -394,7 +398,7 @@ func parseHttp(
 			httpRequest = &schema.HttpRequest{}
 		}
 		httpRequest.MimeType = http.DetectContentType(requestBodyData)
-		httpRequest.Body = makeBody(requestBodyData, bodyLimit)
+		httpRequest.Body = makeBody(requestBodyData, 0, bodyLimit)
 	}
 
 	var httpResponse *schema.HttpResponse
@@ -410,7 +414,7 @@ func parseHttp(
 			httpResponse = &schema.HttpResponse{}
 		}
 		httpResponse.MimeType = http.DetectContentType(responseBodyData)
-		httpResponse.Body = makeBody(responseBodyData, bodyLimit)
+		httpResponse.Body = makeBody(responseBodyData, responseBodySize, bodyLimit)
 	}
 
 	var ecsHttp *schema.Http
@@ -543,6 +547,7 @@ func ParseHttpContextWithBodyLimit(httpContext *altshiftHttpTypes.HttpContext, b
 		httpContext.RequestBody,
 		httpContext.Response,
 		httpContext.ResponseBody,
+		httpContext.ResponseBodySize,
 		bodyLimit,
 	)
 	if err != nil {
@@ -667,7 +672,7 @@ func ParseWhoisContext(whoisContext *altshiftWhoisTypes.WhoisContext) (*schema.B
 	}
 	var requestBody *schema.Body
 	if requestData := whoisContext.RequestData; len(requestData) > 0 {
-		requestBody = makeBody(requestData, DefaultBodyLimit)
+		requestBody = makeBody(requestData, 0, DefaultBodyLimit)
 	}
 
 	serverAddress := whoisContext.ServerAddress
@@ -682,7 +687,7 @@ func ParseWhoisContext(whoisContext *altshiftWhoisTypes.WhoisContext) (*schema.B
 	}
 	var responseBody *schema.Body
 	if responseData := whoisContext.ResponseData; len(responseData) > 0 {
-		responseBody = makeBody(responseData, DefaultBodyLimit)
+		responseBody = makeBody(responseData, 0, DefaultBodyLimit)
 	}
 
 	var whois *schema.Whois

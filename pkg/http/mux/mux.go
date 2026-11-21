@@ -75,6 +75,11 @@ type baseMux struct {
 	DefaultDocumentHeaders  map[string]string
 	Middleware              []muxTypesMiddleware.Middleware
 	ProblemDetailConverter  muxTypesResponseError.ProblemDetailConverter
+	// MaxStoredResponseBodySize is how much of each response's body is kept for the request's log line,
+	// which renders at most its start; zero, the default, keeps all of it. The whole body is held until
+	// the request ends otherwise, which for a large download or a stream left open is memory that nothing
+	// reads. An inner mux leaves an outer one's setting alone unless it has one of its own.
+	MaxStoredResponseBodySize int
 }
 
 //nolint:contextcheck,fatcontext // The request context is deliberately extended and reassigned via request.WithContext; contextcheck cannot track the chain, and the loop builds one derived context from the configured pairs.
@@ -134,11 +139,15 @@ func (bm *baseMux) ServeHttpWithCallback(
 
 		responseWriter.DefaultHeaders = bm.DefaultHeaders
 		responseWriter.DefaultDocumentHeaders = bm.DefaultDocumentHeaders
+		if bm.MaxStoredResponseBodySize != 0 {
+			responseWriter.MaxStoredBodySize = bm.MaxStoredResponseBodySize
+		}
 	} else {
 		responseWriter = &muxTypesResponseWriter.ResponseWriter{
 			ResponseWriter:         originalResponseWriter,
 			DefaultHeaders:         bm.DefaultHeaders,
 			DefaultDocumentHeaders: bm.DefaultDocumentHeaders,
+			MaxStoredBodySize:      bm.MaxStoredResponseBodySize,
 		}
 	}
 
@@ -243,6 +252,7 @@ func (bm *baseMux) ServeHttpWithCallback(
 			Header:     responseWriter.Header(),
 		}
 		httpContext.ResponseBody = responseWriter.WrittenBody
+		httpContext.ResponseBodySize = responseWriter.WrittenBodySize
 	}
 
 	// Handle the case when no response was produced.

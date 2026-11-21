@@ -201,3 +201,50 @@ func TestParseHttpMasksUrlPassword(t *testing.T) {
 		})
 	}
 }
+
+func TestParseHttpKeptStartOfResponseBody(t *testing.T) {
+	t.Parallel()
+
+	gzipStart := []byte{0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03}
+
+	testCases := []struct {
+		name        string
+		kept        []byte
+		size        int
+		wantContent string
+		wantBytes   int
+	}{
+		{name: "a whole body", kept: []byte("0123456789"), size: 0, wantContent: "0123456789", wantBytes: 10},
+		{name: "text of which only the start was kept", kept: []byte("0123456789"), size: 1000, wantContent: "0123456789... [truncated, 1000 bytes in full]", wantBytes: 1000},
+		{name: "binary of which only the start was kept", kept: gzipStart, size: 5000, wantContent: "[binary, 5000 bytes]", wantBytes: 5000},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			base, err := ParseHttpContextWithBodyLimit(
+				&altshiftHttpTypes.HttpContext{
+					Response:         &http.Response{StatusCode: http.StatusOK, Header: http.Header{}},
+					ResponseBody:     testCase.kept,
+					ResponseBodySize: testCase.size,
+				},
+				0,
+			)
+			if err != nil {
+				t.Fatalf("parse http context: %v", err)
+			}
+			if base == nil || base.Http == nil || base.Http.Response == nil || base.Http.Response.Body == nil {
+				t.Fatalf("expected a response body, got %+v", base)
+			}
+
+			body := base.Http.Response.Body
+			if body.Content != testCase.wantContent {
+				t.Errorf("content = %q, want %q", body.Content, testCase.wantContent)
+			}
+			if body.Bytes != testCase.wantBytes {
+				t.Errorf("bytes = %d, want %d", body.Bytes, testCase.wantBytes)
+			}
+		})
+	}
+}

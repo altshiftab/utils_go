@@ -214,5 +214,6 @@ func DefaultResponseErrorHandler(
 			Header:     responseWriter.Header(),
 		}
 		httpContext.ResponseBody = responseWriter.WrittenBody
+		httpContext.ResponseBodySize = responseWriter.WrittenBodySize
 	}
 }

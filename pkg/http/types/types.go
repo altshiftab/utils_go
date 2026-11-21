@@ -20,12 +20,15 @@ type HttpContext struct {
 	RequestBody  []byte
 	Response     *http.Response
 	ResponseBody []byte
-	Reporting    *schema.HttpReporting
-	TlsContext   *altshiftTlsTypes.TlsContext
-	User         *schema.User
-	Extra        []*HttpContext
-	LocalAddr    net.Addr
-	RemoteAddr   net.Addr
+	// ResponseBodySize is the response body's whole length, where ResponseBody holds only its start; zero
+	// means ResponseBody is the whole body.
+	ResponseBodySize int
+	Reporting        *schema.HttpReporting
+	TlsContext       *altshiftTlsTypes.TlsContext
+	User             *schema.User
+	Extra            []*HttpContext
+	LocalAddr        net.Addr
+	RemoteAddr       net.Addr
 }
 
 func getFullType(typeValue string, subtypeValue string, normalize bool) string {

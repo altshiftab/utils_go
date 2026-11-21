@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
@@ -281,6 +282,55 @@ func TestWriteResponse_EmptyBodyRepresentationHeaders(t *testing.T) {
 			}
 			if got := recorder.Header().Get("Content-Encoding"); got != testCase.wantContentEncoding {
 				t.Errorf("Content-Encoding = %q, want %q", got, testCase.wantContentEncoding)
+			}
+		})
+	}
+}
+
+func TestWrite_StoredBody(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		writer   ResponseWriter
+		head     bool
+		writes   []string
+		wantKept string
+		wantSize int
+	}{
+		{name: "everything is kept by default", writes: []string{"abc", "def"}, wantKept: "abcdef", wantSize: 6},
+		{name: "a cap keeps the start across writes", writer: ResponseWriter{MaxStoredBodySize: 4}, writes: []string{"abc", "def", "ghi"}, wantKept: "abcd", wantSize: 9},
+		{name: "a cap keeps the start of one write", writer: ResponseWriter{MaxStoredBodySize: 4}, writes: []string{"abcdef"}, wantKept: "abcd", wantSize: 6},
+		{name: "a cap larger than the body keeps it all", writer: ResponseWriter{MaxStoredBodySize: 100}, writes: []string{"abc"}, wantKept: "abc", wantSize: 3},
+		{name: "nothing kept, still counted", writer: ResponseWriter{NoStoreWrittenBody: true}, writes: []string{"abc"}, wantKept: "", wantSize: 3},
+		{name: "a HEAD response writes no body", head: true, writes: []string{"abc"}, wantKept: "", wantSize: 0},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			recorder := httptest.NewRecorder()
+			writer := testCase.writer
+			writer.ResponseWriter = recorder
+			writer.IsHeadRequest = testCase.head
+
+			var sent strings.Builder
+			for _, write := range testCase.writes {
+				if _, err := writer.Write([]byte(write)); err != nil {
+					t.Fatalf("write: %v", err)
+				}
+				sent.WriteString(write)
+			}
+
+			if got := string(writer.WrittenBody); got != testCase.wantKept {
+				t.Errorf("kept %q, want %q", got, testCase.wantKept)
+			}
+			if writer.WrittenBodySize != testCase.wantSize {
+				t.Errorf("size = %d, want %d", writer.WrittenBodySize, testCase.wantSize)
+			}
+			if !testCase.head && recorder.Body.String() != sent.String() {
+				t.Errorf("the client got %q, want %q", recorder.Body.String(), sent.String())
 			}
 		})
 	}
