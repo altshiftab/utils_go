@@ -206,6 +206,15 @@ func (parser *Parser) Validate() error {
 		return altshiftErrors.New(fmt.Errorf("make name tables: %w", err), parser.Options)
 	}
 
+	reserved := strings.TrimPrefix(CompleteArgument, "--")
+	for _, opt := range parser.Options {
+		if opt != nil && opt.GetLongName() == reserved {
+			return altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: --%s", argumentParserErrors.ErrReservedName, reserved),
+			)
+		}
+	}
+
 	for _, opt := range parser.Options {
 		if opt == nil {
 			continue
@@ -1471,6 +1480,15 @@ func checkRequired(options []option.Option, seen *seenNames) error {
 
 // ParseArgs parses arguments, dispatching to a subparser when the first argument names one.
 func (parser *Parser) ParseArgs(arguments []string) error {
+	// A request for completions is answered before anything else, whatever the parser declares, so
+	// that a shell asking never runs the program. Only the first argument asks: anywhere else the
+	// same text is data.
+	if len(arguments) != 0 {
+		if version, ok := completeRequest(arguments[0]); ok {
+			return parser.answerCompletion(version, arguments[1:])
+		}
+	}
+
 	// A parse that hands its arguments to a subparser names none of this parser's options.
 	parser.seen = makeSeenNames()
 
@@ -1502,20 +1520,11 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 	options := parser.Options
 
 	// The help option joins the lookup tables rather than being matched ahead of them, so that a
-	// prefix may reach it and an option sharing that prefix makes it ambiguous, as elsewhere.
-	tableOptions := options
-	helpOption := parser.getHelpOption()
-	if helpOption != nil {
-		tableOptions = append(slices.Clone(options), helpOption)
-	}
-
-	// The completion option joins them the same way. Unlike help it takes a value, so it cannot be
+	// prefix may reach it and an option sharing that prefix makes it ambiguous, as elsewhere. The
+	// completion option joins them the same way. Unlike help it takes a value, so it cannot be
 	// answered the moment it is matched: the shell it was given has to be read first.
 	var completionShell string
-	completionOption := parser.getCompletionOption(&completionShell)
-	if completionOption != nil {
-		tableOptions = append(slices.Clone(tableOptions), completionOption)
-	}
+	tableOptions, helpOption, completionOption := parser.tableOptions(&completionShell)
 
 	tables, err := makeNameTables(tableOptions)
 	if err != nil {

@@ -14,7 +14,8 @@
 //
 // The generated script is static: it encodes the declaration and calls nothing back. That keeps
 // completion working when the binary is slow to start, or absent, and makes the output something a
-// package can ship.
+// package can ship. What only the running program knows, the values a completer offers, a shell
+// gets by asking the program itself (complete.go); that request is the one thing that calls back.
 package argument_parser
 
 import (

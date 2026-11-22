@@ -20,4 +20,5 @@ var (
 	ErrAmbiguousPositionals        = errors.New("more than one variadic positional argument")
 	ErrHelp                        = errors.New("help requested")
 	ErrCompletion                  = errors.New("completion requested")
+	ErrReservedName                = errors.New("reserved option name")
 )

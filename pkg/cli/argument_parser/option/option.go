@@ -1,6 +1,7 @@
 package option
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -86,6 +87,39 @@ type ConstProvider interface {
 	GetConst() string
 }
 
+// Candidate is a value an option or positional could be given, offered when a shell asks for the
+// completions of a command line.
+type Candidate struct {
+	// Value is the argument itself, what completing it inserts.
+	Value string
+	// Description says what the value is, one line, shown beside it.
+	Description string
+}
+
+// Completer offers the values an option or positional could be given, for the values no list fixed
+// in the declaration can hold: names of things the program reaches at run time. prefix is what was
+// typed of the value so far; the completer filters by it, as it sees fit, and returns its
+// candidates in the order to show them. It is called only when a shell asks for completions, after
+// the options given earlier on the command line have been set, so it may read them.
+type Completer func(ctx context.Context, prefix string) ([]*Candidate, error)
+
+// CompleterProvider is implemented by options that can offer their values at run time. Every option
+// built by this package implements it; a hand-written Option may.
+type CompleterProvider interface {
+	GetCompleter() Completer
+	// GetCompletesIds reports whether the completer's values are identifiers that mean nothing to a
+	// person, which a shell should show by their descriptions while inserting the values.
+	GetCompletesIds() bool
+}
+
+// PureSetter is implemented by options whose Set only records the value, with no effect outside
+// the program's own variables. Only such options are set while answering a request for
+// completions, which is not a run of the program: a FileOption, which opens and may create or
+// truncate a file, is not one.
+type PureSetter interface {
+	SetIsPure()
+}
+
 // base holds the metadata shared by every option kind.
 type base struct {
 	ShortName rune
@@ -104,6 +138,10 @@ type base struct {
 	// Hidden keeps the option out of what is shown to a person. It is accepted exactly as any
 	// other; it is simply not listed.
 	Hidden bool
+	// Completer offers the option's values at run time, where Choices cannot list them.
+	Completer Completer
+	// CompletesIds marks the completer's values as identifiers, shown by their descriptions.
+	CompletesIds bool
 }
 
 // GetShortName returns the option's short name, or the empty string when it has none. A zero
@@ -176,6 +214,41 @@ func (base *base) GetHidden() bool {
 
 func (base *base) SetHidden(hidden bool) {
 	base.Hidden = hidden
+}
+
+func (base *base) GetCompleter() Completer {
+	return base.Completer
+}
+
+func (base *base) GetCompletesIds() bool {
+	return base.CompletesIds
+}
+
+func (base *base) SetCompleter(completer Completer, ids bool) {
+	base.Completer = completer
+	base.CompletesIds = ids
+}
+
+// WithCompleter has an option offer its values from completer when a shell asks, and returns it.
+// Choices, where an option has them, are offered instead.
+func WithCompleter[T interface {
+	Option
+	SetCompleter(Completer, bool)
+}](opt T, completer Completer) T {
+	opt.SetCompleter(completer, false)
+
+	return opt
+}
+
+// WithIdCompleter is WithCompleter for values that are identifiers, such as a database's keys: a
+// shell shows each by its description, which says what it is, and inserts the identifier.
+func WithIdCompleter[T interface {
+	Option
+	SetCompleter(Completer, bool)
+}](opt T, completer Completer) T {
+	opt.SetCompleter(completer, true)
+
+	return opt
 }
 
 // WithChoices restricts an option to the given values and returns it, so that it may be declared
@@ -257,6 +330,9 @@ type IntOption struct {
 	Value *int
 }
 
+// SetIsPure marks Set as recording the value and nothing more.
+func (*IntOption) SetIsPure() {}
+
 func (intOption *IntOption) Set(in string) error {
 	if intOption.Value == nil {
 		return altshiftErrors.NewWithTrace(nil_error.New("value"))
@@ -301,6 +377,9 @@ type IntsOption struct {
 	base
 	Value *[]int
 }
+
+// SetIsPure marks Set as recording the value and nothing more.
+func (*IntsOption) SetIsPure() {}
 
 func (intsOption *IntsOption) Set(in string) error {
 	if intsOption.Value == nil {
@@ -347,6 +426,9 @@ type StringOption struct {
 	Value *string
 }
 
+// SetIsPure marks Set as recording the value and nothing more.
+func (*StringOption) SetIsPure() {}
+
 func (stringOption *StringOption) Set(in string) error {
 	if stringOption.Value == nil {
 		return altshiftErrors.NewWithTrace(nil_error.New("value"))
@@ -376,6 +458,9 @@ type StringsOption struct {
 	base
 	Value *[]string
 }
+
+// SetIsPure marks Set as recording the value and nothing more.
+func (*StringsOption) SetIsPure() {}
 
 func (stringsOption *StringsOption) Set(in string) error {
 	if stringsOption.Value == nil {
@@ -407,6 +492,9 @@ type BoolOption struct {
 	Value *bool
 }
 
+// SetIsPure marks Set as recording the value and nothing more.
+func (*BoolOption) SetIsPure() {}
+
 func (boolOption *BoolOption) Set(_ string) error {
 	if boolOption.Value == nil {
 		return altshiftErrors.NewWithTrace(nil_error.New("value"))
@@ -435,6 +523,9 @@ type CountedOption struct {
 	base
 	Count *int
 }
+
+// SetIsPure marks Set as recording the value and nothing more.
+func (*CountedOption) SetIsPure() {}
 
 func (countedOption *CountedOption) Set(_ string) error {
 	if countedOption.Count == nil {
