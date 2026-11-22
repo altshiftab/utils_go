@@ -112,14 +112,6 @@ type CompleterProvider interface {
 	GetCompletesIds() bool
 }
 
-// PureSetter is implemented by options whose Set only records the value, with no effect outside
-// the program's own variables. Only such options are set while answering a request for
-// completions, which is not a run of the program: a FileOption, which opens and may create or
-// truncate a file, is not one.
-type PureSetter interface {
-	SetIsPure()
-}
-
 // base holds the metadata shared by every option kind.
 type base struct {
 	ShortName rune
@@ -330,9 +322,6 @@ type IntOption struct {
 	Value *int
 }
 
-// SetIsPure marks Set as recording the value and nothing more.
-func (*IntOption) SetIsPure() {}
-
 func (intOption *IntOption) Set(in string) error {
 	if intOption.Value == nil {
 		return altshiftErrors.NewWithTrace(nil_error.New("value"))
@@ -377,9 +366,6 @@ type IntsOption struct {
 	base
 	Value *[]int
 }
-
-// SetIsPure marks Set as recording the value and nothing more.
-func (*IntsOption) SetIsPure() {}
 
 func (intsOption *IntsOption) Set(in string) error {
 	if intsOption.Value == nil {
@@ -426,9 +412,6 @@ type StringOption struct {
 	Value *string
 }
 
-// SetIsPure marks Set as recording the value and nothing more.
-func (*StringOption) SetIsPure() {}
-
 func (stringOption *StringOption) Set(in string) error {
 	if stringOption.Value == nil {
 		return altshiftErrors.NewWithTrace(nil_error.New("value"))
@@ -458,9 +441,6 @@ type StringsOption struct {
 	base
 	Value *[]string
 }
-
-// SetIsPure marks Set as recording the value and nothing more.
-func (*StringsOption) SetIsPure() {}
 
 func (stringsOption *StringsOption) Set(in string) error {
 	if stringsOption.Value == nil {
@@ -492,9 +472,6 @@ type BoolOption struct {
 	Value *bool
 }
 
-// SetIsPure marks Set as recording the value and nothing more.
-func (*BoolOption) SetIsPure() {}
-
 func (boolOption *BoolOption) Set(_ string) error {
 	if boolOption.Value == nil {
 		return altshiftErrors.NewWithTrace(nil_error.New("value"))
@@ -523,9 +500,6 @@ type CountedOption struct {
 	base
 	Count *int
 }
-
-// SetIsPure marks Set as recording the value and nothing more.
-func (*CountedOption) SetIsPure() {}
 
 func (countedOption *CountedOption) Set(_ string) error {
 	if countedOption.Count == nil {

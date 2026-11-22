@@ -10,8 +10,8 @@
 // because a program that cannot answer must not take it for an ordinary run: a parser from before
 // the protocol refuses the unknown option with status 2, while an environment variable is ignored
 // by every program that does not look for it, which then runs with half a command line. It is
-// recognised only as the very first argument, so a word after "--", or one a Rest takes, is data as
-// always.
+// recognised only as the first argument a parser is given, the program's or, after a subcommand's
+// name, the subcommand's, so a word after "--", or one a Rest takes, is data as always.
 //
 // The answer, on standard output with status 0, is CompleteHeader followed by the directives on the
 // first line, then a candidate per line: its value, then a tab and its description where it has
@@ -28,6 +28,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	argumentParserErrors "github.com/altshiftab/utils_go/pkg/cli/argument_parser/errors"
 	"github.com/altshiftab/utils_go/pkg/cli/argument_parser/option"
@@ -67,8 +68,10 @@ type Completion struct {
 }
 
 // Write writes the completion as the protocol answers: the header and directives, then a candidate
-// per line. A value that a line could not carry, holding a tab or a line break, is left out; a
-// description's are made spaces.
+// per line. A value holding a control character is left out, since a line could not carry a tab or
+// a line break, and a terminal would act on an escape; a description's are made spaces. Candidates
+// are often text a program fetched, such as titles from a server, and reach a terminal as they
+// are.
 func (completion *Completion) Write(writer io.Writer) error {
 	if completion == nil {
 		return altshiftErrors.NewWithTrace(nil_error.New("completion"))
@@ -87,12 +90,12 @@ func (completion *Completion) Write(writer io.Writer) error {
 	builder.WriteString("\n")
 
 	for _, candidate := range completion.Candidates {
-		if candidate == nil || candidate.Value == "" || strings.ContainsAny(candidate.Value, "\t\r\n") {
+		if candidate == nil || candidate.Value == "" || strings.ContainsFunc(candidate.Value, unicode.IsControl) {
 			continue
 		}
 
 		builder.WriteString(candidate.Value)
-		if description := strings.Join(strings.Fields(candidate.Description), " "); description != "" {
+		if description := printable(candidate.Description); description != "" {
 			builder.WriteString("\t")
 			builder.WriteString(description)
 		}
@@ -104,6 +107,17 @@ func (completion *Completion) Write(writer io.Writer) error {
 	}
 
 	return nil
+}
+
+// printable is text as one line a terminal shows as written: control characters, which include
+// what begins an escape sequence, become spaces, and runs of space one.
+func printable(text string) string {
+	return strings.Join(strings.Fields(strings.Map(func(character rune) rune {
+		if unicode.IsControl(character) {
+			return ' '
+		}
+		return character
+	}, text)), " ")
 }
 
 // completeRequest reports whether an argument asks for completions, and the version it asks in.
@@ -221,7 +235,8 @@ func (parser *Parser) complete(ctx context.Context, prior []string, current stri
 			return parser.completeValues(ctx, state, state.pending, current, "")
 		}
 
-		if len(state.positionals) == 0 && len(parser.Parsers) != 0 {
+		// A parse hands its arguments to a subcommand only when it is the first of them.
+		if len(prior) == 0 && len(parser.Parsers) != 0 {
 			return &Completion{Candidates: subcommandNames(parser, current)}, nil
 		}
 	}
@@ -363,39 +378,72 @@ func (parser *Parser) resolve(tables *nameTables, name string, long bool) (optio
 	return opt, matches[0], true
 }
 
-// setPure gives an option a value if setting it records the value and does nothing else. A value
-// the option refuses is passed over: the walk reports nothing.
+// setPure gives an option a value if setting it records the value and does nothing else, which only
+// the plain kinds this package builds are known to do: a FileOption opens, and may create or
+// truncate, a file, and a type of a program's own may do anything, one embedding a plain kind and
+// setting differently included. A value the option refuses is passed over: the walk reports
+// nothing.
 func setPure(opt option.Option, value string) {
-	if _, ok := opt.(option.PureSetter); !ok {
-		return
+	switch opt.(type) {
+	case *option.IntOption, *option.IntsOption, *option.StringOption, *option.StringsOption, *option.BoolOption, *option.CountedOption:
+		_ = setOption(opt, value)
 	}
-
-	_ = setOption(opt, value)
 }
 
-// slotOf returns the positional the word after count earlier ones goes to: each fixed or optional
-// one takes a word, and a variadic one every word from its own on. It is nil past the last.
-func (parser *Parser) slotOf(count int) option.Option {
-	for _, opt := range parser.Positionals {
+// positionalSlots returns the positional each of count words goes to, as assignPositionals hands
+// them out: in turn, each taking as many as it may without starving those after it. A word no
+// positional takes, or that a parse would refuse for a positional left without one, has none.
+func (parser *Parser) positionalSlots(count int) []option.Option {
+	slots := make([]option.Option, count)
+	index := 0
+
+	for position, opt := range parser.Positionals {
 		if opt == nil {
 			continue
 		}
 
-		if opt.GetNargs().IsVariadic() || count == 0 {
-			return opt
+		reserved := 0
+		for _, later := range parser.Positionals[position+1:] {
+			if later != nil {
+				reserved += later.GetNargs().Minimum()
+			}
 		}
 
-		count--
+		nargs := opt.GetNargs()
+		available := count - index - reserved
+
+		var taken int
+		switch {
+		case nargs.IsVariadic():
+			taken = max(available, 0)
+		case nargs == option.NargsOptional:
+			if available > 0 {
+				taken = 1
+			}
+		default:
+			taken = 1
+		}
+
+		if taken < nargs.Minimum() || index+taken > count {
+			break
+		}
+
+		for range taken {
+			slots[index] = opt
+			index++
+		}
 	}
 
-	return nil
+	return slots
 }
 
-// assignPositionalsPure sets the positionals from the words given them so far, as slotOf assigns
-// the words, so that a completer of a later one may read them.
+// assignPositionalsPure sets the positionals from the words given them before the one being
+// completed, as a parse of the line as it stands would, so that a completer of a later one may read
+// them.
 func (parser *Parser) assignPositionalsPure(words []string) {
+	slots := parser.positionalSlots(len(words) + 1)
 	for index, word := range words {
-		if opt := parser.slotOf(index); opt != nil {
+		if opt := slots[index]; opt != nil {
 			setPure(opt, word)
 		}
 	}
@@ -403,7 +451,7 @@ func (parser *Parser) assignPositionalsPure(words []string) {
 
 // positionalSlot returns the positional the word being completed goes to.
 func (parser *Parser) positionalSlot(state *completionState) option.Option {
-	return parser.slotOf(len(state.positionals))
+	return parser.positionalSlots(len(state.positionals) + 1)[len(state.positionals)]
 }
 
 // completeOption completes a word that names options: their names, or the value written into the

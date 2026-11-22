@@ -160,6 +160,7 @@ func TestComplete(t *testing.T) {
 		{name: "subcommands", words: []string{""}, want: []string{"quiz", "match", "opaque"}, descriptions: []string{"Make a quiz", "Confirm a match", ""}},
 		{name: "subcommand prefix", words: []string{"q"}, want: []string{"quiz"}},
 		{name: "top options", words: []string{"--"}, want: []string{"--verbose", "--help"}},
+		{name: "no subcommand after an option", words: []string{"-v", ""}},
 		{name: "opaque subcommand", words: []string{"opaque", ""}, directives: []string{DirectiveFiles}},
 		{name: "unknown word", words: []string{"nosuch", ""}},
 		{name: "completer", words: []string{"quiz", ""}, want: []string{"Secrets of the Neanderthals", "Black Bag", "Secret Agent"}, directives: []string{DirectiveOrdered}},
@@ -379,6 +380,14 @@ func TestCompletionWrite(t *testing.T) {
 			}},
 			want: CompleteHeader + "\nkept\ttwo parts and more\n",
 		},
+		{
+			name: "control characters reach no terminal",
+			completion: &Completion{Candidates: []*option.Candidate{
+				{Value: "esc\x1b[31mred"}, {Value: "csi\u009b31m"}, {Value: "bell\a"},
+				{Value: "title", Description: "set\x1b]0;title\a and \x1b[2Jclear"},
+			}},
+			want: CompleteHeader + "\ntitle\tset ]0;title and [2Jclear\n",
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -528,5 +537,107 @@ func TestCompleteInBinary(t *testing.T) {
 	}
 	if _, statErr := os.Stat(sentinel); statErr != nil {
 		t.Errorf("sentinel after a run: %v", statErr)
+	}
+}
+
+// sideEffecting is an option of a program's own that embeds a plain one and sets differently, as a
+// program writes to act on its value.
+type sideEffecting struct {
+	*option.StringOption
+	calls *int
+}
+
+func (opt *sideEffecting) Set(value string) error {
+	*opt.calls++
+	return opt.StringOption.Set(value)
+}
+
+// TestCompleteSetsOnlyPlainOptions pins that the walk sets only the option kinds known to record a
+// value and nothing more: not one of a program's own, even embedding a plain kind.
+func TestCompleteSetsOnlyPlainOptions(t *testing.T) {
+	t.Parallel()
+
+	var value, title string
+	calls := 0
+
+	parser := &Parser{
+		ProgramName: "prog",
+		Options: []option.Option{
+			&sideEffecting{StringOption: option.NewStringOption(0, "wrapped", "", false, &value), calls: &calls},
+		},
+		Positionals: []option.Option{
+			option.WithCompleter(option.NewStringOption(0, "", "", false, &title), func(context.Context, string) ([]*option.Candidate, error) {
+				return nil, nil
+			}),
+		},
+	}
+
+	if _, err := parser.Complete(t.Context(), []string{"--wrapped", "x", ""}); err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+	if calls != 0 || value != "" {
+		t.Errorf("own option set %d times to %q during a completion, want never", calls, value)
+	}
+
+	// A parse does set it, so the check above is not vacuous.
+	if err := parser.ParseArgs([]string{"--wrapped", "x", "t"}); err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+	if calls != 1 {
+		t.Errorf("own option set %d times by a parse, want 1", calls)
+	}
+}
+
+// TestCompleteReservesForLaterPositionals pins that a word goes to the positional a parse gives it
+// to, an optional one going without while a later required one needs the word.
+func TestCompleteReservesForLaterPositionals(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name  string
+		words []string
+		// want is the positional whose completer is asked, and seen what the earlier ones held then.
+		want string
+		seen string
+	}{
+		{name: "the only word goes to the required one", words: []string{""}, want: "b"},
+		{name: "with two words the optional one takes the first", words: []string{"x", ""}, want: "b", seen: "a=x b="},
+		{name: "two required after an optional", words: []string{"first", ""}, want: "c", seen: "a= b=first"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var a, b, c, completed, seen string
+			recording := func(name string) option.Completer {
+				return func(context.Context, string) ([]*option.Candidate, error) {
+					completed = name
+					seen = "a=" + a + " b=" + b
+					return nil, nil
+				}
+			}
+
+			positionals := []option.Option{
+				option.WithCompleter(option.WithNargs(option.NewStringOption(0, "", "", false, &a), option.NargsOptional), recording("a")),
+				option.WithCompleter(option.NewStringOption(0, "", "", true, &b), recording("b")),
+			}
+			if testCase.want == "c" {
+				positionals = append(positionals, option.WithCompleter(option.NewStringOption(0, "", "", true, &c), recording("c")))
+			}
+
+			parser := &Parser{ProgramName: "prog", Positionals: positionals}
+
+			if _, err := parser.Complete(t.Context(), testCase.words); err != nil {
+				t.Fatalf("complete: %v", err)
+			}
+
+			if completed != testCase.want {
+				t.Errorf("completed: got %q, want %q", completed, testCase.want)
+			}
+			if testCase.seen != "" && seen != testCase.seen {
+				t.Errorf("seen: got %q, want %q", seen, testCase.seen)
+			}
+		})
 	}
 }
