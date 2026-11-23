@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
@@ -103,6 +104,30 @@ var misdirectedHeaders = []string{
 
 // truncateValue cuts a value to at most limit bytes, at the start of a
 // character, and says that it was cut.
+// misdirectedListHeaders are the headers each proxy appends its entry to: the
+// start is what the client wrote, and the end what the nearest proxy saw, so
+// both are kept when one is bounded.
+var misdirectedListHeaders = map[string]bool{"X-Forwarded-For": true, "Forwarded": true}
+
+// truncateEnds bounds value as truncateValue does, but keeps its end as well as
+// its start.
+func truncateEnds(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+
+	head := limit / 2
+	for head > 0 && !utf8.RuneStart(value[head]) {
+		head--
+	}
+	tail := len(value) - limit/2
+	for tail < len(value) && !utf8.RuneStart(value[tail]) {
+		tail++
+	}
+
+	return fmt.Sprintf("%s... [truncated, %d bytes in full] ...%s", value[:head], len(value), value[tail:])
+}
+
 func truncateValue(value string, limit int) string {
 	if len(value) <= limit {
 		return value
@@ -139,9 +164,25 @@ func summarizeMisdirected(request *http.Request) *http.Request {
 
 	header := make(http.Header, len(misdirectedHeaders))
 	for _, name := range misdirectedHeaders {
-		if value := request.Header.Get(name); value != "" {
-			header.Set(name, truncateValue(value, misdirectedValueLimit))
+		// Every line of a header counts, as in the full log: a proxy may add a
+		// line of its own after the client's.
+		var values []string
+		for _, value := range request.Header.Values(name) {
+			if value != "" {
+				values = append(values, value)
+			}
 		}
+		if len(values) == 0 {
+			continue
+		}
+
+		value := strings.Join(values, ", ")
+		if misdirectedListHeaders[name] {
+			value = truncateEnds(value, misdirectedValueLimit)
+		} else {
+			value = truncateValue(value, misdirectedValueLimit)
+		}
+		header.Set(name, value)
 	}
 	summary.Header = header
 	summary.Trailer = nil

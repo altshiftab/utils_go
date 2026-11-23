@@ -59,7 +59,9 @@ func TestVhostMux_MisdirectedRequestLogIsBounded(t *testing.T) {
 		serverName string
 		host       string
 		path       string
+		query      string
 		headers    map[string]string
+		lines      map[string][]string
 		wantLogged []string
 		wantAbsent []string
 	}{
@@ -90,8 +92,21 @@ func TestVhostMux_MisdirectedRequestLogIsBounded(t *testing.T) {
 			name:       "a large path and query",
 			serverName: otherHost,
 			host:       servedHost,
-			path:       "/" + padding + "?q=" + padding,
+			path:       "/" + padding,
+			query:      "q=" + padding + "&secret=hunter2",
 			wantLogged: []string{otherHost, servedHost, "192.0.2.10"},
+			wantAbsent: []string{"hunter2"},
+		},
+		{
+			// The query was meant for a vhost that may declare what in it is
+			// secret, so none of it is logged, however short.
+			name:       "a short query",
+			serverName: otherHost,
+			host:       servedHost,
+			path:       "/login",
+			query:      "token=query-marker",
+			wantLogged: []string{"/login"},
+			wantAbsent: []string{"query-marker"},
 		},
 		{
 			name:       "what a load balancer adds is kept, and a cookie is not",
@@ -116,6 +131,25 @@ func TestVhostMux_MisdirectedRequestLogIsBounded(t *testing.T) {
 			headers:    map[string]string{"X-Forwarded-For": "198.51.100.7, " + padding},
 			wantLogged: []string{"198.51.100.7"},
 		},
+		{
+			name:       "the entry a proxy appended is kept after a long client value",
+			serverName: otherHost,
+			host:       servedHost,
+			path:       "/",
+			headers:    map[string]string{"X-Forwarded-For": strings.Repeat("x", 300) + ", 198.51.100.8"},
+			wantLogged: []string{"198.51.100.8"},
+		},
+		{
+			name:       "every line of a header is kept",
+			serverName: otherHost,
+			host:       servedHost,
+			path:       "/",
+			lines: map[string][]string{
+				"X-Forwarded-For": {"", "198.51.100.9"},
+				"Forwarded":       {"for=203.0.113.1", "for=203.0.113.99"},
+			},
+			wantLogged: []string{"198.51.100.9", "203.0.113.1", "203.0.113.99"},
+		},
 	}
 
 	//nolint:paralleltest // Same reason: each case swaps the default logger for one it can read.
@@ -132,11 +166,17 @@ func TestVhostMux_MisdirectedRequestLogIsBounded(t *testing.T) {
 			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+servedHost+"/", nil)
 			request.Host = testCase.host
 			request.URL.Path = testCase.path
-			request.RequestURI = testCase.path
+			request.URL.RawQuery = testCase.query
+			request.RequestURI = request.URL.RequestURI()
 			request.RemoteAddr = remoteAddr
 			request.TLS = &tls.ConnectionState{ServerName: testCase.serverName}
 			for name, value := range testCase.headers {
 				request.Header.Set(name, value)
+			}
+			for name, lines := range testCase.lines {
+				for _, line := range lines {
+					request.Header.Add(name, line)
+				}
 			}
 
 			logged, status := captureVhostLog(t, vhostMux, request)
