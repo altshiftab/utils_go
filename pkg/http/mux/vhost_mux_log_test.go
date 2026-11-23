@@ -61,6 +61,7 @@ func TestVhostMux_MisdirectedRequestLogIsBounded(t *testing.T) {
 		path       string
 		headers    map[string]string
 		wantLogged []string
+		wantAbsent []string
 	}{
 		{
 			name:       "a host other than the server name, with large headers",
@@ -91,6 +92,21 @@ func TestVhostMux_MisdirectedRequestLogIsBounded(t *testing.T) {
 			host:       servedHost,
 			path:       "/" + padding + "?q=" + padding,
 			wantLogged: []string{otherHost, servedHost, "192.0.2.10"},
+		},
+		{
+			name:       "what a load balancer adds is kept, and a cookie is not",
+			serverName: otherHost,
+			host:       servedHost,
+			path:       "/",
+			headers: map[string]string{
+				"X-Cloud-Trace-Context":         "105445aa7843bc8bf206b12000100000/1;o=1",
+				"X-Client-Geo-Country-Iso-Code": "ZZ-GEO-MARKER",
+				"X-Tls-Ja4-Fingerprint":         "t13d1516h2_ja4marker",
+				"Cookie":                        "session=cookie-marker",
+				"X-Padding":                     padding,
+			},
+			wantLogged: []string{"105445aa7843bc8bf206b12000100000", "ZZ-GEO-MARKER", "t13d1516h2_ja4marker"},
+			wantAbsent: []string{"cookie-marker"},
 		},
 		{
 			name:       "the forwarded client is kept, bounded",
@@ -137,6 +153,11 @@ func TestVhostMux_MisdirectedRequestLogIsBounded(t *testing.T) {
 			for _, want := range testCase.wantLogged {
 				if !strings.Contains(logged, want) {
 					t.Errorf("the log does not contain %q:\n%s", want, logged)
+				}
+			}
+			for _, absent := range testCase.wantAbsent {
+				if strings.Contains(logged, absent) {
+					t.Errorf("the log contains %q:\n%s", absent, logged)
 				}
 			}
 		})

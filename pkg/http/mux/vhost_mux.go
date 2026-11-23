@@ -80,13 +80,25 @@ func (vhostMux *VhostMux) PatchHttpServer(httpServer *http.Server) {
 const misdirectedValueLimit = 256
 
 // misdirectedHeaders are the headers kept of a misdirected request: what the
-// client says it is, and what it came through.
+// client says it is, what it came through, and what a load balancer in front
+// adds that the log extractors read -- the trace the entry is grouped under,
+// the client's location, ports and TLS fingerprints.
 var misdirectedHeaders = []string{
 	"User-Agent",
 	"X-Forwarded-For",
 	"Forwarded",
 	"X-Forwarded-Host",
 	"X-Forwarded-Proto",
+	"X-Cloud-Trace-Context",
+	"Traceparent",
+	"X-Client-Geo-City-Name",
+	"X-Client-Geo-Country-Iso-Code",
+	"X-Client-Geo-Location",
+	"X-Client-Geo-Region-Iso-Code",
+	"X-Client-Port",
+	"X-Server-Port",
+	"X-Tls-Ja3-Fingerprint",
+	"X-Tls-Ja4-Fingerprint",
 }
 
 // truncateValue cuts a value to at most limit bytes, at the start of a
