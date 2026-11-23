@@ -69,6 +69,30 @@ func (p *Parser[T]) Parse(request *http.Request) (*url.URL, *response_error.Resp
 	// configured to allow localhost, let them through without domain validation.
 	isAllowedLocalhost := config.AllowLocalhost && altshiftNet.IsLocalhost(parsedUrlHostname)
 
+	// The domain checks below read only the hostname, and a URL of any scheme
+	// can carry one: a javascript: URL written with an authority names an
+	// allowed host and runs as script where it is navigated to, and an app's
+	// own scheme hands the URL to whatever registered it. So a destination is
+	// https, or http where it is the machine's own and a local run allows that.
+	// A URL with no scheme at all -- one written relative to a scheme, say --
+	// is resolved against the page it ends up on, which is not this check's to
+	// know.
+	switch scheme := parsedUrl.Scheme; {
+	case strings.EqualFold(scheme, "https"):
+	case strings.EqualFold(scheme, "http") && isAllowedLocalhost:
+	default:
+		return nil, &response_error.ResponseError{
+			ProblemDetail: problem_detail.New(
+				http.StatusBadRequest,
+				problem_detail_config.WithDetail("The url scheme is not allowed."),
+			),
+			ClientError: altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: url scheme %q", altshiftErrors.ErrValidationError, scheme),
+				urlString,
+			),
+		}
+	}
+
 	if !isAllowedLocalhost {
 		domainParts := domain_parts.New(parsedUrlHostname)
 		if domainParts == nil {

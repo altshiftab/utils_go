@@ -37,7 +37,7 @@ func TestParse_UrlValidation(t *testing.T) {
 	t.Run("exact allowed domain match", func(t *testing.T) {
 		t.Parallel()
 		parser := New[stringURL](
-			urlParser("http://app.example.com/"),
+			urlParser("https://app.example.com/"),
 			url_allower_config.WithAllowedDomains([]string{"app.example.com"}),
 		)
 		if _, responseError := parser.Parse(&http.Request{}); responseError != nil {
@@ -47,7 +47,7 @@ func TestParse_UrlValidation(t *testing.T) {
 
 	t.Run("nil config is a server error", func(t *testing.T) {
 		t.Parallel()
-		parser := &Parser[stringURL]{RequestParser: urlParser("http://example.com/")}
+		parser := &Parser[stringURL]{RequestParser: urlParser("https://example.com/")}
 		_, responseError := parser.Parse(&http.Request{})
 		if responseError == nil || responseError.ServerError == nil {
 			t.Fatalf("expected a server error, got %#v", responseError)
