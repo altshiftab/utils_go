@@ -217,12 +217,27 @@ func TestParseOriginScheme(t *testing.T) {
 			origin:           "http://localhost:8080",
 			matches:          true,
 		},
+		// The browser extensions sign in through origins listed outright, with
+		// credentials; the scheme rule is the registered domain's alone.
 		{
-			name:             "an extension origin named outright",
+			name:             "a Firefox extension origin named outright",
 			registeredDomain: "example.com",
 			allowedOrigins:   []string{"moz-extension://4b1f0c3e-0000-4000-8000-000000000000"},
 			origin:           "moz-extension://4b1f0c3e-0000-4000-8000-000000000000",
 			matches:          true,
+		},
+		{
+			name:             "a Chrome extension origin named outright",
+			registeredDomain: "example.com",
+			allowedOrigins:   []string{"chrome-extension://abcdefghijklmnopabcdefghijklmnop"},
+			origin:           "chrome-extension://abcdefghijklmnopabcdefghijklmnop",
+			matches:          true,
+		},
+		{
+			name:             "an extension origin not named is not matched",
+			registeredDomain: "example.com",
+			allowedOrigins:   []string{"moz-extension://4b1f0c3e-0000-4000-8000-000000000000"},
+			origin:           "moz-extension://ffffffff-0000-4000-8000-000000000000",
 		},
 	}
 
@@ -240,11 +255,21 @@ func TestParseOriginScheme(t *testing.T) {
 				t.Fatalf("unexpected error: %#v", responseError)
 			}
 
-			switch {
-			case testCase.matches && config == nil:
+			if !testCase.matches {
+				if config != nil {
+					t.Fatalf("expected %q not to match, got %#v", testCase.origin, config)
+				}
+				return
+			}
+
+			if config == nil {
 				t.Fatalf("expected %q to match, got no configuration", testCase.origin)
-			case !testCase.matches && config != nil:
-				t.Fatalf("expected %q not to match, got %#v", testCase.origin, config)
+			}
+			if config.Origin != testCase.origin {
+				t.Errorf("origin = %q, want %q", config.Origin, testCase.origin)
+			}
+			if !config.Credentials {
+				t.Errorf("expected credentials to be allowed for %q", testCase.origin)
 			}
 		})
 	}
