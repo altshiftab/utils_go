@@ -324,6 +324,35 @@ func TestVhostMuxHandleRequest_ServerNameMatchesHost(t *testing.T) {
 			expectServed: true,
 		},
 		{
+			// What follows the host would otherwise reach the vhost's handler,
+			// and through it whatever repeats the authority upstream.
+			name:         "a port that is not a number is refused",
+			serverName:   servedHost,
+			host:         servedHost + ":443,for=127.0.0.1;by=x",
+			tls:          true,
+			expectServed: false,
+		},
+		{
+			name:         "so is one that is not a number in plaintext",
+			host:         servedHost + ":x",
+			tls:          false,
+			expectServed: false,
+		},
+		{
+			name:           "and one that is not a number where the forwarded host is trusted",
+			host:           servedHost + ":443;x",
+			tls:            true,
+			trustForwarded: true,
+			expectServed:   false,
+		},
+		{
+			name:         "an empty port is a port",
+			serverName:   servedHost,
+			host:         servedHost + ":",
+			tls:          true,
+			expectServed: true,
+		},
+		{
 			// With the forwarded headers trusted, TLS was terminated in front
 			// and the host routed on is not the connection's.
 			name:           "trusting the forwarded host exempts the request",

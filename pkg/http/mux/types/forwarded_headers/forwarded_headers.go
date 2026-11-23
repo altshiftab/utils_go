@@ -34,15 +34,37 @@ func normalizeScheme(value string) string {
 	}
 }
 
+// isPort says whether a value is a port as an authority may carry one: digits
+// and nothing else, possibly none (RFC 3986, section 3.2.3).
+func isPort(value string) bool {
+	for i := range len(value) {
+		if value[i] < '0' || value[i] > '9' {
+			return false
+		}
+	}
+
+	return true
+}
+
 // normalizeHost drops a port and lowercases what is left, so that a host read
 // from a header and a host written in a configuration compare equal.
+//
+// An authority whose port is not a port yields no host at all. SplitHostPort
+// takes whatever follows the last colon as the port, so without the check an
+// authority could carry any text after a host that matches, pass every
+// comparison made on the host, and be repeated as it was wherever the
+// authority is: in the forwarded headers a proxy sends upstream, in a URL
+// built back to the service.
 func normalizeHost(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return ""
 	}
 
-	if host, _, err := net.SplitHostPort(value); err == nil {
+	if host, port, err := net.SplitHostPort(value); err == nil {
+		if !isPort(port) {
+			return ""
+		}
 		value = host
 	} else if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
 		// An IPv6 literal carries brackets in an authority and cannot in a
@@ -166,7 +188,8 @@ func Host(request *http.Request, trustForwarded bool) string {
 // HostFromAuthority drops the port from an authority and folds its case, so
 // that a host read from a request and a host written in a configuration
 // compare equal. It is separate from Host so that a caller needing both does
-// not resolve the authority twice.
+// not resolve the authority twice. An authority whose port is not numeric
+// yields the empty string, which matches no configured host.
 func HostFromAuthority(authority string) string {
 	return normalizeHost(authority)
 }

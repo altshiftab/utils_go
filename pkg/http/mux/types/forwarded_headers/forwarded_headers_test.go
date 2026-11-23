@@ -364,3 +364,38 @@ func TestAuthority_IPv6KeepsBrackets(t *testing.T) {
 		t.Fatalf("got %q, want %q", authority, "[::1]:8080")
 	}
 }
+
+// A port is digits. Anything else after the host's colon would pass a comparison
+// made on the host and be repeated wherever the authority is, so it yields no
+// host at all.
+func TestHostFromAuthority(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		authority string
+		expected  string
+	}{
+		{name: "a host", authority: "open.home.arpa", expected: "open.home.arpa"},
+		{name: "a host and a port", authority: "open.home.arpa:443", expected: "open.home.arpa"},
+		{name: "an empty port", authority: "open.home.arpa:", expected: "open.home.arpa"},
+		{name: "a port with leading zeros", authority: "open.home.arpa:0443", expected: "open.home.arpa"},
+		{name: "a bracketed address and a port", authority: "[::1]:8080", expected: "::1"},
+		{name: "a port followed by forwarded parameters", authority: "open.home.arpa:443,for=127.0.0.1;by=x", expected: ""},
+		{name: "a port followed by a semicolon", authority: "open.home.arpa:443;x", expected: ""},
+		{name: "a port that is a word", authority: "open.home.arpa:https", expected: ""},
+		{name: "a port with a sign", authority: "open.home.arpa:+443", expected: ""},
+		{name: "a port with a space", authority: "open.home.arpa:443 x", expected: ""},
+		{name: "a bracketed address and a port that is a word", authority: "[::1]:x", expected: ""},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if host := HostFromAuthority(testCase.authority); host != testCase.expected {
+				t.Fatalf("HostFromAuthority(%q) = %q, want %q", testCase.authority, host, testCase.expected)
+			}
+		})
+	}
+}
