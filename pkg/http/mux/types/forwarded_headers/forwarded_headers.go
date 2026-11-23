@@ -12,6 +12,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 
 	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
@@ -61,17 +62,28 @@ func normalizeHost(value string) string {
 		return ""
 	}
 
+	bracketed := strings.HasPrefix(value, "[")
+
 	if host, port, err := net.SplitHostPort(value); err == nil {
 		if !isPort(port) {
 			return ""
 		}
 		value = host
-	} else if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
+	} else if bracketed && strings.HasSuffix(value, "]") {
 		// An IPv6 literal carries brackets in an authority and cannot in a
 		// name. SplitHostPort takes them off where there is a port to split;
 		// with no port there is nothing to split, and "[::1]" would otherwise
 		// compare unequal to the "::1" the same address is configured as.
 		value = value[1 : len(value)-1]
+	}
+
+	// Brackets hold an IPv6 address and nothing else. A name written in them
+	// would otherwise compare equal to the name, and travel on in a form
+	// neither a URL parser nor a server behind would read as that name.
+	if bracketed {
+		if address, err := netip.ParseAddr(value); err != nil || !address.Is6() {
+			return ""
+		}
 	}
 
 	return strings.ToLower(value)

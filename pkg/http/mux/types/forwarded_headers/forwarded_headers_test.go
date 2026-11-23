@@ -387,6 +387,11 @@ func TestHostFromAuthority(t *testing.T) {
 		{name: "a port with a sign", authority: "open.home.arpa:+443", expected: ""},
 		{name: "a port with a space", authority: "open.home.arpa:443 x", expected: ""},
 		{name: "a bracketed address and a port that is a word", authority: "[::1]:x", expected: ""},
+		{name: "a bracketed address", authority: "[2001:DB8::1]", expected: "2001:db8::1"},
+		{name: "a bracketed name and a port", authority: "[open.home.arpa]:443", expected: ""},
+		{name: "a bracketed name", authority: "[open.home.arpa]", expected: ""},
+		{name: "a bracketed IPv4 address", authority: "[127.0.0.1]:443", expected: ""},
+		{name: "an unclosed bracket", authority: "[open.home.arpa", expected: ""},
 	}
 
 	for _, testCase := range testCases {
