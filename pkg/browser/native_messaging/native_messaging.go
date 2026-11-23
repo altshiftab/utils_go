@@ -10,6 +10,7 @@ package native_messaging
 
 import (
 	"encoding/binary"
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"errors"
 	"fmt"
@@ -31,13 +32,21 @@ const MaximumMessageBytes = 1 << 20
 // lost its framing produces exactly such a number.
 var ErrMessageTooLarge = errors.New("message is too large")
 
+// ErrUnencodable is a message that cannot be written as JSON: a string that is
+// not valid UTF-8, say, or a value JSON has no form for. It is the program's
+// mistake rather than the browser's, unlike a message that cannot be read, which
+// is a parse error.
+var ErrUnencodable = errors.New("message cannot be encoded")
+
 // Read reads one message into message. It returns io.EOF once the browser has
 // closed the port, which is how a native application is told to exit.
 //
 // Message contents are never attached to the errors returned here. A native
 // application carries whatever the extension sends it — a page's text, a form's
 // contents — and an error value is written to the journal, so putting the
-// payload in one turns a parse failure into a disclosure.
+// payload in one turns a parse failure into a disclosure. A message that is not
+// JSON of the expected shape is an altshiftErrors.ErrParseError that says where
+// it went wrong and nothing of what it said.
 func Read(reader io.Reader, message any) error {
 	var length uint32
 	if err := binary.Read(reader, binary.LittleEndian, &length); err != nil {
@@ -61,7 +70,10 @@ func Read(reader io.Reader, message any) error {
 	}
 
 	if err := json.Unmarshal(data, message); err != nil {
-		return altshiftErrors.NewWithTrace(fmt.Errorf("json unmarshal: %w", err), length)
+		return altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: json unmarshal: %s", altshiftErrors.ErrParseError, describe(err)),
+			length,
+		)
 	}
 
 	return nil
@@ -71,7 +83,7 @@ func Read(reader io.Reader, message any) error {
 func Write(writer io.Writer, message any) error {
 	data, err := json.Marshal(message)
 	if err != nil {
-		return altshiftErrors.NewWithTrace(fmt.Errorf("json marshal: %w", err))
+		return altshiftErrors.NewWithTrace(fmt.Errorf("%w: json marshal: %s", ErrUnencodable, describe(err)))
 	}
 
 	// Checked before the conversion below, which is what makes it safe: the
@@ -89,4 +101,34 @@ func Write(writer io.Writer, message any) error {
 	}
 
 	return nil
+}
+
+// describe says what went wrong in encoding or decoding a message without
+// repeating any of it, which is why the json packages' own errors are described
+// rather than wrapped. A syntactic error quotes the input around the fault; both
+// kinds name the keys on the way to it in a JSON pointer, and a key can be
+// content as surely as a value; a semantic error carries the value it could not
+// read in JSONValue, where anything walking the chain would find it. What is left
+// is where the fault is and, for a mismatch, the kinds on either side, which come
+// from the program and not from the message.
+func describe(err error) string {
+	if syntacticErr, ok := errors.AsType[*jsontext.SyntacticError](err); ok {
+		return fmt.Sprintf("invalid JSON at byte %d", syntacticErr.ByteOffset)
+	}
+
+	if semanticErr, ok := errors.AsType[*json.SemanticError](err); ok {
+		var what string
+		switch {
+		case semanticErr.JSONKind != 0 && semanticErr.GoType != nil:
+			what = fmt.Sprintf("a JSON %s where a Go %s goes", semanticErr.JSONKind, semanticErr.GoType)
+		case semanticErr.GoType != nil:
+			what = fmt.Sprintf("a Go %s that JSON cannot hold", semanticErr.GoType)
+		default:
+			what = "a value of the wrong type"
+		}
+
+		return fmt.Sprintf("%s, at byte %d", what, semanticErr.ByteOffset)
+	}
+
+	return "the JSON could not be handled"
 }

@@ -3,6 +3,8 @@ package native_messaging
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -183,35 +185,115 @@ func TestWriteOversizedIsRefused(t *testing.T) {
 // value ends up in the journal. Message contents must therefore stay out of the
 // errors this package returns.
 //
-// Both surfaces are checked. The text an error renders as is the obvious one,
-// but altshiftErrors carries its values beside the message rather than in it —
-// GetInput, not Error — so a payload attached as a value would be invisible to
-// a test that only read the text, and would still reach the journal.
+// Three surfaces are checked. The text an error renders as is the obvious one,
+// and the json packages put content in it in more ways than one: the input
+// around a fault, and the keys on the way to it. altshiftErrors carries its
+// values beside the message rather than in it — GetInput, not Error — so a
+// payload attached as a value would be invisible to a test that only read the
+// text. And a json error left in the chain carries the offending value in a
+// field of its own, for anything that unwraps it.
 func TestErrorsDoNotCarryMessageContents(t *testing.T) {
 	t.Parallel()
 
-	// Malformed on purpose: the unmarshal has to fail for there to be an error
-	// to inspect, and what it must not repeat is the text it failed on.
-	const confidentialText = "kontouppgifterna för det gemensamma kontot"
+	// Each body is malformed in its own way, so that the read fails, and holds
+	// the secret where that failure would show it.
+	const secret = "kontouppgifterna"
 
-	body := []byte(`{"type": ` + confidentialText)
-
-	framed := make([]byte, 4, 4+len(body))
-	binary.LittleEndian.PutUint32(framed, uint32(len(body))) //nolint:gosec // A fixed literal, far under a uint32.
-	framed = append(framed, body...)
-
-	err := Read(bytes.NewReader(framed), &sample{})
-	if err == nil {
-		t.Fatal("expected an error for a malformed body, got none")
+	type keyed struct {
+		Counts map[string]int `json:"counts"`
 	}
 
-	if strings.Contains(err.Error(), confidentialText) {
+	testCases := []struct {
+		name   string
+		body   string
+		target any
+	}{
+		{name: "text where a value goes", body: `{"type": ` + secret, target: &sample{}},
+		{name: "a bad escape, quoted with what surrounds it", body: `{"type":"` + secret + `\ud83d","url":"` + secret + `"}`, target: &sample{}},
+		{name: "a bad literal inside a secret key", body: `{"counts":{"` + secret + `": tru}}`, target: &keyed{}},
+		{name: "a value of the wrong type under a secret key", body: `{"counts":{"` + secret + `":"` + secret + `"}}`, target: &keyed{}},
+		{name: "a secret value of the wrong type", body: `{"type":["` + secret + `"]}`, target: &sample{}},
+		{name: "text after the message", body: `{"type":"x"}` + secret, target: &sample{}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			framed := make([]byte, 4, 4+len(testCase.body))
+			binary.LittleEndian.PutUint32(framed, uint32(len(testCase.body))) //nolint:gosec // A test literal, far under a uint32.
+			framed = append(framed, testCase.body...)
+
+			err := Read(bytes.NewReader(framed), testCase.target)
+			if err == nil {
+				t.Fatal("expected an error for a malformed body, got none")
+			}
+
+			checkCarriesNoContents(t, err, secret)
+
+			if !errors.Is(err, altshiftErrors.ErrParseError) {
+				t.Errorf("expected a parse error, so a caller can tell bad input from a broken stream: %v", err)
+			}
+			if !strings.Contains(err.Error(), "at byte") {
+				t.Errorf("expected the error to say where the fault is: %v", err)
+			}
+		})
+	}
+}
+
+func TestWriteErrorsDoNotCarryMessageContents(t *testing.T) {
+	t.Parallel()
+
+	const secret = "kontouppgifterna"
+
+	testCases := []struct {
+		name    string
+		message any
+	}{
+		{name: "invalid UTF-8 in a value", message: &sample{Type: secret + "\xff"}},
+		{name: "invalid UTF-8 in a key", message: map[string]string{secret + "\xff": secret}},
+		{name: "a value JSON cannot hold, under a secret key", message: map[string]any{secret: func() {}}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			buffer := &bytes.Buffer{}
+			err := Write(buffer, testCase.message)
+			if err == nil {
+				t.Fatal("expected an error, got none")
+			}
+
+			checkCarriesNoContents(t, err, secret)
+
+			if !errors.Is(err, ErrUnencodable) {
+				t.Errorf("expected an unencodable error: %v", err)
+			}
+			if buffer.Len() != 0 {
+				t.Errorf("expected nothing written, got %d bytes", buffer.Len())
+			}
+		})
+	}
+}
+
+func checkCarriesNoContents(t *testing.T, err error, secret string) {
+	t.Helper()
+
+	if strings.Contains(err.Error(), secret) {
 		t.Errorf("the error's text repeated the message contents: %v", err)
 	}
 
 	if extendedErr, ok := errors.AsType[*altshiftErrors.ExtendedError](err); ok {
-		if input := fmt.Sprint(extendedErr.GetInput()); strings.Contains(input, confidentialText) {
+		if input := fmt.Sprint(extendedErr.GetInput()); strings.Contains(input, secret) {
 			t.Errorf("the error's attached values repeated the message contents: %s", input)
 		}
+	}
+
+	if _, ok := errors.AsType[*jsontext.SyntacticError](err); ok {
+		t.Error("a syntactic error was left in the chain, with the input it quotes")
+	}
+	if _, ok := errors.AsType[*json.SemanticError](err); ok {
+		t.Error("a semantic error was left in the chain, with the value it carries")
 	}
 }
