@@ -32,6 +32,7 @@ func TestSentinelErrorMessages(t *testing.T) {
 		},
 		{name: "ErrUnexpectedContentEncoding", err: ErrUnexpectedContentEncoding, want: "unexpected content encoding"},
 		{name: "ErrUnsupportedFileExtension", err: ErrUnsupportedFileExtension, want: "unsupported file extension"},
+		{name: "ErrMisdirectedRequest", err: ErrMisdirectedRequest, want: "misdirected request"},
 	}
 
 	for _, testCase := range testCases {

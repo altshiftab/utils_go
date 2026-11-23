@@ -2,7 +2,10 @@ package mux
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net/http"
+	"net/url"
+	"unicode/utf8"
 
 	"github.com/altshiftab/utils_go/pkg/errors/types/nil_error"
 
@@ -12,6 +15,7 @@ import (
 	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
 	muxTypesResponseError "github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	muxTypesResponseWriter "github.com/altshiftab/utils_go/pkg/http/mux/types/response_writer"
+	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	altshiftStrings "github.com/altshiftab/utils_go/pkg/strings"
 )
@@ -71,6 +75,85 @@ func (vhostMux *VhostMux) PatchHttpServer(httpServer *http.Server) {
 	}
 }
 
+// misdirectedValueLimit bounds each value kept of a misdirected request for the
+// log. A name, an address or a user agent fits; padding does not.
+const misdirectedValueLimit = 256
+
+// misdirectedHeaders are the headers kept of a misdirected request: what the
+// client says it is, and what it came through.
+var misdirectedHeaders = []string{
+	"User-Agent",
+	"X-Forwarded-For",
+	"Forwarded",
+	"X-Forwarded-Host",
+	"X-Forwarded-Proto",
+}
+
+// truncateValue cuts a value to at most limit bytes, at the start of a
+// character, and says that it was cut.
+func truncateValue(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+
+	cut := limit
+	for cut > 0 && !utf8.RuneStart(value[cut]) {
+		cut--
+	}
+
+	return fmt.Sprintf("%s... [truncated, %d bytes in full]", value[:cut], len(value))
+}
+
+// summarizeMisdirected is what is logged of a request no vhost answers for, in
+// place of the request itself: its method, path, host and peer, the few headers
+// in misdirectedHeaders, each value bounded. Such a request is anyone's to send
+// before anything is asked of them, and the size of the request line and the
+// headers is theirs to choose -- a megabyte of headers by net/http's default --
+// so logging it in full writes as much as was sent, and more, for every request
+// on a connection kept alive to send them. The query is left out: it is
+// unbounded, and was meant for a vhost that may declare what in it is secret.
+func summarizeMisdirected(request *http.Request) *http.Request {
+	summary := request.WithContext(request.Context())
+
+	summary.Method = truncateValue(request.Method, misdirectedValueLimit)
+	summary.Host = truncateValue(request.Host, misdirectedValueLimit)
+	summary.RequestURI = ""
+
+	summaryUrl := &url.URL{}
+	if requestUrl := request.URL; requestUrl != nil {
+		summaryUrl.Path = truncateValue(requestUrl.Path, misdirectedValueLimit)
+	}
+	summary.URL = summaryUrl
+
+	header := make(http.Header, len(misdirectedHeaders))
+	for _, name := range misdirectedHeaders {
+		if value := request.Header.Get(name); value != "" {
+			header.Set(name, truncateValue(value, misdirectedValueLimit))
+		}
+	}
+	summary.Header = header
+	summary.Trailer = nil
+	summary.Form = nil
+	summary.PostForm = nil
+	summary.MultipartForm = nil
+
+	return summary
+}
+
+// misdirected answers a request no vhost answers for with a 421, and has the
+// HTTP context the mux logs it from describe a summary of it rather than the
+// request as it came; see summarizeMisdirected.
+func misdirected(request *http.Request, err error) *muxTypesResponseError.ResponseError {
+	if httpContext, ok := request.Context().Value(MuxHttpContextContextKey).(*altshiftHttpTypes.HttpContext); ok && httpContext != nil {
+		httpContext.Request = summarizeMisdirected(request)
+	}
+
+	return &muxTypesResponseError.ResponseError{
+		ProblemDetail: problem_detail.New(http.StatusMisdirectedRequest),
+		ClientError:   err,
+	}
+}
+
 func vhostMuxHandleRequest(
 	vhostMux *VhostMux,
 	request *http.Request,
@@ -99,11 +182,22 @@ func vhostMuxHandleRequest(
 	// vhost's certificate to be addressing. It cannot apply where the forwarded
 	// headers are trusted, since the host routed on is then deliberately not
 	// the one the connection was opened for.
+	var serverName string
+	if request.TLS != nil {
+		serverName = truncateValue(request.TLS.ServerName, misdirectedValueLimit)
+	}
+
 	if request.TLS != nil && !vhostMux.TrustForwardedHost {
 		if forwarded_headers.HostFromAuthority(request.TLS.ServerName) != host {
-			return nil, &muxTypesResponseError.ResponseError{
-				ProblemDetail: problem_detail.New(http.StatusMisdirectedRequest),
-			}
+			return nil, misdirected(
+				request,
+				fmt.Errorf(
+					"%w: the server name %q is not the host %q",
+					muxErrors.ErrMisdirectedRequest,
+					serverName,
+					truncateValue(request.Host, misdirectedValueLimit),
+				),
+			)
 		}
 	}
 
@@ -116,9 +210,15 @@ func vhostMuxHandleRequest(
 
 	muxSpecification, ok := hostToSpecification[host]
 	if !ok {
-		return nil, &muxTypesResponseError.ResponseError{
-			ProblemDetail: problem_detail.New(http.StatusMisdirectedRequest),
-		}
+		return nil, misdirected(
+			request,
+			fmt.Errorf(
+				"%w: no vhost answers for the host %q (server name %q)",
+				muxErrors.ErrMisdirectedRequest,
+				truncateValue(authority, misdirectedValueLimit),
+				serverName,
+			),
+		)
 	}
 	if muxSpecification == nil {
 		return nil, &muxTypesResponseError.ResponseError{

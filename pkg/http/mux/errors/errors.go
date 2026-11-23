@@ -17,4 +17,5 @@ var (
 	ErrUnexpectedResponseErrorType = fmt.Errorf("%w: unexpected response error type", ErrUnusableResponseError)
 	ErrUnexpectedContentEncoding   = errors.New("unexpected content encoding")
 	ErrUnsupportedFileExtension    = errors.New("unsupported file extension")
+	ErrMisdirectedRequest          = errors.New("misdirected request")
 )
