@@ -3,6 +3,7 @@ package cors_configurator
 import (
 	"fmt"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strings"
 
@@ -14,9 +15,36 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
 	"github.com/altshiftab/utils_go/pkg/interfaces/comparer"
+	altshiftNet "github.com/altshiftab/utils_go/pkg/net"
 	"github.com/altshiftab/utils_go/pkg/net/types/domain_parts"
 	"github.com/altshiftab/utils_go/pkg/utils"
 )
+
+// isSecureOrigin says whether an origin is one a registered domain may be
+// matched for: https, or http where the host is the machine's own. A page
+// served over http on a host under the domain is a page anyone on the path can
+// write, and matching it would let that page read the service's answers with
+// the reader's credentials attached. Loopback is kept for a local run, which is
+// served without TLS and which a deployed service never matches anyway, its
+// registered domain not being localhost.
+func isSecureOrigin(origin *url.URL) bool {
+	if origin == nil {
+		return false
+	}
+
+	switch {
+	case strings.EqualFold(origin.Scheme, "https"):
+		return true
+	case strings.EqualFold(origin.Scheme, "http"):
+		hostname := origin.Hostname()
+		if address, err := netip.ParseAddr(hostname); err == nil {
+			return address.IsLoopback()
+		}
+		return altshiftNet.IsLocalhost(strings.TrimSuffix(hostname, "."))
+	default:
+		return false
+	}
+}
 
 type Configurator struct {
 	AllowedOrigins         []string
@@ -91,7 +119,9 @@ func (c *Configurator) Parse(request *http.Request) (*altshiftHttpTypes.CorsConf
 		// there. Refusing outright instead left the service answerable with a 400
 		// to any client willing to send an odd Origin, and left every origin that
 		// is an address unable to match however it was configured.
-		if originDomainParts != nil && strings.EqualFold(originDomainParts.RegisteredDomain, registeredDomain) {
+		if originDomainParts != nil &&
+			strings.EqualFold(originDomainParts.RegisteredDomain, registeredDomain) &&
+			isSecureOrigin(parsedOrigin) {
 			matchedAllowedOrigin = origin
 		}
 	}

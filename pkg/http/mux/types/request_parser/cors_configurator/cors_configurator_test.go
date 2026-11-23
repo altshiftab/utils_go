@@ -3,6 +3,7 @@ package cors_configurator
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -182,5 +183,109 @@ func TestParseLoopbackOrigins(t *testing.T) {
 				t.Fatalf("expected %q not to match, got %#v", testCase.origin, config)
 			}
 		})
+	}
+}
+
+// A registered domain is matched for a page served over https, or over http on
+// the machine's own host in a local run. An origin named outright is the
+// service's own declaration and is matched as written, whatever its scheme.
+func TestParseOriginScheme(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name             string
+		registeredDomain string
+		allowedOrigins   []string
+		origin           string
+		matches          bool
+	}{
+		{name: "https under the domain", registeredDomain: "example.com", origin: "https://x.example.com", matches: true},
+		{name: "http under the domain", registeredDomain: "example.com", origin: "http://x.example.com"},
+		{name: "http written in capitals", registeredDomain: "example.com", origin: "HTTP://x.example.com"},
+		{name: "http on the domain itself", registeredDomain: "example.com", origin: "http://example.com"},
+		{name: "a websocket scheme under the domain", registeredDomain: "example.com", origin: "wss://x.example.com"},
+		{name: "an app scheme under the domain", registeredDomain: "example.com", origin: "someapp://x.example.com"},
+		{name: "https on localhost in a local run", registeredDomain: "localhost", origin: "https://localhost:8443", matches: true},
+		{name: "http on localhost in a local run", registeredDomain: "localhost", origin: "http://localhost:8080", matches: true},
+		{name: "http on the IPv4 loopback in a local run", registeredDomain: "localhost", origin: "http://127.0.0.1:8080", matches: true},
+		{name: "http on the IPv6 loopback in a local run", registeredDomain: "localhost", origin: "http://[::1]:8080", matches: true},
+		{name: "an app scheme on localhost in a local run", registeredDomain: "localhost", origin: "someapp://localhost"},
+		{
+			name:             "an http origin named outright",
+			registeredDomain: "example.com",
+			allowedOrigins:   []string{"http://localhost:8080"},
+			origin:           "http://localhost:8080",
+			matches:          true,
+		},
+		{
+			name:             "an extension origin named outright",
+			registeredDomain: "example.com",
+			allowedOrigins:   []string{"moz-extension://4b1f0c3e-0000-4000-8000-000000000000"},
+			origin:           "moz-extension://4b1f0c3e-0000-4000-8000-000000000000",
+			matches:          true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			configurator := &Configurator{
+				RegisteredDomain: testCase.registeredDomain,
+				AllowedOrigins:   testCase.allowedOrigins,
+				Credentials:      true,
+			}
+			config, responseError := configurator.Parse(newRequestWithOrigin(t, testCase.origin))
+			if responseError != nil {
+				t.Fatalf("unexpected error: %#v", responseError)
+			}
+
+			switch {
+			case testCase.matches && config == nil:
+				t.Fatalf("expected %q to match, got no configuration", testCase.origin)
+			case !testCase.matches && config != nil:
+				t.Fatalf("expected %q not to match, got %#v", testCase.origin, config)
+			}
+		})
+	}
+}
+
+func TestIsSecureOrigin(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		origin string
+		want   bool
+	}{
+		{name: "https", origin: "https://x.example.com", want: true},
+		{name: "http on a public host", origin: "http://x.example.com"},
+		{name: "http on localhost", origin: "http://localhost", want: true},
+		{name: "http on localhost written as fully qualified", origin: "http://localhost.", want: true},
+		{name: "http on a name under localhost", origin: "http://app.localhost:3000", want: true},
+		{name: "http on the IPv4 loopback", origin: "http://127.0.0.1", want: true},
+		{name: "http on another IPv4 loopback address", origin: "http://127.0.0.2", want: true},
+		{name: "http on the IPv6 loopback", origin: "http://[::1]", want: true},
+		{name: "http on a private address", origin: "http://192.168.1.10"},
+		{name: "http on a name that only begins with localhost", origin: "http://localhost.example.com"},
+		{name: "no scheme", origin: "//x.example.com"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			origin, err := url.Parse(testCase.origin)
+			if err != nil {
+				t.Fatalf("url parse: %v", err)
+			}
+			if got := isSecureOrigin(origin); got != testCase.want {
+				t.Errorf("isSecureOrigin(%q) = %v, want %v", testCase.origin, got, testCase.want)
+			}
+		})
+	}
+
+	if isSecureOrigin(nil) {
+		t.Error("expected a nil origin not to be secure")
 	}
 }
