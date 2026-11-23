@@ -314,8 +314,7 @@ func (parser *Parser) scan(tables *nameTables, prior []string) *completionState 
 				break
 			}
 
-			state.closePending()
-			state.seen.record(resolved, parsed.long)
+			state.named(resolved, parsed.long)
 
 			nargs := opt.GetNargs()
 			if !parsed.long && nargs != option.NargsNone && nameIndex+1 < len(parsed.names) {
@@ -356,6 +355,13 @@ func (state *completionState) closePending() {
 
 	state.pending = nil
 	state.pendingCount = 0
+}
+
+// named does what a parse does on reading an option's name, before any value: settles the option
+// pending and records the name as given.
+func (state *completionState) named(name string, long bool) {
+	state.closePending()
+	state.seen.record(name, long)
 }
 
 // resolve looks an option up by a name as written, a long one by any prefix that names only it,
@@ -455,7 +461,9 @@ func (parser *Parser) positionalSlot(state *completionState) option.Option {
 }
 
 // completeOption completes a word that names options: their names, or the value written into the
-// word itself, "--name=value" or a short option's attached "-nvalue".
+// word itself, "--name=value" or a short option's attached "-nvalue". A value is completed once
+// what a parse does with the word up to it is done, as when the value is a word of its own: the
+// option pending settled, the names recorded and the flags before an attached value set.
 func (parser *Parser) completeOption(
 	ctx context.Context,
 	tableOptions []option.Option,
@@ -468,15 +476,19 @@ func (parser *Parser) completeOption(
 			return &Completion{Candidates: parser.optionNames(tableOptions, state, current)}, nil
 		}
 
-		opt, _, ok := parser.resolve(state.tables, parsed.names[0], true)
+		opt, resolved, ok := parser.resolve(state.tables, parsed.names[0], true)
 		if !ok || opt.GetNargs() == option.NargsNone {
 			return &Completion{}, nil
 		}
+
+		state.named(resolved, true)
 
 		written, _, _ := strings.Cut(current, "=")
 
 		return parser.completeValues(ctx, state, opt, *parsed.inlineValue, written+"=")
 	}
+
+	var flags []option.Option
 
 	for index, name := range parsed.names {
 		opt, ok := state.tables.lookup(name, false)
@@ -484,12 +496,25 @@ func (parser *Parser) completeOption(
 			return &Completion{}, nil
 		}
 
-		if opt.GetNargs() != option.NargsNone && index+1 < len(parsed.names) {
-			attached := strings.Join(parsed.names[index+1:], "")
-			written := "-" + strings.Join(parsed.names[:index+1], "")
-
-			return parser.completeValues(ctx, state, opt, attached, written)
+		if opt.GetNargs() == option.NargsNone {
+			flags = append(flags, opt)
+			continue
 		}
+
+		if index+1 == len(parsed.names) {
+			break
+		}
+
+		for flagIndex, flag := range flags {
+			state.named(parsed.names[flagIndex], false)
+			setPure(flag, "")
+		}
+		state.named(name, false)
+
+		attached := strings.Join(parsed.names[index+1:], "")
+		written := "-" + strings.Join(parsed.names[:index+1], "")
+
+		return parser.completeValues(ctx, state, opt, attached, written)
 	}
 
 	if len(parsed.names) == 1 {

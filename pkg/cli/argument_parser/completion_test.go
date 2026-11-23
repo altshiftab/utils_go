@@ -160,6 +160,59 @@ func TestZshRepeatableOptionStaysOffered(t *testing.T) {
 	}
 }
 
+// TestZshAccumulatingOptionsStayOffered holds that an option is offered again where a repeat adds
+// to what it holds, whatever its arity, and that one in an exclusive group still rules out the
+// others while it does.
+func TestZshAccumulatingOptionsStayOffered(t *testing.T) {
+	t.Parallel()
+
+	var (
+		count   int
+		quiet   bool
+		roots   []string
+		numbers []int
+		word    string
+	)
+
+	verboseOption := option.NewCountedOption('v', "verbose", "Say more.", false, &count)
+	quietOption := option.NewBoolOption('q', "quiet", "Say less.", false, &quiet)
+
+	parser := &Parser{
+		ProgramName: "myapp",
+		Options: []option.Option{
+			verboseOption,
+			quietOption,
+			option.WithNargs(option.NewStringsOption('r', "root", "A root.", false, &roots), option.NargsOne),
+			option.WithNargs(option.NewIntsOption('n', "number", "A number.", false, &numbers), option.NargsOne),
+			option.WithNargs(option.NewStringOption('w', "word", "A word.", false, &word), option.NargsAny),
+		},
+		ExclusiveGroups: []*ExclusiveGroup{{Options: []option.Option{verboseOption, quietOption}}},
+	}
+
+	script := write(t, parser, Zsh)
+
+	testCases := []struct {
+		name string
+		want string
+	}{
+		{name: "counter in an exclusive group", want: `'(-q --quiet)*'{-v,--verbose}'[`},
+		{name: "the other member rules the counter out", want: `'(-q --quiet -v --verbose)'{-q,--quiet}'[`},
+		{name: "strings one per occurrence", want: `'*'{-r,--root}'+[`},
+		{name: "ints one per occurrence", want: `'*'{-n,--number}'+[`},
+		{name: "single value with a variadic arity", want: `'(-w --word)'{-w,--word}'+[`},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if !strings.Contains(script, testCase.want) {
+				t.Errorf("expected %q in the script, got:\n%s", testCase.want, script)
+			}
+		})
+	}
+}
+
 // TestZshOptionalArgumentUsesTheEqualsForm holds the difference between an option whose value may
 // be omitted and one whose may not: only the first may be written --optional=value with nothing
 // following.

@@ -116,12 +116,23 @@ func optionalArgument(declared option.Option) bool {
 	return declared.GetNargs() == option.NargsOptional
 }
 
-// repeatable reports whether the option may be given more than once.
+// repeatable reports whether giving the option again adds to what it holds, so is worth offering
+// again.
 //
 // It matters to a completion because a shell hides an option once it has been used, and hiding one
-// that accumulates would stop a caller giving the second of them.
+// that accumulates would stop a caller giving the second of them. The plain kinds are known by what
+// they are rather than by their arity: a counter takes no argument, and a list may take one per
+// occurrence, yet both gain from each repeat, while a single value given a variadic arity only
+// replaces itself. An option of a program's own has only its arity to say it accumulates.
 func repeatable(declared option.Option) bool {
-	return declared.GetNargs().IsVariadic()
+	switch declared.(type) {
+	case *option.CountedOption, *option.StringsOption, *option.IntsOption:
+		return true
+	case *option.IntOption, *option.StringOption, *option.BoolOption, *option.FileOption:
+		return false
+	default:
+		return declared.GetNargs().IsVariadic()
+	}
 }
 
 // hidden reports whether the option is kept out of what is shown to a person.

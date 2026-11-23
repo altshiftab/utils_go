@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -637,6 +638,129 @@ func TestCompleteReservesForLaterPositionals(t *testing.T) {
 			}
 			if testCase.seen != "" && seen != testCase.seen {
 				t.Errorf("seen: got %q, want %q", seen, testCase.seen)
+			}
+		})
+	}
+}
+
+// TestCompleteValueInWordSeesWhatParseSet pins that a value written into the word being completed,
+// "--name=value" or an attached "-nvalue", is completed once what a parse does with the word up to
+// the value is done, as for a value that is a word of its own: an optional argument left without
+// one takes its constant, the flags before an attached value are set, and the option named takes
+// no default.
+func TestCompleteValueInWordSeesWhatParseSet(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name  string
+		words []string
+		// want is what the options held when the completer was asked.
+		want string
+	}{
+		{name: "inline value after an optional argument", words: []string{"-o", "--into="}, want: `o="c" v=false tags=["dflt"]`},
+		{name: "separate value after an optional argument", words: []string{"-o", "--into", ""}, want: `o="c" v=false tags=["dflt"]`},
+		{name: "attached value after an optional argument", words: []string{"-o", "-tpre"}, want: `o="c" v=false tags=["dflt"]`},
+		{name: "attached value after a flag in its cluster", words: []string{"-vtpre"}, want: `o="" v=true tags=["dflt"]`},
+		{name: "separate value after a cluster", words: []string{"-vt", "pre"}, want: `o="" v=true tags=["dflt"]`},
+		{name: "inline value of an option with a default", words: []string{"--tag=pre"}, want: `o="" v=false tags=[]`},
+		{name: "inline value of an abbreviation with a default", words: []string{"--ta=pre"}, want: `o="" v=false tags=[]`},
+		{name: "separate value of an option with a default", words: []string{"--tag", "pre"}, want: `o="" v=false tags=[]`},
+		{name: "attached value of an option with a default", words: []string{"-vgpre"}, want: `o="" v=true tags=[]`},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var (
+				optional, into, seen string
+				verbose              bool
+				tags                 []string
+			)
+
+			recording := func(context.Context, string) ([]*option.Candidate, error) {
+				seen = fmt.Sprintf("o=%q v=%t tags=%q", optional, verbose, tags)
+				return nil, nil
+			}
+
+			parser := &Parser{
+				ProgramName: "prog",
+				Options: []option.Option{
+					option.WithOptionalArgument(option.NewStringOption('o', "", "", false, &optional), "c"),
+					option.NewBoolOption('v', "", "", false, &verbose),
+					option.WithCompleter(option.NewStringOption('t', "into", "", false, &into), recording),
+					option.WithCompleter(option.WithDefault(option.NewStringsOption('g', "tag", "", false, &tags), "dflt"), recording),
+				},
+			}
+
+			if _, err := parser.Complete(t.Context(), testCase.words); err != nil {
+				t.Fatalf("complete: %v", err)
+			}
+			if seen != testCase.want {
+				t.Errorf("completer saw %s, want %s", seen, testCase.want)
+			}
+		})
+	}
+}
+
+// TestCompleteOffersAccumulatingOptionsAgain pins that an option given already is offered again
+// where a repeat adds to what it holds, whatever its arity: a counter, and a list taking one value
+// per occurrence, as well as one taking any number. A single value is not, even with an arity that
+// takes several, since a repeat only replaces it.
+func TestCompleteOffersAccumulatingOptionsAgain(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name  string
+		words []string
+		want  []string
+	}{
+		{name: "counter", words: []string{"-v", "--v"}, want: []string{"--verbose"}},
+		{name: "counter in a cluster", words: []string{"-vv", "--v"}, want: []string{"--verbose"}},
+		{name: "counter by its short name", words: []string{"-v", "-v"}, want: []string{"-v"}},
+		{name: "strings one per occurrence", words: []string{"-r", "a", "--r"}, want: []string{"--root"}},
+		{name: "ints one per occurrence", words: []string{"-n", "1", "--n"}, want: []string{"--number"}},
+		{name: "strings any number", words: []string{"-l", "a", "b", "--l"}, want: []string{"--label"}},
+		{name: "own option with a variadic arity", words: []string{"--own", "a", "--o"}, want: []string{"--own"}},
+		{name: "single value with a variadic arity", words: []string{"-w", "a", "--w"}},
+		{name: "flag", words: []string{"-b", "--b"}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var (
+				count          int
+				numbers        []int
+				roots, labels  []string
+				word, ownValue string
+				flag           bool
+				ownCalls       int
+			)
+
+			own := &sideEffecting{StringOption: option.NewStringOption(0, "own", "", false, &ownValue), calls: &ownCalls}
+			own.SetNargs(option.NargsAny)
+
+			parser := &Parser{
+				ProgramName: "prog",
+				Options: []option.Option{
+					option.NewCountedOption('v', "verbose", "", false, &count),
+					option.WithNargs(option.NewStringsOption('r', "root", "", false, &roots), option.NargsOne),
+					option.WithNargs(option.NewIntsOption('n', "number", "", false, &numbers), option.NargsOne),
+					option.NewStringsOption('l', "label", "", false, &labels),
+					option.WithNargs(option.NewStringOption('w', "word", "", false, &word), option.NargsAny),
+					option.NewBoolOption('b', "bool", "", false, &flag),
+					own,
+				},
+			}
+
+			completion, err := parser.Complete(t.Context(), testCase.words)
+			if err != nil {
+				t.Fatalf("complete: %v", err)
+			}
+			if got := values(completion); !slices.Equal(got, testCase.want) {
+				t.Errorf("candidates: got %q, want %q", got, testCase.want)
 			}
 		})
 	}

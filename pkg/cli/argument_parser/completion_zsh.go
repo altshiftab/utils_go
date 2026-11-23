@@ -89,24 +89,27 @@ func zshOptionSpec(declared option.Option, excluded []option.Option) string {
 		return ""
 	}
 
-	// What giving this option rules out: its own other spellings, and anything an exclusive group
-	// puts against it. Without this a shell offers --verbose after --quiet, which the parser would
-	// then refuse.
+	// What giving this option rules out: its own spellings, unless it accumulates, and anything an
+	// exclusive group puts against it. Without this a shell offers --verbose after --quiet, which
+	// the parser would then refuse.
 	prefix := ""
+	accumulates := repeatable(declared)
 
-	if repeatable(declared) {
-		// An option that accumulates may be offered again, which the leading star is what says.
-		prefix = "*"
-	} else {
-		ruledOut := make([]string, 0, len(forms)+len(excluded))
+	ruledOut := make([]string, 0, len(forms)+len(excluded))
+	if !accumulates {
 		ruledOut = append(ruledOut, forms...)
-		for _, other := range excluded {
-			ruledOut = append(ruledOut, names(other)...)
-		}
+	}
+	for _, other := range excluded {
+		ruledOut = append(ruledOut, names(other)...)
+	}
 
-		if len(ruledOut) != 0 {
-			prefix = "(" + strings.Join(ruledOut, " ") + ")"
-		}
+	if len(ruledOut) != 0 {
+		prefix = "(" + strings.Join(ruledOut, " ") + ")"
+	}
+
+	// An option that accumulates may be offered again, which the star after the exclusions says.
+	if accumulates {
+		prefix += "*"
 	}
 
 	// A value that may be attached to the option rather than following it. The equals form is what
