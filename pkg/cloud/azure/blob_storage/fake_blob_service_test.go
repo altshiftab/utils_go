@@ -47,9 +47,11 @@ type fakeBlobService struct {
 	staged   map[string]map[string][]byte
 	versions int
 	requests int
+	// stagedIds is every block id staged, by blob, in order.
+	stagedIds map[string][]string
 }
 
-func newFakeBlobService(t *testing.T) (*fakeBlobService, *Client) {
+func newFakeBlobService(t *testing.T, fetchOptions ...fetch_config.Option) (*fakeBlobService, *Client) {
 	t.Helper()
 
 	service := &fakeBlobService{t: t, blobs: map[string]*fakeBlob{}, staged: map[string]map[string][]byte{}}
@@ -63,7 +65,7 @@ func newFakeBlobService(t *testing.T) (*fakeBlobService, *Client) {
 	client, err := NewClient(
 		"account",
 		blob_storage_config.WithBaseUrl(baseUrl),
-		blob_storage_config.WithFetchOptions(fetch_config.WithHttpClient(server.Client())),
+		blob_storage_config.WithFetchOptions(append([]fetch_config.Option{fetch_config.WithHttpClient(server.Client())}, fetchOptions...)...),
 	)
 	if err != nil {
 		t.Fatalf("new client: %v", err)
@@ -131,6 +133,10 @@ func (s *fakeBlobService) putBlock(w http.ResponseWriter, r *http.Request, key s
 		}
 	}
 	staged[id] = body
+	if s.stagedIds == nil {
+		s.stagedIds = map[string][]string{}
+	}
+	s.stagedIds[key] = append(s.stagedIds[key], id)
 	w.WriteHeader(http.StatusCreated)
 }
 

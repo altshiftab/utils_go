@@ -13,7 +13,9 @@ package blob_storage
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -157,10 +159,31 @@ func serviceError(response *http.Response, err error) error {
 	return errors.Join(err, &ServiceError{StatusCode: response.StatusCode, Code: response.Header.Get(errorCodeHeaderName)})
 }
 
-// blockId is the id of the block at index. Every id of a blob must be as long as the others, so
-// the index is written at a fixed width.
-func blockId(index int) string {
-	return base64.StdEncoding.EncodeToString(fmt.Appendf(nil, "block-%06d", index))
+// blockId is the id of the block at index of one upload. The service keeps uncommitted blocks by
+// blob name and id, so two uploads to one name that numbered their blocks alike would overwrite
+// each other's: each upload's ids carry a random prefix of its own. Every id of a blob must be as
+// long as the others, so the index is written at a fixed width.
+func blockId(upload string, index int) string {
+	return base64.StdEncoding.EncodeToString(fmt.Appendf(nil, "%s-%06d", upload, index))
+}
+
+// fill reads from src until buffer is full or src ends, and returns how much it read. Only a plain
+// io.EOF is src ending: any other error, one that wraps io.EOF or io.ErrUnexpectedEOF included,
+// is src failing, whatever was read before it.
+func fill(src io.Reader, buffer []byte) (int, bool, error) {
+	n := 0
+	for n < len(buffer) {
+		read, err := src.Read(buffer[n:])
+		n += read
+		if err == io.EOF { //nolint:errorlint // Only the reader's own end, not an error that wraps it.
+			return n, true, nil
+		}
+		if err != nil {
+			return n, false, err
+		}
+	}
+
+	return n, false, nil
 }
 
 // PutBlock stages a block of a blob, to be committed by PutBlockList.
@@ -271,17 +294,35 @@ func (c *Client) Upload(
 		return nil, altshiftErrors.NewWithTrace(nil_error.New("src"))
 	}
 
+	if container == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("container"))
+	}
+	if blob == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("blob"))
+	}
+
 	config := upload_config.New(options...)
-	if config.BlockSize < 1 || config.BlockSize > upload_config.MaxBlockSize {
+	if config.BlockSize < 1 || int64(config.BlockSize) > upload_config.MaxBlockSize {
 		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: block size %d is out of range", altshiftErrors.ErrValidationError, config.BlockSize),
 		)
 	}
 
+	uploadId := make([]byte, 8)
+	if _, err := rand.Read(uploadId); err != nil {
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("rand read (upload id): %w", err))
+	}
+	upload := hex.EncodeToString(uploadId)
+
 	buffer := make([]byte, config.BlockSize)
 	var ids []string
 	for {
-		n, readErr := io.ReadFull(src, buffer)
+		n, ended, readErr := fill(src, buffer)
+		// A source that failed is not committed, nor is what it gave before failing staged: the
+		// blob would be the start of something presented as all of it.
+		if readErr != nil {
+			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("read: %w", readErr), container, blob)
+		}
 		if n > 0 {
 			if len(ids) == upload_config.MaxBlocks {
 				return nil, altshiftErrors.NewWithTrace(
@@ -289,17 +330,14 @@ func (c *Client) Upload(
 					container, blob,
 				)
 			}
-			id := blockId(len(ids))
+			id := blockId(upload, len(ids))
 			if err := c.PutBlock(ctx, container, blob, id, buffer[:n]); err != nil {
 				return nil, fmt.Errorf("put block: %w", err)
 			}
 			ids = append(ids, id)
 		}
-		if errors.Is(readErr, io.EOF) || errors.Is(readErr, io.ErrUnexpectedEOF) {
+		if ended {
 			break
-		}
-		if readErr != nil {
-			return nil, altshiftErrors.NewWithTrace(fmt.Errorf("io read full: %w", readErr), container, blob)
 		}
 	}
 

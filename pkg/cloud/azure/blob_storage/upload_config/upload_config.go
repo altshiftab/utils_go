@@ -3,8 +3,9 @@ package upload_config
 const (
 	// DefaultBlockSize is what one Put Block carries.
 	DefaultBlockSize = 8 << 20
-	// MaxBlockSize is the largest block the service takes.
-	MaxBlockSize = 4000 << 20
+	// MaxBlockSize is the largest block the service takes. Typed, since it is larger than an int
+	// holds on 32-bit platforms.
+	MaxBlockSize int64 = 4000 << 20
 	// MaxBlocks is the most blocks one blob can be committed from.
 	MaxBlocks = 50_000
 )

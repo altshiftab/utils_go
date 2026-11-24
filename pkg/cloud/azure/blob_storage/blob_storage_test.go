@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/altshiftab/utils_go/pkg/cloud/azure/blob_storage/list_blobs_config"
 	"github.com/altshiftab/utils_go/pkg/cloud/azure/blob_storage/upload_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config"
+	"github.com/altshiftab/utils_go/pkg/http/types/fetch_config/retry_config"
 )
 
 func randomBytes(t *testing.T, n int) []byte {
@@ -258,6 +262,13 @@ func TestServiceError(t *testing.T) {
 	}
 }
 
+// blockSizePastTheLimit is one byte more than the service takes, converted at run time: as a
+// constant it does not fit a 32-bit int, and does not compile there.
+func blockSizePastTheLimit() int {
+	limit := upload_config.MaxBlockSize
+	return int(limit + 1)
+}
+
 func TestUploadRejects(t *testing.T) {
 	t.Parallel()
 
@@ -272,7 +283,7 @@ func TestUploadRejects(t *testing.T) {
 		{name: "no container", container: "", blob: "x", src: bytes.NewReader(nil)},
 		{name: "no blob", container: "databases", blob: "", src: bytes.NewReader(nil)},
 		{name: "a block size of zero", container: "databases", blob: "x", src: bytes.NewReader(nil), options: []upload_config.Option{upload_config.WithBlockSize(0)}},
-		{name: "a block size past the limit", container: "databases", blob: "x", src: bytes.NewReader(nil), options: []upload_config.Option{upload_config.WithBlockSize(upload_config.MaxBlockSize + 1)}},
+		{name: "a block size past the limit", container: "databases", blob: "x", src: bytes.NewReader(nil), options: []upload_config.Option{upload_config.WithBlockSize(blockSizePastTheLimit())}},
 	}
 
 	for _, testCase := range testCases {
@@ -290,5 +301,108 @@ func TestUploadRejects(t *testing.T) {
 				t.Errorf("%d requests made for an upload refused before any", service.requests)
 			}
 		})
+	}
+}
+
+var errPermissionDenied = errors.New("permission denied")
+
+// failingReader gives what it holds, then fails with err instead of ending.
+type failingReader struct {
+	data []byte
+	err  error
+}
+
+func (r *failingReader) Read(p []byte) (int, error) {
+	if len(r.data) == 0 {
+		return 0, r.err
+	}
+	n := copy(p, r.data)
+	r.data = r.data[n:]
+	return n, nil
+}
+
+// TestUploadCommitsNothingFromAFailedSource covers a source that breaks off: what it gave is not
+// committed, whatever the error says. A reader that gives up on a broken download wraps
+// io.ErrUnexpectedEOF, which is not the source ending.
+func TestUploadCommitsNothingFromAFailedSource(t *testing.T) {
+	t.Parallel()
+
+	const blockSize = 1024
+
+	testCases := []struct {
+		name string
+		size int
+		err  error
+	}{
+		{name: "a wrapped unexpected EOF, mid-block", size: blockSize + 100, err: fmt.Errorf("read broken off: %w", io.ErrUnexpectedEOF)},
+		{name: "a wrapped unexpected EOF, at a block boundary", size: 2 * blockSize, err: fmt.Errorf("read broken off: %w", io.ErrUnexpectedEOF)},
+		{name: "a wrapped EOF", size: 10, err: fmt.Errorf("stream: %w", io.EOF)},
+		{name: "another error, before any byte", size: 0, err: errPermissionDenied},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, client := newFakeBlobService(t)
+			source := &failingReader{data: randomBytes(t, testCase.size), err: testCase.err}
+
+			if _, err := client.Upload(t.Context(), "databases", "dump", source, upload_config.WithBlockSize(blockSize)); !errors.Is(err, testCase.err) {
+				t.Fatalf("upload: %v, want the source's error", err)
+			}
+
+			_, err := client.GetBlob(t.Context(), "databases", "dump", "")
+			if serviceErr, ok := errors.AsType[*ServiceError](err); !ok || serviceErr.Code != "BlobNotFound" {
+				t.Errorf("get blob after a failed upload: %v, want BlobNotFound", err)
+			}
+		})
+	}
+}
+
+// TestUploadIfAbsentUnderRetries is TestUploadIfAbsent with the retry config a caller sets in
+// production: the refusal is still told apart.
+func TestUploadIfAbsentUnderRetries(t *testing.T) {
+	t.Parallel()
+
+	_, client := newFakeBlobService(t, fetch_config.WithRetryConfig(retry_config.New(retry_config.WithBaseDelay(time.Millisecond))))
+
+	if _, err := client.Upload(t.Context(), "databases", "dump", bytes.NewReader([]byte("first")), upload_config.WithIfAbsent(true)); err != nil {
+		t.Fatalf("upload (first): %v", err)
+	}
+	_, err := client.Upload(t.Context(), "databases", "dump", bytes.NewReader([]byte("second")), upload_config.WithIfAbsent(true))
+	if !errors.Is(err, ErrBlobExists) {
+		t.Fatalf("upload (again, if absent): %v, want %v", err, ErrBlobExists)
+	}
+
+	_, err = client.GetBlob(t.Context(), "databases", "missing", "")
+	if serviceErr, ok := errors.AsType[*ServiceError](err); !ok || serviceErr.StatusCode != http.StatusNotFound {
+		t.Errorf("get blob (missing): %v, want a 404 service error", err)
+	}
+}
+
+// TestUploadsDoNotShareBlockIds: two uploads to one name stage blocks of ids of their own, so
+// neither can overwrite what the other staged.
+func TestUploadsDoNotShareBlockIds(t *testing.T) {
+	t.Parallel()
+
+	service, client := newFakeBlobService(t)
+	for range 2 {
+		if _, err := client.Upload(t.Context(), "databases", "dump", bytes.NewReader(randomBytes(t, 3000)), upload_config.WithBlockSize(1024)); err != nil {
+			t.Fatalf("upload: %v", err)
+		}
+	}
+
+	service.mu.Lock()
+	defer service.mu.Unlock()
+	ids := service.stagedIds["databases/dump"]
+	if len(ids) != 6 {
+		t.Fatalf("%d blocks staged, want 6", len(ids))
+	}
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if seen[id] {
+			t.Errorf("block id %q staged twice", id)
+		}
+		seen[id] = true
 	}
 }
