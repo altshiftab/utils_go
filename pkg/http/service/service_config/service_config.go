@@ -47,13 +47,6 @@ const (
 	DefaultReadHeaderTimeout = 5 * time.Second
 )
 
-// The environment variables the trust settings are read from, where no option gives them. They are
-// read as strconv.ParseBool reads them, unset or empty being false.
-const (
-	TrustForwardedForVariable  = "TRUST_FORWARDED_FOR"
-	TrustClientHeadersVariable = "TRUST_CLIENT_HEADERS"
-)
-
 // DefaultSignals are the signals whose delivery makes Serve stop serving. They are the ones a
 // process is asked to stop with: SIGTERM by a supervisor replacing or scaling in the instance,
 // SIGINT by a user at a terminal.
@@ -72,13 +65,12 @@ type Config struct {
 	// headers name rather than against the request's own Host. See
 	// WithTrustForwardedHost.
 	TrustForwardedHost bool
-	// TrustForwardedFor makes the client of a request the first entry of X-Forwarded-For. Nil means
-	// no option gave it, and the service reads TrustForwardedForVariable. See WithTrustForwardedFor.
-	TrustForwardedFor *bool
+	// TrustForwardedFor makes the client of a request the first entry of X-Forwarded-For. See
+	// WithTrustForwardedFor.
+	TrustForwardedFor bool
 	// TrustClientHeaders makes the client of a request X-Client-Ip-Address, and the log record what
-	// the other client headers say. Nil means no option gave it, and the service reads
-	// TrustClientHeadersVariable. See WithTrustClientHeaders.
-	TrustClientHeaders *bool
+	// the other client headers say. See WithTrustClientHeaders.
+	TrustClientHeaders bool
 	Redirects          []*Redirect
 	// Profile is what the service was set up as, for the record. What it decided is in the fields
 	// below, which an option applied after it may have overridden.
@@ -234,11 +226,12 @@ func WithTrustForwardedHost(trustForwardedHost bool) Option {
 // client's to write, and a service trusting it logs whatever address the client chose; use
 // WithTrustClientHeaders there, where the load balancer sets X-Client-Ip-Address.
 //
-// It is off by default. Where no option gives it, it is read from the environment variable named by
-// TrustForwardedForVariable, and a value that does not parse makes New fail.
+// It is off by default. Being a fact about the deployment rather than about the service, it is
+// commonly read by the service from its environment -- a TRUST_FORWARDED_FOR its deployment sets
+// where a proxy in front rewrites the header -- and passed here.
 func WithTrustForwardedFor(trustForwardedFor bool) Option {
 	return func(config *Config) {
-		config.TrustForwardedFor = &trustForwardedFor
+		config.TrustForwardedFor = trustForwardedFor
 	}
 }
 
@@ -255,11 +248,12 @@ func WithTrustForwardedFor(trustForwardedFor bool) Option {
 // Nothing sets them in front of Firebase Hosting or reverse_proxy, where they are always the
 // client's.
 //
-// It is off by default. Where no option gives it, it is read from the environment variable named by
-// TrustClientHeadersVariable, and a value that does not parse makes New fail.
+// It is off by default. Being a fact about the deployment rather than about the service, it is
+// commonly read by the service from its environment -- a TRUST_CLIENT_HEADERS its deployment sets
+// where such a load balancer is the only way in -- and passed here.
 func WithTrustClientHeaders(trustClientHeaders bool) Option {
 	return func(config *Config) {
-		config.TrustClientHeaders = &trustClientHeaders
+		config.TrustClientHeaders = trustClientHeaders
 	}
 }
 

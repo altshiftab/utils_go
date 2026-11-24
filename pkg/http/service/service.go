@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"time"
 
@@ -400,31 +399,6 @@ func patchMux(mux *altshiftMux.Mux, config *service_config.Config) error {
 	return nil
 }
 
-// trustSetting is a trust setting as an option gave it, or where none did, as the environment
-// variable says: unset or empty is false, and anything strconv.ParseBool does not read is an error, a
-// deployment that meant to say something about what is in front of it not being taken to have said
-// nothing.
-func trustSetting(configured *bool, variable string) (bool, error) {
-	if configured != nil {
-		return *configured, nil
-	}
-
-	value := strings.TrimSpace(os.Getenv(variable))
-	if value == "" {
-		return false, nil
-	}
-
-	trust, err := strconv.ParseBool(value)
-	if err != nil {
-		return false, altshiftErrors.NewWithTrace(
-			fmt.Errorf("%w: environment variable %s: strconv parse bool: %w", altshiftErrors.ErrValidationError, variable, err),
-			value,
-		)
-	}
-
-	return trust, nil
-}
-
 // makeHandler makes what the server serves with: the mux itself, or -- where the service answers
 // for a host of its own -- a vhost mux that tells that host apart from the ones redirected away.
 func makeHandler(
@@ -500,19 +474,9 @@ func New(options ...service_config.Option) (*Service, error) {
 		return nil, fmt.Errorf("with duplicated endpoints: %w", err)
 	}
 
-	trustForwardedFor, err := trustSetting(config.TrustForwardedFor, service_config.TrustForwardedForVariable)
-	if err != nil {
-		return nil, fmt.Errorf("trust setting (forwarded for): %w", err)
-	}
-
-	trustClientHeaders, err := trustSetting(config.TrustClientHeaders, service_config.TrustClientHeadersVariable)
-	if err != nil {
-		return nil, fmt.Errorf("trust setting (client headers): %w", err)
-	}
-
 	serviceMux := altshiftMux.New(endpoints...)
-	serviceMux.TrustForwardedFor = trustForwardedFor
-	serviceMux.TrustClientHeaders = trustClientHeaders
+	serviceMux.TrustForwardedFor = config.TrustForwardedFor
+	serviceMux.TrustClientHeaders = config.TrustClientHeaders
 
 	if err := patchMux(serviceMux, config); err != nil {
 		return nil, fmt.Errorf("patch mux: %w", err)

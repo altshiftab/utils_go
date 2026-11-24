@@ -300,45 +300,31 @@ func TestWithErrorLog(t *testing.T) {
 	}
 }
 
-// A trust setting no option gave is nil, for the service to read from the environment; one an option
-// gave is what it gave, false included.
+// The trust settings are off unless an option turns them on, and the last option given for one wins.
 func TestWithTrust(t *testing.T) {
 	t.Parallel()
-
-	describe := func(value *bool) string {
-		if value == nil {
-			return "unset"
-		}
-		if *value {
-			return "true"
-		}
-		return "false"
-	}
 
 	testCases := []struct {
 		name                  string
 		options               []Option
-		expectedForwardedFor  string
-		expectedClientHeaders string
+		expectedForwardedFor  bool
+		expectedClientHeaders bool
 	}{
-		{name: "no option", expectedForwardedFor: "unset", expectedClientHeaders: "unset"},
+		{name: "no option"},
 		{
 			name:                  "true",
 			options:               []Option{WithTrustForwardedFor(true), WithTrustClientHeaders(true)},
-			expectedForwardedFor:  "true",
-			expectedClientHeaders: "true",
+			expectedForwardedFor:  true,
+			expectedClientHeaders: true,
 		},
 		{
-			name:                  "false",
-			options:               []Option{WithTrustForwardedFor(false), WithTrustClientHeaders(false)},
-			expectedForwardedFor:  "false",
-			expectedClientHeaders: "false",
+			name:    "false",
+			options: []Option{WithTrustForwardedFor(false), WithTrustClientHeaders(false)},
 		},
 		{
 			name:                  "the last option given wins",
-			options:               []Option{WithTrustForwardedFor(true), WithTrustForwardedFor(false)},
-			expectedForwardedFor:  "false",
-			expectedClientHeaders: "unset",
+			options:               []Option{WithTrustForwardedFor(true), WithTrustForwardedFor(false), WithTrustClientHeaders(true)},
+			expectedClientHeaders: true,
 		},
 	}
 
@@ -347,11 +333,11 @@ func TestWithTrust(t *testing.T) {
 			t.Parallel()
 
 			config := New(testCase.options...)
-			if got := describe(config.TrustForwardedFor); got != testCase.expectedForwardedFor {
-				t.Errorf("trust forwarded for = %s, want %s", got, testCase.expectedForwardedFor)
+			if config.TrustForwardedFor != testCase.expectedForwardedFor {
+				t.Errorf("trust forwarded for = %t, want %t", config.TrustForwardedFor, testCase.expectedForwardedFor)
 			}
-			if got := describe(config.TrustClientHeaders); got != testCase.expectedClientHeaders {
-				t.Errorf("trust client headers = %s, want %s", got, testCase.expectedClientHeaders)
+			if config.TrustClientHeaders != testCase.expectedClientHeaders {
+				t.Errorf("trust client headers = %t, want %t", config.TrustClientHeaders, testCase.expectedClientHeaders)
 			}
 		})
 	}

@@ -1,112 +1,57 @@
 package service
 
 import (
-	"errors"
-	"os"
-	"strings"
 	"testing"
 
-	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
 	"github.com/altshiftab/utils_go/pkg/http/service/service_config"
 )
 
-// setOrUnsetenv sets an environment variable for the test, or unsets it where value is nil, and
-// restores it when the test ends.
-func setOrUnsetenv(t *testing.T, name string, value *string) {
-	t.Helper()
-
-	if value != nil {
-		t.Setenv(name, *value)
-		return
-	}
-
-	// Setenv records the value to restore; the variable is then unset for the test.
-	t.Setenv(name, "")
-	if err := os.Unsetenv(name); err != nil {
-		t.Fatalf("os unsetenv: %v", err)
-	}
-}
-
-// What a service trusts the proxies in front to say is an option where one is given, and the
-// environment's otherwise, and both the mux and the vhost mux in front of it are told.
-//
-//nolint:paralleltest // Sets environment variables, which are the process's.
+// What a service trusts the proxies in front to say is what its options say, nothing by default,
+// and both the mux and the vhost mux in front of it are told.
 func TestNewTrustSettings(t *testing.T) {
-	text := func(value string) *string { return &value }
+	t.Parallel()
 
 	testCases := []struct {
 		name                  string
-		forwardedFor          *string
-		clientHeaders         *string
 		options               []service_config.Option
 		expectedForwardedFor  bool
 		expectedClientHeaders bool
-		expectedErrorVariable string
 	}{
 		{
-			name: "unset",
+			name: "no option",
 		},
 		{
-			name:          "empty",
-			forwardedFor:  text(""),
-			clientHeaders: text("   "),
-		},
-		{
-			name:                 "true",
-			forwardedFor:         text("true"),
+			name:                 "X-Forwarded-For",
+			options:              []service_config.Option{service_config.WithTrustForwardedFor(true)},
 			expectedForwardedFor: true,
 		},
 		{
-			name:                  "padded 1",
-			clientHeaders:         text(" 1 "),
+			name:                  "the client headers",
+			options:               []service_config.Option{service_config.WithTrustClientHeaders(true)},
 			expectedClientHeaders: true,
 		},
 		{
-			name:                  "both, as ParseBool spells them",
-			forwardedFor:          text("TRUE"),
-			clientHeaders:         text("t"),
+			name: "both",
+			options: []service_config.Option{
+				service_config.WithTrustForwardedFor(true),
+				service_config.WithTrustClientHeaders(true),
+			},
 			expectedForwardedFor:  true,
 			expectedClientHeaders: true,
 		},
 		{
-			name:          "false",
-			forwardedFor:  text("false"),
-			clientHeaders: text("0"),
-		},
-		{
-			name:                  "garbage in TRUST_FORWARDED_FOR",
-			forwardedFor:          text("garbage"),
-			expectedErrorVariable: service_config.TrustForwardedForVariable,
-		},
-		{
-			name:                  "garbage in TRUST_CLIENT_HEADERS",
-			clientHeaders:         text("yes"),
-			expectedErrorVariable: service_config.TrustClientHeadersVariable,
-		},
-		{
-			name:          "an option overrides the environment",
-			forwardedFor:  text("true"),
-			clientHeaders: text("garbage"),
-			options: []service_config.Option{
-				service_config.WithTrustForwardedFor(false),
-				service_config.WithTrustClientHeaders(true),
-			},
-			expectedClientHeaders: true,
-		},
-		{
-			name: "options without the environment",
+			name: "turned off again",
 			options: []service_config.Option{
 				service_config.WithTrustForwardedFor(true),
+				service_config.WithTrustForwardedFor(false),
 			},
-			expectedForwardedFor: true,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			setOrUnsetenv(t, service_config.TrustForwardedForVariable, testCase.forwardedFor)
-			setOrUnsetenv(t, service_config.TrustClientHeadersVariable, testCase.clientHeaders)
+			t.Parallel()
 
 			options := append(
 				[]service_config.Option{
@@ -117,19 +62,6 @@ func TestNewTrustSettings(t *testing.T) {
 			)
 
 			service, err := New(options...)
-
-			if testCase.expectedErrorVariable != "" {
-				if err == nil {
-					t.Fatal("new: got no error, want one")
-				}
-				if !errors.Is(err, altshiftErrors.ErrValidationError) {
-					t.Errorf("new: error %v is not a validation error", err)
-				}
-				if !strings.Contains(err.Error(), testCase.expectedErrorVariable) {
-					t.Errorf("new: error %q does not name %s", err, testCase.expectedErrorVariable)
-				}
-				return
-			}
 			if err != nil {
 				t.Fatalf("new: %v", err)
 			}
@@ -162,12 +94,13 @@ func TestNewTrustSettings(t *testing.T) {
 }
 
 // A service without a host of its own serves with its mux alone, which is told what it trusts.
-//
-//nolint:paralleltest // Sets environment variables, which are the process's.
 func TestNewTrustSettingsWithoutHost(t *testing.T) {
-	t.Setenv(service_config.TrustClientHeadersVariable, "true")
+	t.Parallel()
 
-	service, err := New(service_config.WithEndpoints(noContentEndpoint()))
+	service, err := New(
+		service_config.WithEndpoints(noContentEndpoint()),
+		service_config.WithTrustClientHeaders(true),
+	)
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
