@@ -452,6 +452,59 @@ func TestFetch_RetryExhaustedReturnsError(t *testing.T) {
 	}
 }
 
+// A refused request comes back with its response under a retry config as without one, retried or not:
+// the status and the headers say why the service refused, which a caller tells its reasons apart by.
+func TestFetch_RefusalKeepsItsResponse(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		status       int
+		retry        bool
+		wantAttempts int32
+	}{
+		{name: "not retried, no retry config", status: http.StatusConflict, wantAttempts: 1},
+		{name: "not retried under a retry config", status: http.StatusConflict, retry: true, wantAttempts: 1},
+		{name: "retried until exhausted", status: http.StatusServiceUnavailable, retry: true, wantAttempts: 3},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var attempts atomic.Int32
+			server := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+				attempts.Add(1)
+				w.Header().Set("X-Error-Code", "BlobAlreadyExists")
+				w.WriteHeader(testCase.status)
+				_, _ = w.Write([]byte("refused"))
+			})
+
+			options := []fetch_config.Option{own(server)}
+			if testCase.retry {
+				options = append(options, fetch_config.WithRetryConfig(retry_config.New(retry_config.WithBaseDelay(time.Millisecond))))
+			}
+
+			response, body, err := Fetch(context.Background(), server.URL, options...)
+			if err == nil {
+				t.Fatal("fetch: no error")
+			}
+			if response == nil {
+				t.Fatal("fetch: no response with the error")
+			}
+			if response.StatusCode != testCase.status || response.Header.Get("X-Error-Code") != "BlobAlreadyExists" {
+				t.Errorf("response %d with %q", response.StatusCode, response.Header.Get("X-Error-Code"))
+			}
+			if string(body) != "refused" {
+				t.Errorf("body %q", body)
+			}
+			if got := attempts.Load(); got != testCase.wantAttempts {
+				t.Errorf("attempts = %d, want %d", got, testCase.wantAttempts)
+			}
+		})
+	}
+}
+
 // bodyCollector passes requests to a real transport and keeps each response body it hands out, so a test
 // can read them afterwards and see which were closed.
 type bodyCollector struct {

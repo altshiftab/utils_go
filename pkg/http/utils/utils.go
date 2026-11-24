@@ -333,8 +333,11 @@ func fetchWithRetryConfig(
 			err = &altshiftHttpErrors.ReattemptFailedError{Cause: err, Attempt: i + 1}
 		}
 	}
+	// The last attempt's response goes back with its error, as fetch hands it back: a caller can
+	// read why the service refused, a status and its headers, whether or not it retried. Its body
+	// is closed, unless it was read, which is then returned too.
 	if err != nil {
-		return nil, nil, fmt.Errorf("fetch: %w", err)
+		return response, responseBody, fmt.Errorf("fetch: %w", err)
 	}
 
 	return response, responseBody, nil
