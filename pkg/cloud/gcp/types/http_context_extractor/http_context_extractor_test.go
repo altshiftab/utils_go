@@ -216,3 +216,68 @@ func TestHandleInvalidUtf8(t *testing.T) {
 		})
 	}
 }
+
+// httpRequestField returns a field of the httpRequest group the record carries, and whether there was
+// one.
+func httpRequestField(record *slog.Record, key string) (string, bool) {
+	var value string
+	var found bool
+	record.Attrs(func(attr slog.Attr) bool {
+		if attr.Key != "httpRequest" {
+			return true
+		}
+		for _, field := range attr.Value.Resolve().Group() {
+			if field.Key == key {
+				value, found = field.Value.String(), true
+				return false
+			}
+		}
+		return true
+	})
+
+	return value, found
+}
+
+// Cloud Logging's remoteIp is the client the mux resolved, where it resolved one, and never the
+// request's own forwarding headers.
+func TestHandleRemoteIp(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		clientAddress string
+		expected      string
+	}{
+		{name: "the resolved client", clientAddress: "192.0.2.1", expected: "192.0.2.1"},
+		{name: "nothing resolved", clientAddress: "", expected: "203.0.113.9:54321"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://example.com/", nil)
+			request.RemoteAddr = "203.0.113.9:54321"
+			request.Header.Set("X-Forwarded-For", "192.0.2.66")
+			request.Header.Set("X-Client-Ip-Address", "192.0.2.67")
+
+			ctx := altshiftHttpContext.WithHttpContextValue(
+				context.Background(),
+				&altshiftHttpTypes.HttpContext{Request: request, ClientAddress: testCase.clientAddress},
+			)
+
+			record := slog.NewRecord(time.Now(), slog.LevelInfo, "msg", 0)
+			if err := (&Extractor{}).Handle(ctx, &record); err != nil {
+				t.Fatalf("handle: %v", err)
+			}
+
+			remoteIp, found := httpRequestField(&record, "remoteIp")
+			if !found {
+				t.Fatal("no httpRequest.remoteIp in the record")
+			}
+			if remoteIp != testCase.expected {
+				t.Errorf("httpRequest.remoteIp = %q, want %q", remoteIp, testCase.expected)
+			}
+		})
+	}
+}

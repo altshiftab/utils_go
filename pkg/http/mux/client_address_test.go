@@ -3,6 +3,7 @@ package mux
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -164,12 +165,43 @@ func misdirectedForwardedFor(client string) string {
 	return strings.Repeat(" ,", misdirectedValueLimit/2) + client + strings.Repeat(", 198.51.100.1", misdirectedValueLimit/8)
 }
 
+// loggedTargetIps returns the client.ip and source.ip of each record logged.
+func loggedTargetIps(t *testing.T, logged string) [][2]string {
+	t.Helper()
+
+	var ips [][2]string
+	for line := range strings.Lines(logged) {
+		var record struct {
+			Client *struct {
+				Ip string `json:"ip"`
+			} `json:"client"`
+			Source *struct {
+				Ip string `json:"ip"`
+			} `json:"source"`
+		}
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			t.Fatalf("json unmarshal: %v: %s", err, line)
+		}
+
+		var pair [2]string
+		if record.Client != nil {
+			pair[0] = record.Client.Ip
+		}
+		if record.Source != nil {
+			pair[1] = record.Source.Ip
+		}
+		ips = append(ips, pair)
+	}
+
+	return ips
+}
+
 // A request the vhost mux answers with 421 is logged from a summary of it, which
 // keeps a bounded part of X-Forwarded-For; the client it was resolved to on
 // arrival is logged all the same.
+//
+//nolint:paralleltest // Swaps the default logger, which is global, to read what is logged.
 func TestVhostMux_MisdirectedRequestKeepsResolvedClient(t *testing.T) {
-	t.Parallel()
-
 	const client = "192.0.2.1"
 
 	vhostMux := &VhostMux{
@@ -194,11 +226,10 @@ func TestVhostMux_MisdirectedRequestKeepsResolvedClient(t *testing.T) {
 		t.Fatalf("the request as it came resolves to %q, want %q", address, client)
 	}
 
-	recorder := httptest.NewRecorder()
-	vhostMux.ServeHTTP(recorder, request)
+	logged, status := captureVhostLog(t, vhostMux, request)
 
-	if recorder.Code != http.StatusMisdirectedRequest {
-		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusMisdirectedRequest)
+	if status != http.StatusMisdirectedRequest {
+		t.Fatalf("status = %d, want %d", status, http.StatusMisdirectedRequest)
 	}
 	if httpContext == nil {
 		t.Fatal("no HTTP context was logged")
@@ -215,5 +246,15 @@ func TestVhostMux_MisdirectedRequestKeepsResolvedClient(t *testing.T) {
 
 	if httpContext.ClientAddress != client {
 		t.Errorf("client address = %q, want %q", httpContext.ClientAddress, client)
+	}
+
+	ips := loggedTargetIps(t, logged)
+	if len(ips) == 0 {
+		t.Fatal("nothing was logged")
+	}
+	for _, pair := range ips {
+		if pair != [2]string{client, "203.0.113.9"} {
+			t.Errorf("logged client %q and source %q, want %q and %q:\n%s", pair[0], pair[1], client, "203.0.113.9", logged)
+		}
 	}
 }

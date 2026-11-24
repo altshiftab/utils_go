@@ -165,15 +165,22 @@ func maskedUrlString(u *url.URL) string {
 }
 
 // ParseHttp renders an exchange, with bodies rendered up to DefaultBodyLimit.
+//
+// The client is the connection's peer and the server what it connected to. The request's own
+// forwarding headers are not read for either: they are the client's to write wherever nothing in
+// front rewrote them, and a forward proxy logging what passes through it has nothing in front.
+// ParseHttpContext renders the client a mux resolved from the headers it was told to trust.
 func ParseHttp(
 	request *http.Request,
 	requestBodyData []byte,
 	response *http.Response,
 	responseBodyData []byte,
 ) (*schema.Base, error) {
-	return parseHttp(request, requestBodyData, response, responseBodyData, 0, DefaultBodyLimit)
+	return parseHttp(request, requestBodyData, response, responseBodyData, 0, DefaultBodyLimit, "")
 }
 
+// parseHttp renders an exchange. A clientAddress is the client's, as a proxy in front reported it,
+// and makes the connection the proxy's; an empty one makes the connection the client's own.
 func parseHttp(
 	request *http.Request,
 	requestBodyData []byte,
@@ -181,6 +188,7 @@ func parseHttp(
 	responseBodyData []byte,
 	responseBodySize int,
 	bodyLimit int,
+	clientAddress string,
 ) (*schema.Base, error) {
 	if request == nil && len(requestBodyData) == 0 && response == nil && len(responseBodyData) == 0 {
 		return nil, nil
@@ -219,13 +227,6 @@ func parseHttp(
 		domainParts := domain_parts.New(trimmedHost)
 
 		requestHeader := request.Header
-
-		var forwardedString string
-		var xForwardedFor string
-		if requestHeader != nil {
-			forwardedString = requestHeader.Get("Forwarded")
-			xForwardedFor = requestHeader.Get("X-Forwarded-For")
-		}
 
 		var port int
 		if portString := requestUrl.Port(); portString != "" {
@@ -357,38 +358,19 @@ func parseHttp(
 			}
 		}
 
-		if forwardedString == "" && xForwardedFor == "" {
+		if clientAddress == "" {
 			client = source
 			server = destination
 		} else {
-			// TODO: Currently relies on `X-Forwarded-For` rather than `Forwarded`; using the latter
-			//	entails the inclusion of an external parsing library, which is not acceptable.
+			client = &schema.Target{Ip: clientAddress, Address: clientAddress}
+			network.ForwardedIp = clientAddress
 
-			var serverIpAddress string
-
-			forwardedForSplit := strings.Split(xForwardedFor, ",")
-			if len(forwardedForSplit) > 0 {
-				forwardedForIpAddress := strings.TrimSpace(forwardedForSplit[0])
-
-				if ip := net.ParseIP(forwardedForIpAddress); ip != nil {
-					client = &schema.Target{Ip: forwardedForIpAddress, Address: forwardedForIpAddress}
-					network.ForwardedIp = forwardedForIpAddress
-				}
-
-				if len(forwardedForSplit) > 1 {
-					serverIpAddressElement := forwardedForSplit[len(forwardedForSplit)-1]
-					if ip := net.ParseIP(serverIpAddressElement); ip != nil {
-						serverIpAddress = serverIpAddressElement
-					}
-				}
-			}
-
-			if destination != nil && destination.Domain != "" {
+			// The port connected to is the proxy's, on a connection the client never saw; the port
+			// the client connected to is unknown here.
+			if destination != nil {
 				destinationCopy := *destination
+				destinationCopy.Port = 0
 				server = &destinationCopy
-				server.Ip = serverIpAddress
-				server.Port = 0
-				server.Address = server.Domain
 			}
 		}
 	}
@@ -531,6 +513,10 @@ func MakeHttpMessage(base *schema.Base) string {
 
 // ParseHttpContext renders an exchange and what surrounds it, with bodies
 // rendered up to DefaultBodyLimit.
+//
+// The client is the address the mux resolved when the request arrived
+// (HttpContext.ClientAddress), where it resolved one, and the connection's peer
+// otherwise; the request's headers are not read for it again.
 func ParseHttpContext(httpContext *altshiftHttpTypes.HttpContext) (*schema.Base, error) {
 	return ParseHttpContextWithBodyLimit(httpContext, DefaultBodyLimit)
 }
@@ -549,6 +535,7 @@ func ParseHttpContextWithBodyLimit(httpContext *altshiftHttpTypes.HttpContext, b
 		httpContext.ResponseBody,
 		httpContext.ResponseBodySize,
 		bodyLimit,
+		httpContext.ClientAddress,
 	)
 	if err != nil {
 		return nil, altshiftErrors.New(fmt.Errorf("parse http: %w", err))

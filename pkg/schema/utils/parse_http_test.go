@@ -2,7 +2,9 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -244,6 +246,168 @@ func TestParseHttpKeptStartOfResponseBody(t *testing.T) {
 			}
 			if body.Bytes != testCase.wantBytes {
 				t.Errorf("bytes = %d, want %d", body.Bytes, testCase.wantBytes)
+			}
+		})
+	}
+}
+
+// forwardedRequest is a request from 203.0.113.9 to service.example.com, on a
+// connection accepted at 10.0.0.2:8080, carrying forwarding headers a client
+// could have written itself.
+func forwardedRequest(t *testing.T, headers map[string]string) *http.Request {
+	t.Helper()
+
+	request, err := http.NewRequestWithContext(
+		context.WithValue(t.Context(), http.LocalAddrContextKey, &net.TCPAddr{IP: net.ParseIP("10.0.0.2"), Port: 8080}),
+		http.MethodGet,
+		"http://service.example.com/x",
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	request.RemoteAddr = "203.0.113.9:54321"
+	request.Proto, request.ProtoMajor, request.ProtoMinor = "HTTP/1.1", 1, 1
+	for name, value := range headers {
+		request.Header.Set(name, value)
+	}
+
+	return request
+}
+
+// forgedHeaders are what a client writes to be logged as someone else.
+var forgedHeaders = map[string]string{
+	"X-Forwarded-For":     "192.0.2.1",
+	"Forwarded":           "for=192.0.2.2",
+	"X-Client-Ip-Address": "192.0.2.3",
+}
+
+func targetIpPort(target *schema.Target) string {
+	if target == nil {
+		return "<nil>"
+	}
+
+	return fmt.Sprintf("%s:%d", target.Ip, target.Port)
+}
+
+// ParseHttp is what a forward proxy logs a request through with, and the
+// forwarding headers it sees are the client's own: none of them is believed.
+func TestParseHttpIgnoresForwardingHeaders(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		headers map[string]string
+	}{
+		{name: "no forwarding headers", headers: nil},
+		{name: "forged forwarding headers", headers: forgedHeaders},
+		{name: "Forwarded alone", headers: map[string]string{"Forwarded": "for=192.0.2.2"}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			base, err := ParseHttp(forwardedRequest(t, testCase.headers), nil, nil, nil)
+			if err != nil {
+				t.Fatalf("parse http: %v", err)
+			}
+			if base == nil {
+				t.Fatal("nil base")
+			}
+
+			if got := targetIpPort(base.Source); got != "203.0.113.9:54321" {
+				t.Errorf("source = %s, want 203.0.113.9:54321", got)
+			}
+			if got := targetIpPort(base.Client); got != "203.0.113.9:54321" {
+				t.Errorf("client = %s, want the source", got)
+			}
+			if got := targetIpPort(base.Server); got != "10.0.0.2:8080" {
+				t.Errorf("server = %s, want the destination", got)
+			}
+			if base.Network == nil || base.Network.ForwardedIp != "" {
+				t.Errorf("network = %+v, want no forwarded ip", base.Network)
+			}
+		})
+	}
+}
+
+// ParseHttpContext renders the client the mux resolved on arrival, and the
+// connection as the proxy's.
+func TestParseHttpContextClientAddress(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name               string
+		headers            map[string]string
+		clientAddress      string
+		expectedClient     string
+		expectedForwarded  string
+		expectedServerPort int
+	}{
+		{
+			name:               "a resolved client",
+			headers:            forgedHeaders,
+			clientAddress:      "198.51.100.7",
+			expectedClient:     "198.51.100.7:0",
+			expectedForwarded:  "198.51.100.7",
+			expectedServerPort: 0,
+		},
+		{
+			name:               "nothing resolved, forged headers",
+			headers:            forgedHeaders,
+			expectedClient:     "203.0.113.9:54321",
+			expectedServerPort: 8080,
+		},
+		{
+			name:               "nothing resolved, Forwarded alone",
+			headers:            map[string]string{"Forwarded": "for=192.0.2.2"},
+			expectedClient:     "203.0.113.9:54321",
+			expectedServerPort: 8080,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			base, err := ParseHttpContext(&altshiftHttpTypes.HttpContext{
+				Request:       forwardedRequest(t, testCase.headers),
+				ClientAddress: testCase.clientAddress,
+			})
+			if err != nil {
+				t.Fatalf("parse http context: %v", err)
+			}
+			if base == nil {
+				t.Fatal("nil base")
+			}
+
+			if got := targetIpPort(base.Client); got != testCase.expectedClient {
+				t.Errorf("client = %s, want %s", got, testCase.expectedClient)
+			}
+			if base.Client != nil && testCase.clientAddress != "" && base.Client.Address != testCase.clientAddress {
+				t.Errorf("client address = %q, want %q", base.Client.Address, testCase.clientAddress)
+			}
+			if got := targetIpPort(base.Source); got != "203.0.113.9:54321" {
+				t.Errorf("source = %s, want the connection's peer", got)
+			}
+			if got := targetIpPort(base.Destination); got != "10.0.0.2:8080" {
+				t.Errorf("destination = %s, want the connection's own", got)
+			}
+			if base.Network == nil || base.Network.ForwardedIp != testCase.expectedForwarded {
+				t.Errorf("network = %+v, want forwarded ip %q", base.Network, testCase.expectedForwarded)
+			}
+			if base.Server == nil {
+				t.Fatal("no server")
+			}
+			if base.Server.Port != testCase.expectedServerPort {
+				t.Errorf("server port = %d, want %d", base.Server.Port, testCase.expectedServerPort)
+			}
+			if base.Server.Domain != "service.example.com" {
+				t.Errorf("server domain = %q, want service.example.com", base.Server.Domain)
+			}
+			if !strings.HasPrefix(base.Message, strings.Split(testCase.expectedClient, ":")[0]+" ") {
+				t.Errorf("message = %q, want it to begin with the client", base.Message)
 			}
 		})
 	}

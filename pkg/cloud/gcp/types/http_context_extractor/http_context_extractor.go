@@ -29,6 +29,12 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 
 	if httpContext, ok := ctx.Value(altshiftHttpContext.HttpContextContextKey).(*altshiftHttpTypes.HttpContext); ok && httpContext != nil {
 		if logEntry := log_entry.ParseHttp(httpContext.Request, httpContext.Response); logEntry != nil {
+			// The client the mux resolved on arrival, where it trusted a proxy in front to name one,
+			// rather than the connection's peer.
+			if clientAddress := httpContext.ClientAddress; clientAddress != "" && logEntry.HttpRequest != nil {
+				logEntry.HttpRequest.RemoteIp = clientAddress
+			}
+
 			if projectId := e.ProjectId; projectId != "" {
 				if traceId := logEntry.TraceId; traceId != "" {
 					logEntry.Trace = fmt.Sprintf("projects/%s/traces/%s", projectId, logEntry.TraceId)
