@@ -85,18 +85,27 @@ type baseMux struct {
 	// TrustForwardedFor says that the proxy directly in front of the service appends the address it
 	// accepted the connection from as the last entry of X-Forwarded-For, or replaces the header with
 	// it, as Google's front end on Cloud Run and reverse_proxy do. The client is then read from the
-	// right, past the entries of TrustedProxies; see forwarded_headers.ClientAddress.
+	// right, ForwardedForHops entries in and past the entries of TrustedProxies; see
+	// forwarded_headers.ClientAddress.
 	TrustForwardedFor bool
+	// ForwardedForHops is the position, counted from the right of X-Forwarded-For, of the entry
+	// naming the client, the rightmost being 1: 2 behind Firebase Hosting, where a request arrives
+	// with <client>,<Firebase edge>, and 1 behind Google's front end alone or behind reverse_proxy.
+	// With 2, a request sent to a Cloud Run service's run.app address directly names any client it
+	// likes. It is read only with TrustForwardedFor; 0, the zero value, is 1, and a negative one
+	// resolves no client from the header. See forwarded_headers.ClientAddress.
+	ForwardedForHops int
 	// TrustClientHeaders makes the client's address X-Client-Ip-Address, ahead of X-Forwarded-For,
 	// and, where it is that header that names the client, has the log record what the X-Client-*,
 	// X-Server-Port and X-Tls-*-Fingerprint headers say; see forwarded_headers.ClientAddress for where
 	// that is safe.
 	TrustClientHeaders bool
-	// TrustedProxies are the address ranges of proxies further out than the one directly in front,
-	// whose X-Forwarded-For entries are trusted to name who connected to them: Firebase Hosting's
-	// edges, say. They are read only with TrustForwardedFor; see forwarded_headers.ClientAddress. A
-	// VhostMux with TrustForwardedHost and any of them believes the forwarded host only of a request
-	// that came through one; see forwarded_headers.ForwardedHostTrusted.
+	// TrustedProxies are the address ranges of proxies further out than the ones ForwardedForHops
+	// counts, whose X-Forwarded-For entries are trusted to name who connected to them: Firebase
+	// Hosting's edges, say, with ForwardedForHops 1. They are read only with TrustForwardedFor; see
+	// forwarded_headers.ClientAddress. A VhostMux with TrustForwardedHost and any of them believes the
+	// forwarded host only of a request whose rightmost entry is inside them, only with
+	// TrustForwardedFor, and only from X-Forwarded-Host; see forwarded_headers.ResolveAuthority.
 	//
 	// The client is resolved into the HTTP context as the request arrives at the mux, so that what is
 	// logged of it later reads the request as it came rather than whatever the context holds by then.
@@ -126,10 +135,16 @@ func (bm *baseMux) resolveClient(header http.Header) *clientResolution {
 		return nil
 	}
 
+	hops := bm.ForwardedForHops
+	if hops == 0 {
+		hops = 1
+	}
+
 	address, fromClientHeaders := forwarded_headers.ClientAddress(
 		header,
 		bm.TrustForwardedFor,
 		bm.TrustClientHeaders,
+		hops,
 		bm.TrustedProxies,
 	)
 

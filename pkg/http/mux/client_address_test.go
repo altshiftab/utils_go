@@ -38,9 +38,10 @@ func TestMux_ResolvesClient(t *testing.T) {
 	const servedHost = "open.home.arpa"
 
 	type trust struct {
-		forwardedFor   bool
-		clientHeaders  bool
-		trustedProxies []netip.Prefix
+		forwardedFor     bool
+		forwardedForHops int
+		clientHeaders    bool
+		trustedProxies   []netip.Prefix
 	}
 
 	// The proxy directly in front appended 203.0.113.9, which a proxy further out
@@ -120,6 +121,40 @@ func TestMux_ResolvesClient(t *testing.T) {
 			expectedInnerAddress: "203.0.113.9",
 		},
 		{
+			// Through Firebase Hosting a request arrives with <client>,<edge>; sent to run.app
+			// directly, with <whatever the caller wrote>,<caller>, which hops 2 takes as it is.
+			name:                 "the inner mux inherits what the outer one's hops resolved",
+			outer:                &trust{forwardedFor: true, forwardedForHops: 2},
+			inner:                &trust{forwardedFor: true},
+			expectedOuterAddress: "192.0.2.21",
+			expectedInnerAddress: "192.0.2.21",
+		},
+		{
+			name:                 "hops of 0 are 1",
+			outer:                &trust{forwardedFor: true, forwardedForHops: 0},
+			inner:                &trust{},
+			expectedOuterAddress: "203.0.113.9",
+			expectedInnerAddress: "203.0.113.9",
+		},
+		{
+			name:  "hops below 0 resolve nothing",
+			outer: &trust{forwardedFor: true, forwardedForHops: -1},
+			inner: &trust{forwardedFor: true},
+		},
+		{
+			name:                 "hops past the end of X-Forwarded-For resolve nothing",
+			outer:                &trust{forwardedFor: true, forwardedForHops: 3},
+			inner:                &trust{},
+			expectedOuterAddress: "",
+			expectedInnerAddress: "",
+		},
+		{
+			name:                 "an inner mux's own hops, where the outer one trusts nothing",
+			outer:                &trust{},
+			inner:                &trust{forwardedFor: true, forwardedForHops: 2},
+			expectedInnerAddress: "192.0.2.21",
+		},
+		{
 			name:                      "a mux with no outer one",
 			inner:                     &trust{forwardedFor: true, clientHeaders: true},
 			expectedInnerAddress:      "192.0.2.3",
@@ -141,6 +176,7 @@ func TestMux_ResolvesClient(t *testing.T) {
 			})
 			if innerTrust := testCase.inner; innerTrust != nil {
 				inner.TrustForwardedFor = innerTrust.forwardedFor
+				inner.ForwardedForHops = innerTrust.forwardedForHops
 				inner.TrustClientHeaders = innerTrust.clientHeaders
 				inner.TrustedProxies = innerTrust.trustedProxies
 			}
@@ -154,6 +190,7 @@ func TestMux_ResolvesClient(t *testing.T) {
 					HostToSpecification: map[string]*VhostMuxSpecification{servedHost: {Mux: inner}},
 				}
 				vhostMux.TrustForwardedFor = outerTrust.forwardedFor
+				vhostMux.ForwardedForHops = outerTrust.forwardedForHops
 				vhostMux.TrustClientHeaders = outerTrust.clientHeaders
 				vhostMux.TrustedProxies = outerTrust.trustedProxies
 				vhostMux.DoneCallback = capturedHttpContext(&outerHttpContext)
@@ -279,7 +316,7 @@ func TestVhostMux_MisdirectedRequestKeepsResolvedClient(t *testing.T) {
 	request.TLS = &tls.ConnectionState{ServerName: "unknown.home.arpa"}
 	request.Header.Set("X-Forwarded-For", misdirectedForwardedFor(client, proxy))
 
-	if address, _ := forwarded_headers.ClientAddress(request.Header, true, false, trustedProxies); address != client {
+	if address, _ := forwarded_headers.ClientAddress(request.Header, true, false, 1, trustedProxies); address != client {
 		t.Fatalf("the request as it came resolves to %q, want %q", address, client)
 	}
 
@@ -297,7 +334,7 @@ func TestVhostMux_MisdirectedRequestKeepsResolvedClient(t *testing.T) {
 		t.Fatal("the HTTP context does not describe a summary of the request")
 	}
 	// What the test is about: a client resolved again from the summary is not the client.
-	if address, _ := forwarded_headers.ClientAddress(summary.Header, true, false, trustedProxies); address == client {
+	if address, _ := forwarded_headers.ClientAddress(summary.Header, true, false, 1, trustedProxies); address == client {
 		t.Fatalf("the summary resolves to %q too, so the test cannot tell when the client was resolved", address)
 	}
 

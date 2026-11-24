@@ -274,10 +274,12 @@ func TestVhostMuxHandleRequest_TrustForwardedHost(t *testing.T) {
 	}
 }
 
-// With trusted proxies, the forwarded host is believed only of a request the
-// proxy directly in front recorded as coming from one: through Firebase Hosting,
-// Google's front end appends the edge's address, and sent to the run.app
-// address directly, the caller's.
+// With trusted proxies and a trusted X-Forwarded-For, the forwarded host is
+// believed only of a request the proxy directly in front recorded as coming
+// from one -- through Firebase Hosting, Google's front end appends the edge's
+// address, and sent to the run.app address directly, the caller's -- and only
+// from X-Forwarded-Host. Without a trusted X-Forwarded-For it is believed of
+// none.
 func TestVhostMuxHandleRequest_TrustedProxies(t *testing.T) {
 	t.Parallel()
 
@@ -291,6 +293,7 @@ func TestVhostMuxHandleRequest_TrustedProxies(t *testing.T) {
 		lines              map[string][]string
 		serverName         string
 		trustForwardedHost bool
+		trustForwardedFor  bool
 		trustedProxies     []netip.Prefix
 		expectedAuthority  string
 	}{
@@ -304,20 +307,42 @@ func TestVhostMuxHandleRequest_TrustedProxies(t *testing.T) {
 			name:               "through Firebase Hosting",
 			lines:              map[string][]string{"X-Forwarded-Host": {servedHost}, "X-Forwarded-For": {"198.51.100.7,66.249.93.77"}},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     firebaseEdges,
 			expectedAuthority:  servedHost,
 		},
 		{
-			name:               "through Firebase Hosting, on Forwarded",
+			// Firebase Hosting passes a client's Forwarded through unchanged, so it is not read
+			// where the trusted proxies gate the forwarded host.
+			name:               "through Firebase Hosting, on Forwarded alone",
 			lines:              map[string][]string{"Forwarded": {"host=" + servedHost}, "X-Forwarded-For": {"198.51.100.7,66.249.93.133"}},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
+			trustedProxies:     firebaseEdges,
+		},
+		{
+			name: "through Firebase Hosting, a client's Forwarded behind X-Forwarded-Host",
+			lines: map[string][]string{
+				"Forwarded":        {"host=" + proxyHost},
+				"X-Forwarded-Host": {servedHost},
+				"X-Forwarded-For":  {"198.51.100.7,66.249.93.133"},
+			},
+			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     firebaseEdges,
 			expectedAuthority:  servedHost,
+		},
+		{
+			name:               "through Firebase Hosting, X-Forwarded-For not trusted",
+			lines:              map[string][]string{"X-Forwarded-Host": {servedHost}, "X-Forwarded-For": {"198.51.100.7,66.249.93.77"}},
+			trustForwardedHost: true,
+			trustedProxies:     firebaseEdges,
 		},
 		{
 			name:               "run.app directly with X-Forwarded-Host",
 			lines:              map[string][]string{"X-Forwarded-Host": {servedHost}, "X-Forwarded-For": {"203.0.113.9"}},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     firebaseEdges,
 		},
 		{
@@ -327,18 +352,21 @@ func TestVhostMuxHandleRequest_TrustedProxies(t *testing.T) {
 				"X-Forwarded-For": {"192.0.2.21,203.0.113.9"},
 			},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     firebaseEdges,
 		},
 		{
 			name:               "run.app directly, naming an edge",
 			lines:              map[string][]string{"X-Forwarded-Host": {servedHost}, "X-Forwarded-For": {"198.51.100.7,66.249.93.77,203.0.113.9"}},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     firebaseEdges,
 		},
 		{
 			name:               "run.app directly, no X-Forwarded-For",
 			lines:              map[string][]string{"X-Forwarded-Host": {servedHost}},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     firebaseEdges,
 		},
 		{
@@ -351,6 +379,7 @@ func TestVhostMuxHandleRequest_TrustedProxies(t *testing.T) {
 			lines:              map[string][]string{"X-Forwarded-Host": {servedHost}, "X-Forwarded-For": {"198.51.100.7,66.249.93.77"}},
 			serverName:         proxyHost,
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     firebaseEdges,
 			expectedAuthority:  servedHost,
 		},
@@ -371,6 +400,7 @@ func TestVhostMuxHandleRequest_TrustedProxies(t *testing.T) {
 				},
 				TrustForwardedHost: testCase.trustForwardedHost,
 			}
+			vhostMux.TrustForwardedFor = testCase.trustForwardedFor
 			vhostMux.TrustedProxies = testCase.trustedProxies
 
 			request := vhostRequest(t, proxyHost)
@@ -435,6 +465,7 @@ func TestVhostMuxHandleRequest_TrustedProxiesServerName(t *testing.T) {
 				},
 				TrustForwardedHost: true,
 			}
+			vhostMux.TrustForwardedFor = true
 			vhostMux.TrustedProxies = []netip.Prefix{netip.MustParsePrefix("66.249.93.0/24")}
 
 			request := vhostRequest(t, servedHost)
@@ -448,6 +479,90 @@ func TestVhostMuxHandleRequest_TrustedProxiesServerName(t *testing.T) {
 				t.Fatalf("served = %t, want %t (%#v)", served, testCase.expectedServe, responseError)
 			}
 			if !testCase.expectedServe && (responseError == nil || responseError.ProblemDetail == nil ||
+				responseError.ProblemDetail.Status != http.StatusMisdirectedRequest) {
+				t.Fatalf("expected 421, got %#v", responseError)
+			}
+		})
+	}
+}
+
+// The forwarded host is read from X-Forwarded-Host ahead of Forwarded: as
+// measured, Firebase Hosting overwrites X-Forwarded-Host and passes a client's
+// `Forwarded: host=` through unchanged, which a mux reading Forwarded first
+// routed on. Where trusted proxies gate the forwarded host, Forwarded is not
+// read for it at all.
+func TestVhostMuxHandleRequest_ForwardedHostOrder(t *testing.T) {
+	t.Parallel()
+
+	const servedHost = "films.vvvp.se"
+	const otherHost = "evil.example"
+	const proxyHost = "vvvp-films-abcdef.run.app"
+
+	firebaseEdges := []netip.Prefix{netip.MustParsePrefix("66.249.93.0/24")}
+
+	testCases := []struct {
+		name           string
+		headers        map[string]string
+		trustedProxies []netip.Prefix
+		expectedHost   string
+	}{
+		{
+			name:         "through Firebase Hosting, a client's Forwarded",
+			headers:      map[string]string{"X-Forwarded-Host": servedHost, "Forwarded": "host=" + otherHost, "X-Forwarded-For": "198.51.100.7,66.249.93.77"},
+			expectedHost: servedHost,
+		},
+		{
+			name:         "reverse_proxy, both headers alike",
+			headers:      map[string]string{"X-Forwarded-Host": servedHost, "Forwarded": "for=198.51.100.7;host=" + servedHost, "X-Forwarded-For": "198.51.100.7"},
+			expectedHost: servedHost,
+		},
+		{
+			name:         "Forwarded alone",
+			headers:      map[string]string{"Forwarded": "host=" + otherHost},
+			expectedHost: otherHost,
+		},
+		{
+			name:           "gated, a client's Forwarded",
+			headers:        map[string]string{"X-Forwarded-Host": servedHost, "Forwarded": "host=" + otherHost, "X-Forwarded-For": "198.51.100.7,66.249.93.77"},
+			trustedProxies: firebaseEdges,
+			expectedHost:   servedHost,
+		},
+		{
+			name:           "gated, Forwarded alone",
+			headers:        map[string]string{"Forwarded": "host=" + otherHost, "X-Forwarded-For": "198.51.100.7,66.249.93.77"},
+			trustedProxies: firebaseEdges,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var servedAs string
+			serve := func(host string) http.Handler {
+				return http.HandlerFunc(func(http.ResponseWriter, *http.Request) { servedAs = host })
+			}
+			vhostMux := &VhostMux{
+				HostToSpecification: map[string]*VhostMuxSpecification{
+					servedHost: {Mux: serve(servedHost)},
+					otherHost:  {Mux: serve(otherHost)},
+				},
+				TrustForwardedHost: true,
+			}
+			vhostMux.TrustForwardedFor = true
+			vhostMux.TrustedProxies = testCase.trustedProxies
+
+			request := vhostRequest(t, proxyHost)
+			for name, value := range testCase.headers {
+				request.Header.Set(name, value)
+			}
+
+			_, responseError := vhostMuxHandleRequest(vhostMux, request, httptest.NewRecorder())
+
+			if servedAs != testCase.expectedHost {
+				t.Fatalf("served as %q, want %q (%#v)", servedAs, testCase.expectedHost, responseError)
+			}
+			if testCase.expectedHost == "" && (responseError == nil || responseError.ProblemDetail == nil ||
 				responseError.ProblemDetail.Status != http.StatusMisdirectedRequest) {
 				t.Fatalf("expected 421, got %#v", responseError)
 			}

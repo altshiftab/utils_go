@@ -5,10 +5,12 @@
 //
 // It is one package rather than a helper in each caller because which header
 // answers which question is decided once, and two copies of the decision are
-// two chances to answer the same request differently. The scheme and the host
-// are read from `Forwarded` first, then from `X-Forwarded-*`; the client's
-// address is not read from `Forwarded` at all, for the reason ClientAddress
-// gives.
+// two chances to answer the same request differently. The scheme is read from
+// `Forwarded` first, then from X-Forwarded-Proto; the host from
+// X-Forwarded-Host first, then from `Forwarded`, or from X-Forwarded-Host
+// alone where trusted proxies gate it, for the reasons Authority and
+// ResolveAuthority give; the client's address is not read from `Forwarded` at
+// all, for the reason ClientAddress gives.
 package forwarded_headers
 
 import (
@@ -160,12 +162,35 @@ func Scheme(header http.Header) string {
 //
 // Host is the same value with the port dropped and the case folded, which is
 // what belongs in a comparison against a configured name.
+//
+// With trustForwarded, X-Forwarded-Host answers first, then the host of
+// `Forwarded`, then the request's own Host. X-Forwarded-Host is the one the
+// proxies in front write: Firebase Hosting overwrites it and passes a client's
+// `Forwarded: host=` through unchanged -- as measured, a client's
+// `Forwarded: host=evil.example` sent through Firebase made a service that read
+// `Forwarded` first route on evil.example -- and reverse_proxy writes both
+// alike. `Forwarded` answers only where nothing in front set X-Forwarded-Host,
+// for a proxy that writes `Forwarded` alone.
 func Authority(request *http.Request, trustForwarded bool) string {
 	if request == nil {
 		return ""
 	}
 
-	if trustForwarded {
+	if !trustForwarded {
+		return strings.TrimSpace(request.Host)
+	}
+
+	return forwardedAuthority(request, true)
+}
+
+// forwardedAuthority returns the authority X-Forwarded-Host names, else, with
+// readForwarded, the one the host of `Forwarded` names, else the request's own.
+func forwardedAuthority(request *http.Request, readForwarded bool) string {
+	if host := firstListItem(request.Header, "X-Forwarded-Host"); host != "" {
+		return host
+	}
+
+	if readForwarded {
 		for _, element := range elements(request.Header) {
 			if element == nil {
 				continue
@@ -175,13 +200,35 @@ func Authority(request *http.Request, trustForwarded bool) string {
 				return host
 			}
 		}
-
-		if host := firstListItem(request.Header, "X-Forwarded-Host"); host != "" {
-			return host
-		}
 	}
 
 	return strings.TrimSpace(request.Host)
+}
+
+// ResolveAuthority reports the authority a request is for as a vhost mux with
+// these settings decides it, and whether the forwarded host was believed of the
+// request (ForwardedHostTrusted), the request's own Host answering otherwise.
+//
+// Where it is believed and trustedProxies gate it, the authority is read from
+// X-Forwarded-Host alone, never from `Forwarded`: the request came through a
+// trusted proxy, and Firebase Hosting, the proxy the gate is for, overwrites
+// X-Forwarded-Host and passes `Forwarded` on as the client wrote it. Where it is
+// believed with no trusted proxies, it is read as Authority reads it.
+func ResolveAuthority(
+	request *http.Request,
+	trustForwardedHost bool,
+	trustForwardedFor bool,
+	trustedProxies []netip.Prefix,
+) (string, bool) {
+	if request == nil {
+		return "", false
+	}
+
+	if !ForwardedHostTrusted(request.Header, trustForwardedHost, trustForwardedFor, trustedProxies) {
+		return strings.TrimSpace(request.Host), false
+	}
+
+	return forwardedAuthority(request, len(trustedProxies) == 0), true
 }
 
 // Host reports the host the client asked for.
@@ -196,8 +243,8 @@ func Authority(request *http.Request, trustForwarded bool) string {
 // the service except through that proxy. Where the second does not hold -- a
 // Cloud Run service that must accept public traffic to be reachable by the
 // proxy at all, say -- this stops being a check on the host and becomes only a
-// way to learn the name the client used, unless ForwardedHostTrusted decides it
-// for each request from the trusted proxies it came through.
+// way to learn the name the client used, unless ResolveAuthority decides it for
+// each request from the trusted proxies it came through.
 func Host(request *http.Request, trustForwarded bool) string {
 	return HostFromAuthority(Authority(request, trustForwarded))
 }
@@ -247,11 +294,11 @@ func parseClientAddress(value string) (netip.Addr, bool) {
 	return address.Unmap(), true
 }
 
-// maxProxyHops bounds how many entries of trusted proxies the walk along
-// X-Forwarded-For steps over before it gives up. A request passes through a
-// proxy or two; a chain longer than any deployment has is not one to read on
+// maxTrustedProxyEntries bounds how many entries of trusted proxies the walk
+// along X-Forwarded-For steps over before it gives up. A request passes through
+// a proxy or two; a chain longer than any deployment has is not one to read on
 // into.
-const maxProxyHops = 16
+const maxTrustedProxyEntries = 16
 
 // forwardedForFromRight yields the entries of X-Forwarded-For from the
 // rightmost leftwards, each trimmed, across every line of the header as though
@@ -288,15 +335,26 @@ func inPrefixes(address netip.Addr, prefixes []netip.Prefix) bool {
 	return false
 }
 
-// forwardedForClient walks X-Forwarded-For from its rightmost entry, which the
-// proxy directly in front wrote, leftwards past the entries that are addresses
-// of trusted proxies, and returns the first entry that is not one. An entry
-// reached that is empty or not an address ends the walk with nothing: it is
-// what a trusted proxy said connected to it, and skipping it would let the
-// entry before it, which the client may have written, answer instead.
-func forwardedForClient(header http.Header, trustedProxies []netip.Prefix) (netip.Addr, bool) {
-	hops := 0
+// forwardedForClient reads the entry of X-Forwarded-For hops from the right,
+// the rightmost being 1, then walks leftwards from it past the entries that are
+// addresses of trusted proxies, and returns the first entry that is not one.
+// The entries to the right of it are the fixed proxies' in front, and are not
+// read. A header with fewer entries than hops answers nothing, as does an entry
+// reached that is empty or not an address: it is what a proxy in front said
+// connected to it, and skipping it would let the entry before it, which the
+// client may have written, answer instead. A hops below 1 answers nothing.
+func forwardedForClient(header http.Header, hops int, trustedProxies []netip.Prefix) (netip.Addr, bool) {
+	if hops < 1 {
+		return netip.Addr{}, false
+	}
+
+	position := 0
+	trustedEntries := 0
 	for entry := range forwardedForFromRight(header) {
+		if position++; position < hops {
+			continue
+		}
+
 		address, ok := parseClientAddress(entry)
 		if !ok {
 			return netip.Addr{}, false
@@ -306,7 +364,7 @@ func forwardedForClient(header http.Header, trustedProxies []netip.Prefix) (neti
 			return address, true
 		}
 
-		if hops++; hops > maxProxyHops {
+		if trustedEntries++; trustedEntries > maxTrustedProxyEntries {
 			return netip.Addr{}, false
 		}
 	}
@@ -368,29 +426,42 @@ func clientIpAddress(header http.Header) string {
 // address it accepted the connection from as the last entry, or replaces the
 // header with that address alone: Google's front end on Cloud Run appends, and
 // reverse_proxy replaces. The rightmost entry is then the only one nobody but
-// that proxy can write. As measured on Cloud Run, a request sent to the run.app
-// address with `X-Forwarded-For: 192.0.2.21` arrives with
-// `192.0.2.21,<caller>`: the front end appends rather than replaces, and the
-// first entry is the client's to write.
+// that proxy can write.
 //
-// The client is the rightmost entry, unless that is an address inside
+// The client is the entry forwardedForHops from the right, the rightmost being
+// 1: forwardedForHops is how many entries the proxies in front always write,
+// each naming who connected to it. As measured on Cloud Run, a request arrives
+//
+//   - sent to the run.app address, as `<whatever the caller wrote…>,<caller>`:
+//     Google's front end merges the lines of the header into one and appends the
+//     caller's address, so that every entry before it is the caller's to write;
+//   - through Firebase Hosting, as `<client>,<Firebase edge>`: Firebase replaces
+//     whatever the client sent with the address that connected to it, and the
+//     front end appends the edge's.
+//
+// So forwardedForHops is 1 behind Google's front end alone and behind
+// reverse_proxy, and 2 behind Firebase Hosting. With 2, a request sent to the
+// run.app address directly with `X-Forwarded-For: 192.0.2.21` arrives as
+// `192.0.2.21,<caller>` and is taken for 192.0.2.21's: nothing in the header
+// tells it from one Firebase forwarded, and whoever reaches the run.app
+// address names any client it likes. trustedProxies is what tells them apart.
+//
+// Where the entry forwardedForHops from the right is an address inside
 // trustedProxies -- a proxy further out, whose own entry is trusted to name who
-// connected to it -- in which case it is the entry before it, and so on
-// leftwards. Through Firebase Hosting a request arrives with
-// `<client>,<Firebase edge>`: Firebase replaces whatever the client sent with
-// the address that connected to it, and Google's front end appends the address
-// of the edge that connected to it. With the edges' range among trustedProxies
-// the client is the first entry; without it, it is the edge. A request sent
-// to the run.app address directly, naming an edge itself, arrives as
-// `<anything>,<edge>,<caller>`, and is the caller's.
+// connected to it -- the client is the entry before it, and so on leftwards.
+// With forwardedForHops 1 and the edges' range among trustedProxies, a request
+// through Firebase Hosting is its first entry's, and one sent to the run.app
+// address directly is the caller's, whatever it wrote: `<anything>,<edge>,<caller>`
+// is the caller's.
 //
 // An entry the walk reaches that is empty or not an address -- `unknown`, an
 // obfuscated identifier, a zone, anything else -- answers nothing rather than
-// letting the entry before it answer. So does a header whose every entry is a
-// trusted proxy's, and one with more than 16 of them at its end. An
-// entry is read as a proxy writes one: bare, with a port, or bracketed, an
-// IPv4-mapped address being the IPv4 address it maps; the address returned is
-// in its normal form.
+// letting another entry answer, the entry forwardedForHops from the right
+// included. So does a header with fewer entries than forwardedForHops, one
+// whose every entry from there is a trusted proxy's, one with more than 16 of
+// them there, and a forwardedForHops below 1. An entry is read as a proxy
+// writes one: bare, with a port, or bracketed, an IPv4-mapped address being the
+// IPv4 address it maps; the address returned is in its normal form.
 //
 // A range among trustedProxies is believed of everything sent from it. A range
 // shared with anything that sends requests with headers its user chose is not
@@ -402,6 +473,7 @@ func ClientAddress(
 	header http.Header,
 	trustForwardedFor bool,
 	trustClientHeaders bool,
+	forwardedForHops int,
 	trustedProxies []netip.Prefix,
 ) (string, bool) {
 	if trustClientHeaders {
@@ -411,7 +483,7 @@ func ClientAddress(
 	}
 
 	if trustForwardedFor {
-		if address, ok := forwardedForClient(header, trustedProxies); ok {
+		if address, ok := forwardedForClient(header, forwardedForHops, trustedProxies); ok {
 			return address.String(), false
 		}
 	}
@@ -420,28 +492,39 @@ func ClientAddress(
 }
 
 // ForwardedHostTrusted says whether the host the forwarded headers name is to
-// be believed for a request, as Authority and Host take it.
+// be believed for a request; ResolveAuthority reads the host as it decides.
 //
 // Without trustForwardedHost it is not. With it and no trustedProxies it is,
-// on every request, as before trusted proxies were a setting. With both, it is
-// only where the rightmost X-Forwarded-For entry is an address inside
-// trustedProxies: where the proxy directly in front recorded that the request
-// came from a trusted proxy further out. A request sent to a Cloud Run service's
-// run.app address directly, with `X-Forwarded-Host` or `Forwarded: host=` of
-// its own, is recorded with the caller's address there, and is answered for
-// its own Host -- with a 421 by a vhost mux that does not answer for the
-// run.app name -- rather than for the host it named. Through Firebase Hosting
-// the rightmost entry is the edge's, and the host it forwarded is believed.
+// on every request. With both, it is only where trustForwardedFor holds as well
+// and the rightmost X-Forwarded-For entry is an address inside trustedProxies:
+// where the proxy directly in front recorded that the request came from a
+// trusted proxy further out. Without trustForwardedFor nothing says that proxy
+// wrote the entry, which is then the client's to write, and the forwarded host
+// is believed of no request. The rightmost entry is read whatever the hops
+// ClientAddress is given, being the only one nobody but that proxy can write.
 //
-// It relies on what trustForwardedFor in ClientAddress declares, that the proxy
-// directly in front appends the address it accepted the connection from.
-func ForwardedHostTrusted(header http.Header, trustForwardedHost bool, trustedProxies []netip.Prefix) bool {
+// A request sent to a Cloud Run service's run.app address directly, with an
+// X-Forwarded-Host of its own, is recorded with the caller's address there, and
+// is answered for its own Host -- with a 421 by a vhost mux that does not
+// answer for the run.app name -- rather than for the host it named. Through
+// Firebase Hosting the rightmost entry is the edge's, and the X-Forwarded-Host
+// Firebase wrote is believed.
+func ForwardedHostTrusted(
+	header http.Header,
+	trustForwardedHost bool,
+	trustForwardedFor bool,
+	trustedProxies []netip.Prefix,
+) bool {
 	if !trustForwardedHost {
 		return false
 	}
 
 	if len(trustedProxies) == 0 {
 		return true
+	}
+
+	if !trustForwardedFor {
+		return false
 	}
 
 	lines := header.Values("X-Forwarded-For")

@@ -43,11 +43,19 @@ type VhostMux struct {
 	// reach the service except through that proxy. Where the second does not
 	// hold, the 421 below stops being a check and becomes routing.
 	//
-	// With TrustedProxies it holds again: the forwarded host is believed only
-	// of a request whose rightmost X-Forwarded-For entry is inside them, the
-	// proxy directly in front having recorded that it came through one, and a
-	// request sent around them is looked up by its own Host. Without them it is
-	// believed of every request. See forwarded_headers.ForwardedHostTrusted.
+	// The forwarded host is read from X-Forwarded-Host first, then from
+	// `Forwarded`: Firebase Hosting overwrites the first and passes a client's
+	// `Forwarded: host=` through unchanged. Google's front end passes both on
+	// as a request sent to a Cloud Run service's run.app address directly wrote
+	// them, so without TrustedProxies such a request names any host it likes,
+	// as it names any client with ForwardedForHops 2.
+	//
+	// With TrustedProxies and TrustForwardedFor, the forwarded host is believed
+	// only of a request whose rightmost X-Forwarded-For entry is inside them,
+	// the proxy directly in front having recorded that it came through one, and
+	// only from X-Forwarded-Host; a request sent around them is looked up by its
+	// own Host. With TrustedProxies and without TrustForwardedFor it is believed
+	// of no request. See forwarded_headers.ResolveAuthority.
 	TrustForwardedHost bool
 }
 
@@ -246,12 +254,12 @@ func vhostMuxHandleRequest(
 		}
 	}
 
-	trustForwardedHost := forwarded_headers.ForwardedHostTrusted(
-		request.Header,
+	authority, trustForwardedHost := forwarded_headers.ResolveAuthority(
+		request,
 		vhostMux.TrustForwardedHost,
+		vhostMux.TrustForwardedFor,
 		vhostMux.TrustedProxies,
 	)
-	authority := forwarded_headers.Authority(request, trustForwardedHost)
 	host := forwarded_headers.HostFromAuthority(authority)
 
 	// The TLS configuration a connection got was chosen by its server name and

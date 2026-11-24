@@ -403,3 +403,30 @@ func TestWithTrustedProxies(t *testing.T) {
 		})
 	}
 }
+
+// The X-Forwarded-For hops are what the last option gave, and 0, which the mux takes for 1, unless
+// one did; New, not the option, refuses a negative one.
+func TestWithForwardedForHops(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		options  []Option
+		expected int
+	}{
+		{name: "no option", expected: 0},
+		{name: "2", options: []Option{WithForwardedForHops(2)}, expected: 2},
+		{name: "the last option given wins", options: []Option{WithForwardedForHops(2), WithForwardedForHops(1)}, expected: 1},
+		{name: "a negative one is kept for New to refuse", options: []Option{WithForwardedForHops(-1)}, expected: -1},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if hops := New(testCase.options...).ForwardedForHops; hops != testCase.expected {
+				t.Errorf("hops = %d, want %d", hops, testCase.expected)
+			}
+		})
+	}
+}

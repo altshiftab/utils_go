@@ -124,16 +124,24 @@ func TestHost(t *testing.T) {
 			expected:       "service.run.app",
 		},
 		{
-			name:           "trusted prefers Forwarded",
+			// Firebase Hosting overwrites X-Forwarded-Host and passes the client's Forwarded on.
+			name:           "trusted prefers X-Forwarded-Host",
 			requestHost:    "service.run.app",
-			headers:        map[string]string{"Forwarded": "host=wiki.vvvp.se", "X-Forwarded-Host": "other.vvvp.se"},
+			headers:        map[string]string{"Forwarded": "host=evil.example", "X-Forwarded-Host": "wiki.vvvp.se"},
 			trustForwarded: true,
 			expected:       "wiki.vvvp.se",
 		},
 		{
-			name:           "trusted falls back to X-Forwarded-Host",
+			name:           "trusted reads X-Forwarded-Host alone",
 			requestHost:    "service.run.app",
 			headers:        map[string]string{"X-Forwarded-Host": "wiki.vvvp.se"},
+			trustForwarded: true,
+			expected:       "wiki.vvvp.se",
+		},
+		{
+			name:           "trusted falls back to Forwarded",
+			requestHost:    "service.run.app",
+			headers:        map[string]string{"Forwarded": "host=wiki.vvvp.se"},
 			trustForwarded: true,
 			expected:       "wiki.vvvp.se",
 		},
@@ -228,6 +236,13 @@ func TestAuthority(t *testing.T) {
 			headers:        map[string]string{"X-Forwarded-Host": "wiki.vvvp.se"},
 			trustForwarded: false,
 			expected:       "service.run.app",
+		},
+		{
+			name:           "X-Forwarded-Host ahead of Forwarded",
+			requestHost:    "service.run.app",
+			headers:        map[string]string{"X-Forwarded-Host": "wiki.vvvp.se:8443", "Forwarded": "host=evil.example"},
+			trustForwarded: true,
+			expected:       "wiki.vvvp.se:8443",
 		},
 	}
 
@@ -513,14 +528,14 @@ func TestClientAddress(t *testing.T) {
 		},
 		{
 			name:              "as many trusted proxies as the walk steps over",
-			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7" + strings.Repeat(",66.249.93.77", maxProxyHops)}},
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7" + strings.Repeat(",66.249.93.77", maxTrustedProxyEntries)}},
 			trustForwardedFor: true,
 			trustedProxies:    []netip.Prefix{firebaseEdges},
 			expected:          "198.51.100.7",
 		},
 		{
 			name:              "more trusted proxies than the walk steps over",
-			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7" + strings.Repeat(",66.249.93.77", maxProxyHops+1)}},
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7" + strings.Repeat(",66.249.93.77", maxTrustedProxyEntries+1)}},
 			trustForwardedFor: true,
 			trustedProxies:    []netip.Prefix{firebaseEdges},
 			expected:          "",
@@ -725,11 +740,12 @@ func TestClientAddress(t *testing.T) {
 				header,
 				testCase.trustForwardedFor,
 				testCase.trustClientHeaders,
+				1,
 				testCase.trustedProxies,
 			)
 			if address != testCase.expected || fromClientHeaders != testCase.expectedFromClientHeaders {
 				t.Fatalf(
-					"ClientAddress(%v, %t, %t, %v) = %q, %t; want %q, %t",
+					"ClientAddress(%v, %t, %t, 1, %v) = %q, %t; want %q, %t",
 					testCase.lines,
 					testCase.trustForwardedFor,
 					testCase.trustClientHeaders,
@@ -744,9 +760,293 @@ func TestClientAddress(t *testing.T) {
 	}
 }
 
+// The client is the entry the hops count from the right, then past the trusted
+// proxies: 2 through Firebase Hosting, where Google's front end appends the
+// edge's address after the client's, at the cost that a request sent to the
+// run.app address directly names whatever client it likes.
+func TestClientAddress_Hops(t *testing.T) {
+	t.Parallel()
+
+	innerProxies := netip.MustParsePrefix("10.0.0.0/8")
+
+	testCases := []struct {
+		name           string
+		lines          []string
+		hops           int
+		trustedProxies []netip.Prefix
+		expected       string
+	}{
+		{
+			name:     "hops 2 through Firebase Hosting",
+			lines:    []string{"198.51.100.7,66.249.93.77"},
+			hops:     2,
+			expected: "198.51.100.7",
+		},
+		{
+			// The accepted risk: the front end appends the caller, and the entry before it is the
+			// caller's to write.
+			name:     "hops 2 at run.app directly, the client forged",
+			lines:    []string{"192.0.2.21,203.0.113.9"},
+			hops:     2,
+			expected: "192.0.2.21",
+		},
+		{
+			name:     "hops 2 with one entry",
+			lines:    []string{"203.0.113.9"},
+			hops:     2,
+			expected: "",
+		},
+		{
+			name:     "hops 2 with none",
+			hops:     2,
+			expected: "",
+		},
+		{
+			name:     "hops 1 through Firebase Hosting is the edge",
+			lines:    []string{"198.51.100.7,66.249.93.77"},
+			hops:     1,
+			expected: "66.249.93.77",
+		},
+		{
+			name:     "hops 1 at run.app directly is the caller",
+			lines:    []string{"192.0.2.21,203.0.113.9"},
+			hops:     1,
+			expected: "203.0.113.9",
+		},
+		{
+			name:     "hops 2 across two lines",
+			lines:    []string{"198.51.100.7", "66.249.93.77"},
+			hops:     2,
+			expected: "198.51.100.7",
+		},
+		{
+			name:     "hops 2 with an empty entry there",
+			lines:    []string{"198.51.100.7, ,66.249.93.77"},
+			hops:     2,
+			expected: "",
+		},
+		{
+			name:     "hops 2 with garbage there, not the entry before it",
+			lines:    []string{"198.51.100.7,unknown,66.249.93.77"},
+			hops:     2,
+			expected: "",
+		},
+		{
+			name:     "hops 2, the entry to its right not read",
+			lines:    []string{"198.51.100.7,unknown"},
+			hops:     2,
+			expected: "198.51.100.7",
+		},
+		{
+			name:     "hops 3",
+			lines:    []string{"192.0.2.21, 198.51.100.7, 10.1.2.3, 66.249.93.77"},
+			hops:     3,
+			expected: "198.51.100.7",
+		},
+		{
+			name:           "hops 2 and the trusted proxies walked from there",
+			lines:          []string{"192.0.2.21, 198.51.100.7, 10.1.2.3, 66.249.93.77"},
+			hops:           2,
+			trustedProxies: []netip.Prefix{innerProxies},
+			expected:       "198.51.100.7",
+		},
+		{
+			name:           "hops 2 and no trusted proxy there",
+			lines:          []string{"192.0.2.21, 10.1.2.3, 198.51.100.7, 66.249.93.77"},
+			hops:           2,
+			trustedProxies: []netip.Prefix{innerProxies},
+			expected:       "198.51.100.7",
+		},
+		{
+			name:           "hops 2, every entry from there a trusted proxy's",
+			lines:          []string{"10.1.2.4, 10.1.2.3, 66.249.93.77"},
+			hops:           2,
+			trustedProxies: []netip.Prefix{innerProxies},
+			expected:       "",
+		},
+		{
+			name:           "hops 2, a garbage entry reached past a trusted proxy",
+			lines:          []string{"198.51.100.7, unknown, 10.1.2.3, 66.249.93.77"},
+			hops:           2,
+			trustedProxies: []netip.Prefix{innerProxies},
+			expected:       "",
+		},
+		{
+			name:           "hops 2, as many trusted proxies as the walk steps over",
+			lines:          []string{"198.51.100.7" + strings.Repeat(",10.1.2.3", maxTrustedProxyEntries) + ",66.249.93.77"},
+			hops:           2,
+			trustedProxies: []netip.Prefix{innerProxies},
+			expected:       "198.51.100.7",
+		},
+		{
+			name:           "hops 2, more trusted proxies than the walk steps over",
+			lines:          []string{"198.51.100.7" + strings.Repeat(",10.1.2.3", maxTrustedProxyEntries+1) + ",66.249.93.77"},
+			hops:           2,
+			trustedProxies: []netip.Prefix{innerProxies},
+			expected:       "",
+		},
+		{
+			name:     "hops 0",
+			lines:    []string{"198.51.100.7,66.249.93.77"},
+			hops:     0,
+			expected: "",
+		},
+		{
+			name:     "hops below 0",
+			lines:    []string{"198.51.100.7,66.249.93.77"},
+			hops:     -1,
+			expected: "",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			header := http.Header{}
+			for _, line := range testCase.lines {
+				header.Add("X-Forwarded-For", line)
+			}
+
+			address, fromClientHeaders := ClientAddress(header, true, false, testCase.hops, testCase.trustedProxies)
+			if address != testCase.expected || fromClientHeaders {
+				t.Fatalf(
+					"ClientAddress(%q, true, false, %d, %v) = %q, %t; want %q, false",
+					testCase.lines,
+					testCase.hops,
+					testCase.trustedProxies,
+					address,
+					fromClientHeaders,
+					testCase.expected,
+				)
+			}
+		})
+	}
+}
+
+// The authority a vhost mux routes on: the request's own Host where the
+// forwarded host is not believed, X-Forwarded-Host ahead of Forwarded where it
+// is, and X-Forwarded-Host alone where trusted proxies gate it, Firebase
+// Hosting passing a client's Forwarded through unchanged.
+func TestResolveAuthority(t *testing.T) {
+	t.Parallel()
+
+	const requestHost = "vvvp-films-abcdef.run.app"
+	const servedHost = "films.vvvp.se"
+
+	throughFirebase := "198.51.100.7,66.249.93.77"
+	direct := "192.0.2.21,203.0.113.9"
+
+	testCases := []struct {
+		name               string
+		headers            map[string]string
+		trustForwardedHost bool
+		trustForwardedFor  bool
+		trustedProxies     []netip.Prefix
+		expected           string
+		expectedBelieved   bool
+	}{
+		{
+			name:     "not believed",
+			headers:  map[string]string{"X-Forwarded-Host": servedHost, "Forwarded": "host=" + servedHost},
+			expected: requestHost,
+		},
+		{
+			name:               "believed, both headers: X-Forwarded-Host wins",
+			headers:            map[string]string{"X-Forwarded-Host": servedHost, "Forwarded": "host=evil.example", "X-Forwarded-For": throughFirebase},
+			trustForwardedHost: true,
+			trustForwardedFor:  true,
+			expected:           servedHost,
+			expectedBelieved:   true,
+		},
+		{
+			name:               "believed, Forwarded alone",
+			headers:            map[string]string{"Forwarded": "host=" + servedHost},
+			trustForwardedHost: true,
+			expected:           servedHost,
+			expectedBelieved:   true,
+		},
+		{
+			name:               "believed, neither header",
+			trustForwardedHost: true,
+			expected:           requestHost,
+			expectedBelieved:   true,
+		},
+		{
+			name:               "gated through Firebase Hosting, both headers: X-Forwarded-Host wins",
+			headers:            map[string]string{"X-Forwarded-Host": servedHost, "Forwarded": "host=evil.example", "X-Forwarded-For": throughFirebase},
+			trustForwardedHost: true,
+			trustForwardedFor:  true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           servedHost,
+			expectedBelieved:   true,
+		},
+		{
+			name:               "gated through Firebase Hosting, Forwarded ignored",
+			headers:            map[string]string{"Forwarded": "host=evil.example", "X-Forwarded-For": throughFirebase},
+			trustForwardedHost: true,
+			trustForwardedFor:  true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           requestHost,
+			expectedBelieved:   true,
+		},
+		{
+			name:               "gated, sent around the trusted proxies",
+			headers:            map[string]string{"X-Forwarded-Host": servedHost, "Forwarded": "host=" + servedHost, "X-Forwarded-For": direct},
+			trustForwardedHost: true,
+			trustForwardedFor:  true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           requestHost,
+		},
+		{
+			name:               "gated without a trusted X-Forwarded-For fails closed",
+			headers:            map[string]string{"X-Forwarded-Host": servedHost, "X-Forwarded-For": throughFirebase},
+			trustForwardedHost: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           requestHost,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://placeholder/", nil)
+			request.Host = requestHost
+			for name, value := range testCase.headers {
+				request.Header.Set(name, value)
+			}
+
+			authority, believed := ResolveAuthority(
+				request,
+				testCase.trustForwardedHost,
+				testCase.trustForwardedFor,
+				testCase.trustedProxies,
+			)
+			if authority != testCase.expected || believed != testCase.expectedBelieved {
+				t.Fatalf(
+					"ResolveAuthority = %q, %t; want %q, %t",
+					authority,
+					believed,
+					testCase.expected,
+					testCase.expectedBelieved,
+				)
+			}
+		})
+	}
+
+	t.Run("no request", func(t *testing.T) {
+		t.Parallel()
+
+		if authority, believed := ResolveAuthority(nil, true, true, nil); authority != "" || believed {
+			t.Fatalf("ResolveAuthority(nil) = %q, %t; want \"\", false", authority, believed)
+		}
+	})
+}
+
 // The forwarded host is believed where it is trusted and, where trusted
 // proxies are known, only of a request the proxy directly in front recorded as
-// coming from one.
+// coming from one, which only a trusted X-Forwarded-For can say.
 func TestForwardedHostTrusted(t *testing.T) {
 	t.Parallel()
 
@@ -754,6 +1054,7 @@ func TestForwardedHostTrusted(t *testing.T) {
 		name               string
 		lines              []string
 		trustForwardedHost bool
+		trustForwardedFor  bool
 		trustedProxies     []netip.Prefix
 		expected           bool
 	}{
@@ -767,6 +1068,7 @@ func TestForwardedHostTrusted(t *testing.T) {
 			name:               "trusted with no proxies, run.app directly",
 			lines:              []string{"192.0.2.21,203.0.113.9"},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			expected:           true,
 		},
 		{
@@ -778,6 +1080,7 @@ func TestForwardedHostTrusted(t *testing.T) {
 			name:               "through Firebase Hosting",
 			lines:              []string{"198.51.100.7,66.249.93.77"},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     []netip.Prefix{firebaseEdges},
 			expected:           true,
 		},
@@ -785,6 +1088,7 @@ func TestForwardedHostTrusted(t *testing.T) {
 			name:               "run.app directly",
 			lines:              []string{"192.0.2.21,203.0.113.9"},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     []netip.Prefix{firebaseEdges},
 			expected:           false,
 		},
@@ -792,12 +1096,14 @@ func TestForwardedHostTrusted(t *testing.T) {
 			name:               "a chain naming an edge, sent directly",
 			lines:              []string{"198.51.100.7,66.249.93.77,203.0.113.9"},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     []netip.Prefix{firebaseEdges},
 			expected:           false,
 		},
 		{
 			name:               "no X-Forwarded-For",
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     []netip.Prefix{firebaseEdges},
 			expected:           false,
 		},
@@ -805,6 +1111,7 @@ func TestForwardedHostTrusted(t *testing.T) {
 			name:               "the edge on a line of its own",
 			lines:              []string{"198.51.100.7", "66.249.93.77"},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     []netip.Prefix{firebaseEdges},
 			expected:           true,
 		},
@@ -812,6 +1119,7 @@ func TestForwardedHostTrusted(t *testing.T) {
 			name:               "an edge on the first line only",
 			lines:              []string{"66.249.93.77", "203.0.113.9"},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     []netip.Prefix{firebaseEdges},
 			expected:           false,
 		},
@@ -819,6 +1127,7 @@ func TestForwardedHostTrusted(t *testing.T) {
 			name:               "an empty rightmost entry",
 			lines:              []string{"66.249.93.77,"},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     []netip.Prefix{firebaseEdges},
 			expected:           false,
 		},
@@ -826,13 +1135,28 @@ func TestForwardedHostTrusted(t *testing.T) {
 			name:               "a rightmost entry that is not an address",
 			lines:              []string{"66.249.93.77, unknown"},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     []netip.Prefix{firebaseEdges},
 			expected:           false,
+		},
+		{
+			name:               "through Firebase Hosting, X-Forwarded-For not trusted",
+			lines:              []string{"198.51.100.7,66.249.93.77"},
+			trustForwardedHost: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           false,
+		},
+		{
+			name:               "no proxies, X-Forwarded-For not trusted",
+			lines:              []string{"192.0.2.21,203.0.113.9"},
+			trustForwardedHost: true,
+			expected:           true,
 		},
 		{
 			name:               "an edge with a port",
 			lines:              []string{"198.51.100.7, 66.249.93.77:443"},
 			trustForwardedHost: true,
+			trustForwardedFor:  true,
 			trustedProxies:     []netip.Prefix{firebaseEdges},
 			expected:           true,
 		},
@@ -847,12 +1171,18 @@ func TestForwardedHostTrusted(t *testing.T) {
 				header.Add("X-Forwarded-For", line)
 			}
 
-			trusted := ForwardedHostTrusted(header, testCase.trustForwardedHost, testCase.trustedProxies)
+			trusted := ForwardedHostTrusted(
+				header,
+				testCase.trustForwardedHost,
+				testCase.trustForwardedFor,
+				testCase.trustedProxies,
+			)
 			if trusted != testCase.expected {
 				t.Fatalf(
-					"ForwardedHostTrusted(%q, %t, %v) = %t, want %t",
+					"ForwardedHostTrusted(%q, %t, %t, %v) = %t, want %t",
 					testCase.lines,
 					testCase.trustForwardedHost,
+					testCase.trustForwardedFor,
 					testCase.trustedProxies,
 					trusted,
 					testCase.expected,

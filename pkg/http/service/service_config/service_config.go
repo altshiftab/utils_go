@@ -67,14 +67,17 @@ type Config struct {
 	// headers name rather than against the request's own Host. See
 	// WithTrustForwardedHost.
 	TrustForwardedHost bool
-	// TrustForwardedFor makes the client of a request the entry of X-Forwarded-For the proxy
-	// directly in front wrote, or the one before it past TrustedProxies. See WithTrustForwardedFor.
+	// TrustForwardedFor makes the client of a request the entry of X-Forwarded-For ForwardedForHops
+	// counts from the right, or the one before it past TrustedProxies. See WithTrustForwardedFor.
 	TrustForwardedFor bool
+	// ForwardedForHops is the position, counted from the right of X-Forwarded-For, of the entry
+	// naming the client; 0 is the default, 1. See WithForwardedForHops.
+	ForwardedForHops int
 	// TrustClientHeaders makes the client of a request X-Client-Ip-Address, and the log record what
 	// the other client headers say. See WithTrustClientHeaders.
 	TrustClientHeaders bool
-	// TrustedProxies are the address ranges of proxies further out than the one directly in front,
-	// whose X-Forwarded-For entries are trusted to name who connected to them. See
+	// TrustedProxies are the address ranges of proxies further out than the ones ForwardedForHops
+	// counts, whose X-Forwarded-For entries are trusted to name who connected to them. See
 	// WithTrustedProxies.
 	TrustedProxies []netip.Prefix
 	Redirects      []*Redirect
@@ -202,8 +205,9 @@ func WithHost(host string) Option {
 	}
 }
 
-// WithTrustForwardedHost makes the service decide which host a request is for from the `Forwarded`
-// and `X-Forwarded-Host` headers, falling back to the request's own Host where they say nothing.
+// WithTrustForwardedHost makes the service decide which host a request is for from the
+// `X-Forwarded-Host` and `Forwarded` headers, in that order, falling back to the request's own Host
+// where they say nothing.
 //
 // It is needed behind a proxy that rewrites Host to an address of its own -- Firebase Hosting
 // rewriting to a run.app URL, say -- where without it every request arrives for a host the service
@@ -216,12 +220,20 @@ func WithHost(host string) Option {
 // for a host the client chose. A Cloud Run service reached at its run.app address with
 // `X-Forwarded-Host: films.vvvp.se` or `Forwarded: host=films.vvvp.se` is served as films.vvvp.se.
 //
-// WithTrustedProxies makes the second hold again: with any trusted proxies, the forwarded host is
-// believed only of a request whose rightmost X-Forwarded-For entry is inside them -- one Firebase
-// Hosting forwarded, Google's front end having appended the edge's address -- and a request sent to
-// the run.app address directly, which the front end records with the caller's address there, is
-// looked up by its own Host and refused. Without trusted proxies the forwarded host is believed of
-// every request, as described above.
+// X-Forwarded-Host is read first, being the one the proxies in front write: Firebase Hosting
+// overwrites it and passes a client's `Forwarded: host=` through unchanged -- as measured, a
+// client's `Forwarded: host=evil.example` sent through Firebase made a service that read
+// `Forwarded` first route on evil.example -- and reverse_proxy writes both alike.
+//
+// With WithTrustedProxies and WithTrustForwardedFor, the forwarded host is believed only of a
+// request whose rightmost X-Forwarded-For entry is inside the trusted proxies -- one Firebase Hosting
+// forwarded, Google's front end having appended the edge's address -- and then only from
+// X-Forwarded-Host, the one Firebase wrote; a request sent to the run.app address directly, which
+// the front end records with the caller's address there, is looked up by its own Host and refused.
+// With trusted proxies and without WithTrustForwardedFor, nothing says who wrote that entry, and the
+// forwarded host is believed of no request. Without trusted proxies it is believed of every request,
+// as described above: the services behind Firebase Hosting configure none, and accept that a request
+// sent to their run.app address directly is served as whichever of their hosts it names.
 func WithTrustForwardedHost(trustForwardedHost bool) Option {
 	return func(config *Config) {
 		config.TrustForwardedHost = trustForwardedHost
@@ -233,18 +245,19 @@ func WithTrustForwardedHost(trustForwardedHost bool) Option {
 //
 // It says that the proxy directly in front of the service appends the address it accepted the
 // connection from as the last entry of X-Forwarded-For, or replaces the header with that address
-// alone. The last entry is then the only one nobody but that proxy can write, and it is the client,
-// unless it is a trusted proxy's address (WithTrustedProxies), in which case the client is the entry
-// before it, and so on leftwards.
+// alone. The last entry is then the only one nobody but that proxy can write. The client is the
+// entry WithForwardedForHops counts from the right, the last by default, unless it is a trusted
+// proxy's address (WithTrustedProxies), in which case the client is the entry before it, and so on
+// leftwards.
 //
 // Google's front end appends, for a Cloud Run service reached at its run.app address or through
 // Firebase Hosting: a request sent with `X-Forwarded-For: 192.0.2.21` arrives with
 // `192.0.2.21,<caller>`, so that the first entry is whatever the client chose. Through Firebase
 // Hosting a request arrives with `<client>,<Firebase edge>`, Firebase replacing whatever the client
-// sent and the front end appending the edge's address; the client is read past the edge only with
-// the edges' range among the trusted proxies, and is the edge without it. reverse_proxy replaces the
-// header with the client's address alone. A forward proxy passes on the client's own headers, and
-// nothing in front of it is to be trusted with this.
+// sent and the front end appending the edge's address; the client is the entry before the edge's
+// with WithForwardedForHops(2), or with the edges' range among the trusted proxies, and is the edge
+// with neither. reverse_proxy replaces the header with the client's address alone. A forward proxy
+// passes on the client's own headers, and nothing in front of it is to be trusted with this.
 //
 // It is off by default. Being a fact about the deployment rather than about the service, it is
 // commonly read by the service from its environment -- a TRUST_FORWARDED_FOR its deployment sets
@@ -255,12 +268,46 @@ func WithTrustForwardedFor(trustForwardedFor bool) Option {
 	}
 }
 
-// WithTrustedProxies sets the address ranges of the proxies further out than the one directly in
-// front of the service whose X-Forwarded-For entries are trusted to name who connected to them:
-// Firebase Hosting's edges, which Google's front end records as the last entry of a request Firebase
-// forwarded (seen from 66.249.93.77 and 66.249.93.133). The client of a request is read past their
-// entries, with WithTrustForwardedFor, and the forwarded host is believed only of a request that came
-// through one, with WithTrustForwardedHost.
+// WithForwardedForHops sets the position, counted from the right of X-Forwarded-For, of the entry
+// naming the client of a request, read with WithTrustForwardedFor: 1, the default, is the
+// rightmost. It is one more than the entries the proxies in front always write after the client's.
+//
+// As measured on Cloud Run, a request arrives through Firebase Hosting with
+// `<client>,<Firebase edge>`, Firebase replacing whatever the client sent with the address that
+// connected to it and Google's front end appending the edge's address, and sent to the run.app
+// address directly with `<whatever the caller wrote…>,<caller>`, the front end merging the lines of
+// the header into one and appending the caller's address. So 2 suits a service behind Firebase
+// Hosting, and 1 a service behind Google's front end alone or behind reverse_proxy, which replaces
+// the header with the client's address.
+//
+// With 2, a request sent to the run.app address directly with `X-Forwarded-For: 192.0.2.21` is
+// taken for 192.0.2.21's: nothing in the header tells it from one Firebase forwarded, and whoever
+// reaches the run.app address names any client it likes. That is what WithTrustedProxies is for:
+// with the edges' range trusted and the hops left at 1, the client is read past the last entry only
+// where that is an edge's, and a request sent around the edges is its caller's.
+//
+// An entry there that is empty or not an address, and a header with fewer entries, name no client,
+// and the client is the connection's peer; no other entry answers instead. 0 is the default, 1, so
+// that passing 0 is passing nothing; one below 0 makes New fail with a validation error.
+func WithForwardedForHops(hops int) Option {
+	return func(config *Config) {
+		config.ForwardedForHops = hops
+	}
+}
+
+// WithTrustedProxies sets the address ranges of the proxies further out than the ones
+// WithForwardedForHops counts whose X-Forwarded-For entries are trusted to name who connected to
+// them: Firebase Hosting's edges, say, which Google's front end records as the last entry of a
+// request Firebase forwarded (seen from 66.249.93.77 and 66.249.93.133), with the hops left at 1.
+// The client of a request is read past their entries, with WithTrustForwardedFor, and the forwarded
+// host is believed only of a request whose last entry is one of theirs, with WithTrustForwardedHost
+// and WithTrustForwardedFor both, and then only from X-Forwarded-Host.
+//
+// They are what tells a request a proxy forwarded from one sent around it: with them, a request
+// sent to a Cloud Run service's run.app address directly is its caller's, and is looked up by its
+// own Host, where with WithForwardedForHops(2) alone it names any client and any host it likes. They
+// take a list of the proxies' addresses kept current, which the services behind Firebase Hosting do
+// without, passing WithForwardedForHops(2) and accepting that risk.
 //
 // A range is trusted with everything sent from it, so it is to be no wider than the proxies' own: a
 // range shared with anything that sends requests with headers its user chose lets that user name

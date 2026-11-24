@@ -452,6 +452,7 @@ func makeHandler(
 	// and is resolved, and the trusted proxies deciding which forwarded host it believes; the mux
 	// keeps what it resolved.
 	vhostMux.TrustForwardedFor = serviceMux.TrustForwardedFor
+	vhostMux.ForwardedForHops = serviceMux.ForwardedForHops
 	vhostMux.TrustClientHeaders = serviceMux.TrustClientHeaders
 	vhostMux.TrustedProxies = serviceMux.TrustedProxies
 
@@ -465,10 +466,18 @@ const trustConfiguredMessage = "The service trusts the proxies in front as confi
 // logTrust logs, once as the service is made, what it trusts the proxies in front of it to say, so
 // that a service deployed without the options that describe its deployment says so, rather than
 // logging the address of the proxy in front as every client's without a word.
+//
+// The hops are as the mux reads them, 0 being 1, and the forwarded host is gated only where the
+// trusted proxies decide it, with X-Forwarded-For trusted to say which request came through one.
 func logTrust(config *service_config.Config) {
 	trustedProxies := make([]string, 0, len(config.TrustedProxies))
 	for _, prefix := range config.TrustedProxies {
 		trustedProxies = append(trustedProxies, prefix.String())
+	}
+
+	forwardedForHops := config.ForwardedForHops
+	if forwardedForHops == 0 {
+		forwardedForHops = 1
 	}
 
 	slog.Info(
@@ -481,10 +490,14 @@ func logTrust(config *service_config.Config) {
 		slog.Group(
 			"trust",
 			slog.Bool("forwarded_for", config.TrustForwardedFor),
+			slog.Int("forwarded_for_hops", forwardedForHops),
 			slog.Bool("client_headers", config.TrustClientHeaders),
 			slog.Any("trusted_proxies", trustedProxies),
 			slog.Bool("forwarded_host", config.TrustForwardedHost),
-			slog.Bool("forwarded_host_gated", config.TrustForwardedHost && len(config.TrustedProxies) > 0),
+			slog.Bool(
+				"forwarded_host_gated",
+				config.TrustForwardedHost && config.TrustForwardedFor && len(config.TrustedProxies) > 0,
+			),
 		),
 	)
 }
@@ -502,6 +515,14 @@ func New(options ...service_config.Option) (*Service, error) {
 		)
 	}
 
+	// 0 is the default, 1; a negative hops names no entry of X-Forwarded-For.
+	if hops := config.ForwardedForHops; hops < 0 {
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: negative forwarded for hops", altshiftErrors.ErrValidationError),
+			hops,
+		)
+	}
+
 	endpoints, err := withDuplicatedEndpoints(config.Endpoints, config.DuplicatedEndpoints)
 	if err != nil {
 		return nil, fmt.Errorf("with duplicated endpoints: %w", err)
@@ -509,6 +530,7 @@ func New(options ...service_config.Option) (*Service, error) {
 
 	serviceMux := altshiftMux.New(endpoints...)
 	serviceMux.TrustForwardedFor = config.TrustForwardedFor
+	serviceMux.ForwardedForHops = config.ForwardedForHops
 	serviceMux.TrustClientHeaders = config.TrustClientHeaders
 	serviceMux.TrustedProxies = config.TrustedProxies
 
