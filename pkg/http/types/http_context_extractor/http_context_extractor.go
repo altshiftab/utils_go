@@ -1172,94 +1172,10 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 						Normalized: extractNormalizedHeaders(requestHost, e.maskUrlHeaders(requestHeader, base.Url), maskedHeaders),
 					}
 
-					var (
-						clientCityName       = requestHeader.Get("X-Client-Geo-City-Name")
-						clientCountryIsoCode = requestHeader.Get("X-Client-Geo-Country-Iso-Code")
-						clientCityLongLat    = requestHeader.Get("X-Client-Geo-Location")
-						clientRegionIsoCode  = requestHeader.Get("X-Client-Geo-Region-Iso-Code")
-						clientPort           = requestHeader.Get("X-Client-Port")
-						clientTlsJa3         = requestHeader.Get("X-Tls-Ja3-Fingerprint")
-						clientTlsJa4         = requestHeader.Get("X-Tls-Ja4-Fingerprint")
-						serverPort           = requestHeader.Get("X-Server-Port")
-					)
-
-					if clientPort != "" {
-						if clientPortInt, err := strconv.Atoi(clientPort); err == nil && clientPortInt > 0 {
-							ecsClient := base.Client
-							if ecsClient == nil {
-								base.Client = &schema.Target{}
-								ecsClient = base.Client
-							}
-							ecsClient.Port = clientPortInt
-						}
-					}
-
-					if utils.AnyNonZero(clientCityName, clientCountryIsoCode, clientCityLongLat, clientRegionIsoCode) {
-						ecsClient := base.Client
-						if ecsClient == nil {
-							base.Client = &schema.Target{}
-							ecsClient = base.Client
-						}
-
-						ecsClientGeo := ecsClient.Geo
-						if ecsClientGeo == nil {
-							ecsClient.Geo = &schema.Geo{}
-							ecsClientGeo = ecsClient.Geo
-						}
-
-						if clientCityName != "" {
-							ecsClientGeo.CityName = clientCityName
-						}
-
-						if clientCountryIsoCode != "" {
-							ecsClientGeo.CountryIsoCode = clientCountryIsoCode
-
-							if countryName := iso3166.CountryName(clientCountryIsoCode); countryName != "" {
-								ecsClientGeo.CountryName = countryName
-							}
-						}
-
-						if clientRegionIsoCode != "" {
-							ecsClientGeo.RegionIsoCode = clientRegionIsoCode
-						}
-						if clientCityLongLat != "" {
-							if lat, lon, ok := strings.Cut(clientCityLongLat, ","); ok {
-								ecsClientGeo.Location = map[string]string{"lat": lat, "lon": lon}
-							}
-						}
-					}
-
-					if utils.AnyNonZero(clientTlsJa3, clientTlsJa4) {
-						ecsTls := base.Tls
-						if ecsTls == nil {
-							base.Tls = &schema.Tls{}
-							ecsTls = base.Tls
-						}
-
-						ecsTlsClient := ecsTls.Client
-						if ecsTlsClient == nil {
-							ecsTls.Client = &schema.TlsClient{}
-							ecsTlsClient = ecsTls.Client
-						}
-
-						if clientTlsJa3 != "" {
-							ecsTlsClient.Ja3 = clientTlsJa3
-						}
-
-						if clientTlsJa4 != "" {
-							ecsTlsClient.Ja4 = clientTlsJa4
-						}
-					}
-
-					if serverPort != "" {
-						if serverPortInt, err := strconv.Atoi(serverPort); err == nil && serverPortInt > 0 {
-							ecsServer := base.Server
-							if ecsServer == nil {
-								base.Server = &schema.Target{}
-								ecsServer = base.Server
-							}
-							ecsServer.Port = serverPortInt
-						}
+					// What a load balancer in front says of the client and the connection it made, where it
+					// is trusted to have said it; the client wrote the headers otherwise.
+					if httpContext.TrustClientHeaders {
+						recordClientHeaders(base, requestHeader)
 					}
 
 					// TODO: Add community id for client + server; protocol can be inferred based on HTTP version header.
@@ -1321,6 +1237,111 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 	}
 
 	return nil
+}
+
+// writableTarget returns *target to be written to: made where there is none, and copied where it is
+// the connection's own end, so that what a header says of the client or the server is not written
+// over what the connection says of its peer or of itself.
+func writableTarget(target **schema.Target, connection *schema.Target) *schema.Target {
+	switch *target {
+	case nil:
+		*target = &schema.Target{}
+	case connection:
+		copied := *connection
+		if geo := connection.Geo; geo != nil {
+			copiedGeo := *geo
+			copied.Geo = &copiedGeo
+		}
+		*target = &copied
+	}
+
+	return *target
+}
+
+// recordClientHeaders records what a load balancer in front says of the client and the connection
+// it made -- the client's port and location, the TLS fingerprints of its handshake, the port it
+// connected to -- in the client, the server and the TLS fields. The headers are believed as they
+// are: the caller is to call it only where the load balancer replaces what the client sent.
+func recordClientHeaders(base *schema.Base, requestHeader http.Header) {
+	if base == nil {
+		return
+	}
+
+	var (
+		clientCityName       = requestHeader.Get("X-Client-Geo-City-Name")
+		clientCountryIsoCode = requestHeader.Get("X-Client-Geo-Country-Iso-Code")
+		clientCityLongLat    = requestHeader.Get("X-Client-Geo-Location")
+		clientRegionIsoCode  = requestHeader.Get("X-Client-Geo-Region-Iso-Code")
+		clientPort           = requestHeader.Get("X-Client-Port")
+		clientTlsJa3         = requestHeader.Get("X-Tls-Ja3-Fingerprint")
+		clientTlsJa4         = requestHeader.Get("X-Tls-Ja4-Fingerprint")
+		serverPort           = requestHeader.Get("X-Server-Port")
+	)
+
+	if clientPort != "" {
+		if clientPortInt, err := strconv.Atoi(clientPort); err == nil && clientPortInt > 0 {
+			writableTarget(&base.Client, base.Source).Port = clientPortInt
+		}
+	}
+
+	if utils.AnyNonZero(clientCityName, clientCountryIsoCode, clientCityLongLat, clientRegionIsoCode) {
+		ecsClient := writableTarget(&base.Client, base.Source)
+
+		ecsClientGeo := ecsClient.Geo
+		if ecsClientGeo == nil {
+			ecsClient.Geo = &schema.Geo{}
+			ecsClientGeo = ecsClient.Geo
+		}
+
+		if clientCityName != "" {
+			ecsClientGeo.CityName = clientCityName
+		}
+
+		if clientCountryIsoCode != "" {
+			ecsClientGeo.CountryIsoCode = clientCountryIsoCode
+
+			if countryName := iso3166.CountryName(clientCountryIsoCode); countryName != "" {
+				ecsClientGeo.CountryName = countryName
+			}
+		}
+
+		if clientRegionIsoCode != "" {
+			ecsClientGeo.RegionIsoCode = clientRegionIsoCode
+		}
+		if clientCityLongLat != "" {
+			if lat, lon, ok := strings.Cut(clientCityLongLat, ","); ok {
+				ecsClientGeo.Location = map[string]string{"lat": lat, "lon": lon}
+			}
+		}
+	}
+
+	if utils.AnyNonZero(clientTlsJa3, clientTlsJa4) {
+		ecsTls := base.Tls
+		if ecsTls == nil {
+			base.Tls = &schema.Tls{}
+			ecsTls = base.Tls
+		}
+
+		ecsTlsClient := ecsTls.Client
+		if ecsTlsClient == nil {
+			ecsTls.Client = &schema.TlsClient{}
+			ecsTlsClient = ecsTls.Client
+		}
+
+		if clientTlsJa3 != "" {
+			ecsTlsClient.Ja3 = clientTlsJa3
+		}
+
+		if clientTlsJa4 != "" {
+			ecsTlsClient.Ja4 = clientTlsJa4
+		}
+	}
+
+	if serverPort != "" {
+		if serverPortInt, err := strconv.Atoi(serverPort); err == nil && serverPortInt > 0 {
+			writableTarget(&base.Server, base.Destination).Port = serverPortInt
+		}
+	}
 }
 
 func New(options ...http_context_extractor_config.Option) *Extractor {
