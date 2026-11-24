@@ -458,6 +458,37 @@ func makeHandler(
 	return vhostMux, nil
 }
 
+// trustConfiguredMessage is the message New logs what the service trusts the proxies in front of it
+// to say under.
+const trustConfiguredMessage = "The service trusts the proxies in front as configured."
+
+// logTrust logs, once as the service is made, what it trusts the proxies in front of it to say, so
+// that a service deployed without the options that describe its deployment says so, rather than
+// logging the address of the proxy in front as every client's without a word.
+func logTrust(config *service_config.Config) {
+	trustedProxies := make([]string, 0, len(config.TrustedProxies))
+	for _, prefix := range config.TrustedProxies {
+		trustedProxies = append(trustedProxies, prefix.String())
+	}
+
+	slog.Info(
+		trustConfiguredMessage,
+		slog.Group(
+			"event",
+			slog.String("action", "service_trust_configured"),
+			slog.String("reason", trustConfiguredMessage),
+		),
+		slog.Group(
+			"trust",
+			slog.Bool("forwarded_for", config.TrustForwardedFor),
+			slog.Bool("client_headers", config.TrustClientHeaders),
+			slog.Any("trusted_proxies", trustedProxies),
+			slog.Bool("forwarded_host", config.TrustForwardedHost),
+			slog.Bool("forwarded_host_gated", config.TrustForwardedHost && len(config.TrustedProxies) > 0),
+		),
+	)
+}
+
 func New(options ...service_config.Option) (*Service, error) {
 	config := service_config.New(options...)
 	if config == nil {
@@ -517,6 +548,8 @@ func New(options ...service_config.Option) (*Service, error) {
 		DisableGeneralOptionsHandler: !config.GeneralOptionsHandler,
 		ErrorLog:                     errorLog,
 	}
+
+	logTrust(config)
 
 	return &Service{
 		Server:          server,
