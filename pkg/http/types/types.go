@@ -29,6 +29,14 @@ type HttpContext struct {
 	Extra            []*HttpContext
 	LocalAddr        net.Addr
 	RemoteAddr       net.Addr
+	// ClientAddress is the address of the client that made the request, as a proxy in front reported
+	// it and the mux was configured to believe, resolved when the request arrived. It is empty where
+	// nothing believed reported one, and the client is then the connection's own peer.
+	ClientAddress string
+	// TrustClientHeaders says that the X-Client-*, X-Server-Port and X-Tls-*-Fingerprint headers of
+	// the request were set by a load balancer in front, and are to be recorded as what it says of the
+	// client and the connection the client made; otherwise they are the client's to write.
+	TrustClientHeaders bool
 }
 
 func getFullType(typeValue string, subtypeValue string, normalize bool) string {

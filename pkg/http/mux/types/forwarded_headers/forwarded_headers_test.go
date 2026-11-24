@@ -404,3 +404,210 @@ func TestHostFromAuthority(t *testing.T) {
 		})
 	}
 }
+
+// The client's address is believed only from the headers a deployment says a
+// proxy in front writes, and only from the first entry of X-Forwarded-For.
+func TestClientAddress(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name               string
+		lines              map[string][]string
+		trustForwardedFor  bool
+		trustClientHeaders bool
+		expected           string
+	}{
+		{
+			name:     "nothing trusted",
+			lines:    map[string][]string{"X-Forwarded-For": {"192.0.2.1"}, "X-Client-Ip-Address": {"192.0.2.3"}},
+			expected: "",
+		},
+		{
+			name:              "one entry",
+			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.1"}},
+			trustForwardedFor: true,
+			expected:          "192.0.2.1",
+		},
+		{
+			name:              "two entries, the first wins",
+			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.1, 198.51.100.1"}},
+			trustForwardedFor: true,
+			expected:          "192.0.2.1",
+		},
+		{
+			name:              "two lines, the first line's entry wins",
+			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.1", "198.51.100.1"}},
+			trustForwardedFor: true,
+			expected:          "192.0.2.1",
+		},
+		{
+			name:              "spaces around the entry",
+			lines:             map[string][]string{"X-Forwarded-For": {"  192.0.2.1  ,198.51.100.1"}},
+			trustForwardedFor: true,
+			expected:          "192.0.2.1",
+		},
+		{
+			name:              "empty list elements before the entry",
+			lines:             map[string][]string{"X-Forwarded-For": {" , ,192.0.2.1"}},
+			trustForwardedFor: true,
+			expected:          "192.0.2.1",
+		},
+		{
+			name:              "an IPv4 address and a port",
+			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.1:54321"}},
+			trustForwardedFor: true,
+			expected:          "192.0.2.1",
+		},
+		{
+			name:              "a bare IPv6 address",
+			lines:             map[string][]string{"X-Forwarded-For": {"2001:DB8::1, 198.51.100.1"}},
+			trustForwardedFor: true,
+			expected:          "2001:db8::1",
+		},
+		{
+			name:              "a bracketed IPv6 address",
+			lines:             map[string][]string{"X-Forwarded-For": {"[2001:db8::1]"}},
+			trustForwardedFor: true,
+			expected:          "2001:db8::1",
+		},
+		{
+			name:              "a bracketed IPv6 address and a port",
+			lines:             map[string][]string{"X-Forwarded-For": {"[2001:db8::1]:443"}},
+			trustForwardedFor: true,
+			expected:          "2001:db8::1",
+		},
+		{
+			name:              "an IPv4-mapped IPv6 address",
+			lines:             map[string][]string{"X-Forwarded-For": {"::ffff:192.0.2.1"}},
+			trustForwardedFor: true,
+			expected:          "192.0.2.1",
+		},
+		{
+			name:              "a bracketed IPv4-mapped IPv6 address and a port",
+			lines:             map[string][]string{"X-Forwarded-For": {"[::ffff:192.0.2.1]:443"}},
+			trustForwardedFor: true,
+			expected:          "192.0.2.1",
+		},
+		{
+			name:              "an address with a zone",
+			lines:             map[string][]string{"X-Forwarded-For": {"fe80::1%eth0, 198.51.100.1"}},
+			trustForwardedFor: true,
+			expected:          "",
+		},
+		{
+			name:              "a bracketed address with a zone and a port",
+			lines:             map[string][]string{"X-Forwarded-For": {"[fe80::1%eth0]:443"}},
+			trustForwardedFor: true,
+			expected:          "",
+		},
+		{
+			name:              "a bracketed IPv4 address",
+			lines:             map[string][]string{"X-Forwarded-For": {"[192.0.2.1]"}},
+			trustForwardedFor: true,
+			expected:          "",
+		},
+		{
+			name:              "unknown first, and no later entry answers",
+			lines:             map[string][]string{"X-Forwarded-For": {"unknown, 198.51.100.1"}},
+			trustForwardedFor: true,
+			expected:          "",
+		},
+		{
+			name:              "garbage first, and no later entry answers",
+			lines:             map[string][]string{"X-Forwarded-For": {"not an address", "198.51.100.1"}},
+			trustForwardedFor: true,
+			expected:          "",
+		},
+		{
+			name:              "a name first",
+			lines:             map[string][]string{"X-Forwarded-For": {"client.example.com, 198.51.100.1"}},
+			trustForwardedFor: true,
+			expected:          "",
+		},
+		{
+			name:              "no header",
+			trustForwardedFor: true,
+			expected:          "",
+		},
+		{
+			name:               "the client headers, trusted",
+			lines:              map[string][]string{"X-Client-Ip-Address": {"192.0.2.3"}, "X-Forwarded-For": {"192.0.2.1"}},
+			trustForwardedFor:  true,
+			trustClientHeaders: true,
+			expected:           "192.0.2.3",
+		},
+		{
+			name:               "the client headers, trusted without X-Forwarded-For",
+			lines:              map[string][]string{"X-Client-Ip-Address": {" 2001:db8::3 "}, "X-Forwarded-For": {"192.0.2.1"}},
+			trustClientHeaders: true,
+			expected:           "2001:db8::3",
+		},
+		{
+			name:               "the client headers not trusted, X-Forwarded-For trusted",
+			lines:              map[string][]string{"X-Client-Ip-Address": {"192.0.2.3"}, "X-Forwarded-For": {"192.0.2.1"}},
+			trustForwardedFor:  true,
+			trustClientHeaders: false,
+			expected:           "192.0.2.1",
+		},
+		{
+			name:               "an invalid client address falls to a trusted X-Forwarded-For",
+			lines:              map[string][]string{"X-Client-Ip-Address": {"not an address"}, "X-Forwarded-For": {"192.0.2.1"}},
+			trustForwardedFor:  true,
+			trustClientHeaders: true,
+			expected:           "192.0.2.1",
+		},
+		{
+			name:               "an invalid client address and an untrusted X-Forwarded-For",
+			lines:              map[string][]string{"X-Client-Ip-Address": {"not an address"}, "X-Forwarded-For": {"192.0.2.1"}},
+			trustClientHeaders: true,
+			expected:           "",
+		},
+		{
+			name:               "a client address given on two lines",
+			lines:              map[string][]string{"X-Client-Ip-Address": {"192.0.2.3", "192.0.2.4"}},
+			trustClientHeaders: true,
+			expected:           "",
+		},
+		{
+			name:               "Forwarded alone, everything trusted",
+			lines:              map[string][]string{"Forwarded": {"for=192.0.2.2;proto=https"}},
+			trustForwardedFor:  true,
+			trustClientHeaders: true,
+			expected:           "",
+		},
+		{
+			name: "Forwarded ahead of X-Forwarded-For",
+			lines: map[string][]string{
+				"Forwarded":       {"for=192.0.2.2"},
+				"X-Forwarded-For": {"192.0.2.1"},
+			},
+			trustForwardedFor: true,
+			expected:          "192.0.2.1",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			header := http.Header{}
+			for name, lines := range testCase.lines {
+				for _, line := range lines {
+					header.Add(name, line)
+				}
+			}
+
+			address := ClientAddress(header, testCase.trustForwardedFor, testCase.trustClientHeaders)
+			if address != testCase.expected {
+				t.Fatalf(
+					"ClientAddress(%v, %t, %t) = %q, want %q",
+					testCase.lines,
+					testCase.trustForwardedFor,
+					testCase.trustClientHeaders,
+					address,
+					testCase.expected,
+				)
+			}
+		})
+	}
+}

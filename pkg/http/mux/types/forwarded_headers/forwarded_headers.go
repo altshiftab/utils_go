@@ -1,11 +1,14 @@
 // Package forwarded_headers reads what the proxies in front of a service say
-// about the request the client actually made: RFC 7239's `Forwarded`, and the
-// older `X-Forwarded-*` headers it replaced.
+// about the request the client actually made: RFC 7239's `Forwarded`, the
+// older `X-Forwarded-*` headers it replaced, and the `X-Client-*` headers a
+// load balancer sets.
 //
-// It is one package rather than a helper in each caller because the precedence
-// rule -- `Forwarded` first, then `X-Forwarded-*` -- is the same wherever the
-// question is asked, and two copies of it are two chances to answer the same
-// request differently.
+// It is one package rather than a helper in each caller because which header
+// answers which question is decided once, and two copies of the decision are
+// two chances to answer the same request differently. The scheme and the host
+// are read from `Forwarded` first, then from `X-Forwarded-*`; the client's
+// address is not read from `Forwarded` at all, for the reason ClientAddress
+// gives.
 package forwarded_headers
 
 import (
@@ -204,6 +207,90 @@ func Host(request *http.Request, trustForwarded bool) string {
 // yields the empty string, which matches no configured host.
 func HostFromAuthority(authority string) string {
 	return normalizeHost(authority)
+}
+
+// parseClientAddress reads an address as a proxy writes a client's: bare, with
+// a port, or bracketed, in any of the forms an IPv6 address takes. An
+// IPv4-mapped IPv6 address is the IPv4 address it maps, so that one client is
+// logged as one address. A zone names an interface of the machine that wrote
+// it, which no proxy in front has any business naming, so an address with one
+// is not an address of a client.
+func parseClientAddress(value string) (netip.Addr, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return netip.Addr{}, false
+	}
+
+	address, err := netip.ParseAddr(value)
+	if err != nil {
+		if addressPort, portErr := netip.ParseAddrPort(value); portErr == nil {
+			address = addressPort.Addr()
+		} else if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
+			// Brackets hold an IPv6 address and nothing else, as in an
+			// authority.
+			bracketed, bracketedErr := netip.ParseAddr(value[1 : len(value)-1])
+			if bracketedErr != nil || !bracketed.Is6() {
+				return netip.Addr{}, false
+			}
+			address = bracketed
+		} else {
+			return netip.Addr{}, false
+		}
+	}
+
+	if address.Zone() != "" {
+		return netip.Addr{}, false
+	}
+
+	return address.Unmap(), true
+}
+
+// ClientAddress returns the address of the client that made the request, as
+// the proxies in front report it and the caller says they are to be believed,
+// or the empty string where nothing believed reports one -- in which case the
+// client is the connection's own peer, and the caller reads it from there.
+//
+// With trustClientHeaders, X-Client-Ip-Address answers first. Set it only where
+// a load balancer in front sets that header on every request, replacing what
+// the client sent, AND nothing reaches the service except through it. A header
+// given on more than one line was not replaced by one proxy, and answers
+// nothing.
+//
+// With trustForwardedFor, the first entry of X-Forwarded-For answers next,
+// across every line of the header. Set it only where every path to the service
+// passes a proxy that rewrites the header so that its first entry is the
+// address that connected to it: Google's front end on Cloud Run, reached at the
+// run.app address or through Firebase Hosting, or a reverse proxy that replaces
+// the header. A proxy that appends to the header -- an external Application
+// Load Balancer, or a forward proxy passing on what the client sent -- leaves
+// the first entry the client's to write.
+//
+// Only the first entry is read, an empty list element being none (RFC 9110,
+// section 5.6.1). One that is not an address -- `unknown`, an obfuscated
+// identifier, anything else -- answers nothing, rather than letting a later
+// entry answer instead: the later entries are the proxies the request passed
+// through, and none of them is the client.
+//
+// `Forwarded` is not read for the address at all, whatever is trusted. A proxy
+// that rewrites X-Forwarded-For need not touch `Forwarded`, and one that does
+// not passes on what the client wrote there, which would then answer for the
+// client as though a proxy had.
+func ClientAddress(header http.Header, trustForwardedFor bool, trustClientHeaders bool) string {
+	if trustClientHeaders {
+		if lines := header.Values("X-Client-Ip-Address"); len(lines) == 1 {
+			if address, ok := parseClientAddress(lines[0]); ok {
+				return address.String()
+			}
+		}
+	}
+
+	if trustForwardedFor {
+		if address, ok := parseClientAddress(firstListItem(header, "X-Forwarded-For")); ok {
+			return address.String()
+		}
+	}
+
+	return ""
 }
 
 type authorityContextType struct{}

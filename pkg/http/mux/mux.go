@@ -24,6 +24,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/body_parser"
 	endpointPkg "github.com/altshiftab/utils_go/pkg/http/mux/types/endpoint"
 	muxTypesFirewall "github.com/altshiftab/utils_go/pkg/http/mux/types/firewall_verdict"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/forwarded_headers"
 	muxTypesMiddleware "github.com/altshiftab/utils_go/pkg/http/mux/types/middleware"
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/request_parser"
 	muxTypesResponse "github.com/altshiftab/utils_go/pkg/http/mux/types/response"
@@ -80,6 +81,36 @@ type baseMux struct {
 	// the request ends otherwise, which for a large download or a stream left open is memory that nothing
 	// reads. An inner mux leaves an outer one's setting alone unless it has one of its own.
 	MaxStoredResponseBodySize int
+	// TrustForwardedFor makes the client's address the first entry of X-Forwarded-For, which is
+	// otherwise the client's to write; see forwarded_headers.ClientAddress for where that is safe.
+	TrustForwardedFor bool
+	// TrustClientHeaders makes the client's address X-Client-Ip-Address, ahead of X-Forwarded-For,
+	// and has the log record what the X-Client-*, X-Server-Port and X-Tls-*-Fingerprint headers say;
+	// see forwarded_headers.ClientAddress for where that is safe.
+	//
+	// The two are resolved into the HTTP context as the request arrives at the mux, so that what is
+	// logged of it later reads the request as it came rather than whatever the context holds by then.
+	// An inner mux keeps what an outer one resolved unless it trusts something of its own.
+	TrustClientHeaders bool
+}
+
+// resolveClient records on the HTTP context of a request arriving at the mux who the client is, as
+// the mux is configured to believe the proxies in front. A request reaching it through an outer mux
+// keeps what that one resolved, unless this one trusts something of its own.
+func (bm *baseMux) resolveClient(httpContext *altshiftHttpTypes.HttpContext, outer *altshiftHttpTypes.HttpContext) {
+	if outer != nil && !bm.TrustForwardedFor && !bm.TrustClientHeaders {
+		httpContext.ClientAddress = outer.ClientAddress
+		httpContext.TrustClientHeaders = outer.TrustClientHeaders
+		return
+	}
+
+	var header http.Header
+	if request := httpContext.Request; request != nil {
+		header = request.Header
+	}
+
+	httpContext.ClientAddress = forwarded_headers.ClientAddress(header, bm.TrustForwardedFor, bm.TrustClientHeaders)
+	httpContext.TrustClientHeaders = bm.TrustClientHeaders
 }
 
 //nolint:contextcheck,fatcontext // The request context is deliberately extended and reassigned via request.WithContext; contextcheck cannot track the chain, and the loop builds one derived context from the configured pairs.
@@ -107,7 +138,9 @@ func (bm *baseMux) ServeHttpWithCallback(
 
 	// Create an HTTP context and populate it with the request and put it in the request context.
 
+	outerHttpContext, _ := request.Context().Value(MuxHttpContextContextKey).(*altshiftHttpTypes.HttpContext)
 	httpContext := &altshiftHttpTypes.HttpContext{Request: request}
+	bm.resolveClient(httpContext, outerHttpContext)
 	request = request.WithContext(
 		context.WithValue(request.Context(), MuxHttpContextContextKey, httpContext),
 	)
