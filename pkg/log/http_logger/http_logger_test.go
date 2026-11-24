@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json/v2"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -291,6 +292,87 @@ func TestNewWithGcpMasksAUrlPath(t *testing.T) {
 		if strings.Contains(logged, form) {
 			t.Errorf("the log holds %q: %s", form, logged)
 		}
+	}
+}
+
+// The message an error is logged with is the caller's, and often has the error and the URL it
+// failed for written into it. It is masked as the error is, whether the error carries the HTTP context
+// of its request for itself, as a fetch's does, or carries none, as the Go client's does: the logging
+// context carries neither.
+func TestNewMasksTheMessageOfAFailedRequest(t *testing.T) {
+	t.Parallel()
+
+	const (
+		name  = "AnnaAndersson"
+		token = "zhhjetavkELn1GOhywaXHdOatMAmhMro6ksgHu2XP7o" //nolint:gosec // G101: a stand-in, not a token.
+	)
+
+	// A server that is gone, so that every request fails before it is answered.
+	server := httptest.NewServer(http.NotFoundHandler())
+	target := server.URL + "/v1.0/drives/d/items/f:/" + name + ":/content?token=" + token
+	server.Close()
+
+	testCases := []struct {
+		name    string
+		request func(t *testing.T) error
+	}{
+		{
+			name: "a fetch, its error carrying the HTTP context of its request",
+			request: func(t *testing.T) error {
+				_, _, err := altshiftHttpUtils.Fetch(t.Context(), target, fetch_config.WithHttpClient(&http.Client{}))
+				return err
+			},
+		},
+		{
+			name: "a request of the Go client, its error carrying none",
+			request: func(t *testing.T) error {
+				request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
+				if err != nil {
+					t.Fatalf("new request: %v", err)
+				}
+				response, err := (&http.Client{}).Do(request)
+				if response != nil {
+					_ = response.Body.Close()
+				}
+				return err
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			extractor := http_context_extractor.New(
+				http_context_extractor_config.WithMaskedUrlPaths(&http_context_extractor_config.MaskedUrlPath{
+					Pattern: regexp.MustCompile(`:/([^:]+):`),
+				}),
+				http_context_extractor_config.WithMaskedUrlParams(&schema.Url{Query: "token"}),
+			)
+
+			var buffer bytes.Buffer
+			logger := New(http_logger_config.WithWriter(&buffer), http_logger_config.WithHttpContextExtractor(extractor))
+
+			failed := testCase.request(t)
+			if failed == nil {
+				t.Fatalf("%s: expected an error once the server was gone", testCase.name)
+			}
+			if !strings.Contains(failed.Error(), name) {
+				t.Fatalf("%s: the error does not carry the URL, so the test shows nothing: %v", testCase.name, failed)
+			}
+			logger.Error(fmt.Sprintf("The fetch of %s failed: %v", target, failed), failed)
+
+			logged := buffer.String()
+			message, _ := logRecord(t, &buffer)["msg"].(string)
+			if !strings.Contains(message, "/v1.0/drives/d/items/f:/") || !strings.Contains(message, "(MASKED)") {
+				t.Fatalf("%s: the message does not carry the masked URL, so the test shows nothing: %q", testCase.name, message)
+			}
+			for _, secret := range []string{name, token} {
+				if strings.Contains(logged, secret) {
+					t.Errorf("%s: the log holds %q: %s", testCase.name, secret, logged)
+				}
+			}
+		})
 	}
 }
 

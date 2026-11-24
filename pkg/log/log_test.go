@@ -897,3 +897,58 @@ func TestErrorContextExtractorMasksText(t *testing.T) {
 		})
 	}
 }
+
+// The message of a record an error is logged with is the caller's, and often has the error -- the
+// URL its request was for included -- written into it. Each of the context extractors that masks
+// text masks it there, as it does the error's own message, whether or not the logging context
+// carries what it would mask the message for: a fetch's error carries the HTTP context of its
+// request for itself.
+func TestErrorContextExtractorMasksTheMessage(t *testing.T) {
+	t.Parallel()
+
+	const word = "SECRET-WORD"
+	extractor := &ErrorContextExtractor{ContextExtractors: []ContextExtractor{maskingExtractor{word: word}}}
+
+	requestCtx := context.WithValue(context.Background(), ctxKey, "the request")
+	failed := fmt.Errorf("put https://example.com/%s: %w", word, errMaskingTest)
+	unparsed := &url.Error{Op: "parse", URL: "https://example.com/Anna " + word + " 100%.pptx", Err: errMaskingTest}
+
+	testCases := []struct {
+		name    string
+		err     error
+		message string
+	}{
+		{name: "a URL the caller wrote", err: errMaskingTest, message: "put https://example.com/" + word + " failed"},
+		{name: "an error written in", err: failed, message: fmt.Sprintf("the upload failed: %v", failed)},
+		{
+			name:    "an error carrying the context of its request, written in",
+			err:     altshiftErrors.NewCtx(requestCtx, failed),
+			message: fmt.Sprintf("the upload failed: %v", altshiftErrors.NewCtx(requestCtx, failed)),
+		},
+		{
+			// Masked as the URL it is, the error knowing it to be one: what a text matcher finds of
+			// it ends at the first space.
+			name:    "a url that did not parse, written in",
+			err:     fmt.Errorf("upload: %w", unparsed),
+			message: fmt.Sprintf("the upload failed: %v", unparsed),
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			record := slog.NewRecord(time.Time{}, slog.LevelError, testCase.message, 0)
+			if err := extractor.Handle(context2.WithError(context.Background(), testCase.err), &record); err != nil {
+				t.Fatalf("handle: %v", err)
+			}
+
+			if !strings.Contains(record.Message, "(MASKED)") {
+				t.Fatalf("%s: nothing was masked: %s", testCase.name, record.Message)
+			}
+			if strings.Contains(record.Message, word) {
+				t.Errorf("%s: the message kept %q: %s", testCase.name, word, record.Message)
+			}
+		})
+	}
+}

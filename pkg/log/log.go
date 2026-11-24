@@ -28,8 +28,9 @@ type ContextExtractor interface {
 
 // TextMasker is a context extractor that can also mask what a line of text says, which the error
 // context extractor asks of each of its extractors that is one: an error's message and the values it
-// carries are written out as text, and are masked as the extractor masks what it writes itself. The
-// HTTP context extractor is one, masking the URLs a text is written with.
+// carries are written out as text, as is the message of the record the error is logged with, and are
+// masked as the extractor masks what it writes itself. The HTTP context extractor is one, masking the
+// URLs a text is written with.
 type TextMasker interface {
 	MaskText(text string) string
 }
@@ -144,14 +145,6 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 
 	errorMessage := err.Error()
 	errType := reflect.TypeOf(err).String()
-
-	// The URL a request failed for is written into the message whole, and masked there as the URL it
-	// is rather than as whatever a text matcher finds of it.
-	if urlErr, ok := errors.AsType[*url.Error](err); ok && urlErr.URL != "" {
-		if masked := extractor.maskUrl(urlErr.URL); masked != urlErr.URL {
-			errorMessage = strings.ReplaceAll(errorMessage, urlErr.URL, masked)
-		}
-	}
 
 	var attrs []any
 
@@ -293,10 +286,24 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 
 	if errorMessage != "" {
 		// Masked as the inputs are: a message that formats a token in with %s would write it whole.
-		attrs = append(attrs, slog.String("message", extractor.maskText(altshiftJws.MaskSignatures(errorMessage))))
+		attrs = append(attrs, slog.String("message", extractor.maskErrorText(err, errorMessage)))
 	}
 
 	return attrs
+}
+
+// maskErrorText is text an error is written into -- its own message, or the message of the record
+// it is logged with -- masked as the error's message is: the URL a *url.Error carries as the URL it
+// is, rather than as whatever a text matcher finds of it, then every token's signature and the URLs
+// the text is written with.
+func (extractor *ErrorContextExtractor) maskErrorText(err error, text string) string {
+	if urlErr, ok := errors.AsType[*url.Error](err); ok && urlErr.URL != "" {
+		if masked := extractor.maskUrl(urlErr.URL); masked != urlErr.URL {
+			text = strings.ReplaceAll(text, urlErr.URL, masked)
+		}
+	}
+
+	return extractor.maskText(altshiftJws.MaskSignatures(text))
 }
 
 // maskUrl is a URL as each of the context extractors that masks URLs has it; see UrlMasker.
@@ -332,6 +339,13 @@ func (extractor *ErrorContextExtractor) Handle(ctx context.Context, record *slog
 	var contextExtractorErrs []error
 
 	if logErr, ok := ctx.Value(context2.ErrorContextKey).(error); ok {
+		// The message is the caller's, and often has the error written into it, the URL it failed
+		// for included. Masked as the error's own message is, it does not give away what that one
+		// keeps back -- whatever the logging context carries: an error that holds the HTTP context
+		// of its request, as a fetch's does, holds it for itself, and the HTTP context extractor
+		// masks the message only for a logging context that carries one.
+		record.Message = extractor.maskErrorText(logErr, record.Message)
+
 		record.Add(slog.Group("error", extractor.MakeErrorAttrs(logErr)...))
 
 		if contextErr, ok := errors.AsType[altshiftErrors.ContextErrorI](logErr); ok {
@@ -410,9 +424,10 @@ func (extractor *ErrorContextExtractor) Handle(ctx context.Context, record *slog
 			var contextAttrs []any
 
 			// The URL a request was for, which the masks declared for a URL apply to wherever it is
-			// written; masked as a URL, being known to be one.
+			// written; masked as a URL, being known to be one. A token in it loses its signature, as
+			// it does in the error's message, which has the same URL written into it.
 			if urlStr := urlErr.URL; urlStr != "" {
-				contextAttrs = append(contextAttrs, slog.Group("url", slog.String("original", extractor.maskUrl(urlStr))))
+				contextAttrs = append(contextAttrs, slog.Group("url", slog.String("original", altshiftJws.MaskSignatures(extractor.maskUrl(urlStr)))))
 			}
 
 			if op := urlErr.Op; op != "" {
