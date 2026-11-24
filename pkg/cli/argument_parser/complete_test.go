@@ -427,6 +427,10 @@ func TestCompleteAgreesWithParse(t *testing.T) {
 		{name: "second positional", words: []string{"p", "x"}, want: "second"},
 		{name: "second positional again", words: []string{"p", "q", "x"}, want: "second"},
 		{name: "attached value then positional", words: []string{"-av", "x"}, want: "first"},
+		{name: "a dash value to an option that takes it", words: []string{"-a", "-10s"}, want: "a"},
+		{name: "a dash value to a positional that takes it", words: []string{"p", "-10s"}, want: "second"},
+		{name: "after a dash value", words: []string{"p", "-10s", "x"}, want: "second"},
+		{name: "after an option's dash value", words: []string{"-a", "-10s", "x"}, want: "first"},
 	}
 
 	for _, testCase := range testCases {
@@ -449,13 +453,16 @@ func TestCompleteAgreesWithParse(t *testing.T) {
 			parser := &Parser{
 				ProgramName: "prog",
 				Options: []option.Option{
-					option.WithCompleter(option.NewStringOption('a', "", "", false, &a), recording("a")),
+					option.WithDashValues(option.WithCompleter(option.NewStringOption('a', "", "", false, &a), recording("a")), dashDigit),
 					option.WithCompleter(option.NewStringOption(0, "bb", "", false, &bb), recording("bb")),
 					option.WithCompleter(option.WithNargs(option.NewStringsOption('c', "", "", false, &c), option.NargsAny), recording("c")),
 				},
 				Positionals: []option.Option{
 					option.WithCompleter(option.WithNargs(option.NewStringOption(0, "", "", false, &first), option.NargsOptional), recording("first")),
-					option.WithCompleter(option.WithNargs(option.NewStringsOption(0, "", "", false, &second), option.NargsAny), recording("second")),
+					option.WithDashValues(
+						option.WithCompleter(option.WithNargs(option.NewStringsOption(0, "", "", false, &second), option.NargsAny), recording("second")),
+						dashDigit,
+					),
 				},
 			}
 
@@ -471,12 +478,13 @@ func TestCompleteAgreesWithParse(t *testing.T) {
 				t.Fatalf("parse args: %v", err)
 			}
 
+			word := testCase.words[len(testCase.words)-1]
 			parsed := map[string]bool{
-				"a":      a == "x",
-				"bb":     bb == "x",
-				"first":  first == "x",
-				"c":      slices.Contains(c, "x"),
-				"second": slices.Contains(second, "x"),
+				"a":      a == word,
+				"bb":     bb == word,
+				"first":  first == word,
+				"c":      slices.Contains(c, word),
+				"second": slices.Contains(second, word),
 			}
 			if !parsed[testCase.want] {
 				t.Errorf("parse gave the word elsewhere: %v", parsed)
@@ -761,6 +769,45 @@ func TestCompleteOffersAccumulatingOptionsAgain(t *testing.T) {
 			}
 			if got := values(completion); !slices.Equal(got, testCase.want) {
 				t.Errorf("candidates: got %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
+// TestCompleteAfterADashValue pins that a dash value counts as the positional it fills, so that the
+// word after it is offered nothing the parse would refuse.
+func TestCompleteAfterADashValue(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		words     []string
+		wantFiles bool
+	}{
+		{name: "the positional is offered", words: []string{""}, wantFiles: true},
+		{name: "a dash value being typed is the positional's", words: []string{"-10s"}, wantFiles: true},
+		{name: "a word the test refuses is options", words: []string{"-x"}, wantFiles: false},
+		{name: "nothing is left after it", words: []string{"-10s", ""}, wantFiles: false},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var amount string
+			parser := &Parser{
+				ProgramName: "seek",
+				Positionals: []option.Option{
+					option.WithMetavar(option.WithDashValues(option.NewStringOption(0, "", "", true, &amount), dashDigit), "AMOUNT"),
+				},
+			}
+
+			completion, err := parser.Complete(t.Context(), testCase.words)
+			if err != nil {
+				t.Fatalf("complete: %v", err)
+			}
+			if got := slices.Contains(completion.Directives, DirectiveFiles); got != testCase.wantFiles {
+				t.Errorf("files offered = %v, want %v (completion %+v)", got, testCase.wantFiles, completion)
 			}
 		})
 	}

@@ -2455,7 +2455,7 @@ func TestAssignPositionals(t *testing.T) {
 				positionals[index] = positional(targets[index], fmt.Sprintf("P%d", index), nargs)
 			}
 
-			leftover, err := assignPositionals(positionals, testCase.args)
+			leftover, err := assignPositionals(positionals, testCase.args, nil)
 			if testCase.wantErr != nil {
 				if !errors.Is(err, testCase.wantErr) {
 					t.Errorf("unexpected error = %v, want %v", err, testCase.wantErr)
@@ -3172,5 +3172,141 @@ func TestGivenAfterDispatchToASubparser(t *testing.T) {
 	}
 	if !child.Given(countOption) {
 		t.Error("child Given(count) = false after run -n 3, want true")
+	}
+}
+
+// dashDigit takes the words a seek takes: a dash, then a digit, as "-10s".
+func dashDigit(word string) bool {
+	return len(word) > 1 && word[1] >= '0' && word[1] <= '9'
+}
+
+func TestParseArgsDashValues(t *testing.T) {
+	t.Parallel()
+
+	acceptsAll := func(string) bool { return true }
+
+	testCases := []struct {
+		name string
+		args []string
+		// accepts is what the option -o and the positional SECOND take; dashDigit where nil.
+		accepts     func(string) bool
+		digitOption bool
+		wantVerbose bool
+		wantOne     bool
+		wantDevice  string
+		wantOffset  string
+		wantFirst   string
+		wantSecond  string
+		wantErr     error
+	}{
+		{name: "a positional that takes it", args: []string{"-10s"}, wantSecond: "-10s"},
+		{name: "beside an option", args: []string{"-v", "-10s"}, wantVerbose: true, wantSecond: "-10s"},
+		{name: "before an option", args: []string{"-10s", "-v"}, wantVerbose: true, wantSecond: "-10s"},
+		{name: "after the other positional", args: []string{"x", "-10s"}, wantFirst: "x", wantSecond: "-10s"},
+		{
+			name:    "landing in a positional that does not take it",
+			args:    []string{"-10s", "x"},
+			wantErr: argumentParserErrors.ErrNameNotFound,
+		},
+		{
+			name:    "with nowhere left to go",
+			args:    []string{"x", "-10s", "-20s"},
+			wantErr: argumentParserErrors.ErrNameNotFound,
+		},
+		{name: "a word the test refuses", args: []string{"-x1"}, wantErr: argumentParserErrors.ErrNameNotFound},
+		{name: "an option that takes it", args: []string{"-o", "-10s", "x"}, wantOffset: "-10s", wantSecond: "x"},
+		{
+			name:    "an option that does not take it",
+			args:    []string{"-d", "-10s"},
+			wantErr: argumentParserErrors.ErrNameNotFound,
+		},
+		{
+			name:        "a word that reads as options stays options",
+			args:        []string{"-v", "x"},
+			accepts:     acceptsAll,
+			wantVerbose: true,
+			wantSecond:  "x",
+		},
+		{
+			name:       "an attached value stays the option's",
+			args:       []string{"-d-10s", "x"},
+			accepts:    acceptsAll,
+			wantDevice: "-10s",
+			wantSecond: "x",
+		},
+		{
+			name:    "a word with two dashes is an option",
+			args:    []string{"--10s"},
+			accepts: acceptsAll,
+			wantErr: argumentParserErrors.ErrNameNotFound,
+		},
+		{name: "after a terminator as before", args: []string{"--", "-1v"}, wantSecond: "-1v"},
+		{name: "an option named by a digit", args: []string{"-1"}, digitOption: true, wantErr: argumentParserErrors.ErrMissingPositional, wantOne: true},
+		{
+			name:        "a word that fails even with an option named by a digit",
+			args:        []string{"-10s"},
+			digitOption: true,
+			wantSecond:  "-10s",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			accepts := testCase.accepts
+			if accepts == nil {
+				accepts = dashDigit
+			}
+
+			var verbose, one bool
+			var device, offset, first, second string
+
+			options := []option.Option{
+				option.NewBoolOption('v', "verbose", "", false, &verbose),
+				option.NewStringOption('d', "device", "", false, &device),
+				option.WithDashValues(option.NewStringOption('o', "offset", "", false, &offset), accepts),
+			}
+			if testCase.digitOption {
+				options = append(options, option.NewBoolOption('1', "one", "", false, &one))
+			}
+
+			parser := &Parser{
+				ProgramName: "myapp",
+				Options:     options,
+				Positionals: []option.Option{
+					option.WithMetavar(option.WithNargs(option.NewStringOption(0, "", "", false, &first), option.NargsOptional), "FIRST"),
+					option.WithMetavar(option.WithDashValues(option.NewStringOption(0, "", "", true, &second), accepts), "SECOND"),
+				},
+			}
+
+			err := parser.ParseArgs(testCase.args)
+			if testCase.wantErr != nil {
+				if !errors.Is(err, testCase.wantErr) {
+					t.Errorf("error = %v, want %v", err, testCase.wantErr)
+				}
+				if one != testCase.wantOne {
+					t.Errorf("one = %v, want %v", one, testCase.wantOne)
+				}
+
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			got := []any{verbose, one, device, offset, first, second}
+			want := []any{
+				testCase.wantVerbose,
+				testCase.wantOne,
+				testCase.wantDevice,
+				testCase.wantOffset,
+				testCase.wantFirst,
+				testCase.wantSecond,
+			}
+			if diff := cmp.Diff(want, got, diffOpts...); diff != "" {
+				t.Errorf("verbose, one, device, offset, first, second mismatch (-expected +got):\n%s", diff)
+			}
+		})
 	}
 }

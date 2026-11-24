@@ -475,7 +475,11 @@ func checkPositionals(positionals []option.Option) error {
 
 // assignPositionals hands the arguments that named no option to the positionals in turn, each
 // taking as many as it may without starving those after it, and returns whatever is left over.
-func assignPositionals(positionals []option.Option, arguments []string) ([]string, error) {
+//
+// dashValues names the arguments that were read as options until a positional's declaration said
+// otherwise, each with the name reading it stopped at. One that lands anywhere but in a positional
+// that takes it is refused as the unknown option it read as.
+func assignPositionals(positionals []option.Option, arguments []string, dashValues map[int]string) ([]string, error) {
 	index := 0
 
 	for position, opt := range positionals {
@@ -530,6 +534,10 @@ func assignPositionals(positionals []option.Option, arguments []string) ([]strin
 		}
 
 		for range count {
+			if unknown, ok := dashValues[index]; ok && !acceptsDashValue(opt, arguments[index]) {
+				return nil, errNameNotFound(unknown)
+			}
+
 			if err := setOption(opt, arguments[index]); err != nil {
 				return nil, err
 			}
@@ -538,11 +546,21 @@ func assignPositionals(positionals []option.Option, arguments []string) ([]strin
 		}
 	}
 
+	for leftoverIndex := index; leftoverIndex < len(arguments); leftoverIndex++ {
+		if unknown, ok := dashValues[leftoverIndex]; ok {
+			return nil, errNameNotFound(unknown)
+		}
+	}
+
 	if index >= len(arguments) {
 		return nil, nil
 	}
 
 	return arguments[index:], nil
+}
+
+func errNameNotFound(name string) error {
+	return altshiftErrors.NewWithTrace(fmt.Errorf("%w: %s", argumentParserErrors.ErrNameNotFound, name))
 }
 
 // checkGroups reports an option that a group names but the parser does not declare. Such an option
@@ -1211,6 +1229,48 @@ func isNegativeNumber(argument string) bool {
 	return isDigits(integerPart) && fractionPart != "" && isDigits(fractionPart)
 }
 
+// acceptsDashValue reports whether an option has declared that it takes word, which begins with a
+// dash, as a value (option.WithDashValues).
+func acceptsDashValue(opt option.Option, word string) bool {
+	provider, ok := opt.(option.DashValueProvider)
+	if !ok {
+		return false
+	}
+
+	accepts := provider.GetDashValues()
+
+	return accepts != nil && accepts(word)
+}
+
+// anyAcceptsDashValue reports whether any of the options takes word as a value.
+func anyAcceptsDashValue(options []option.Option, word string) bool {
+	for _, opt := range options {
+		if opt != nil && acceptsDashValue(opt, word) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// unknownShortName returns the first name of a cluster of short options that the parser does not
+// declare, as reading the cluster would stop at, or false when the whole cluster reads as options.
+// The names after one that takes a value are its value, as a parse reads them.
+func (tables *nameTables) unknownShortName(names []string) (string, bool) {
+	for _, name := range names {
+		opt, ok := tables.lookup(name, false)
+		if !ok {
+			return name, true
+		}
+
+		if opt.GetNargs() != option.NargsNone {
+			return "", false
+		}
+	}
+
+	return "", false
+}
+
 func isDigits(text string) bool {
 	for _, character := range text {
 		if character < '0' || character > '9' {
@@ -1551,6 +1611,9 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 
 	seen := parser.seen
 	var rest []string
+	// dashValues holds the words given to the positionals only because one of them takes dash
+	// values, by their place in rest, with the name a parse of the word as options stopped at.
+	dashValues := make(map[int]string)
 
 	for index, argument := range arguments {
 		if argument == "--" {
@@ -1567,6 +1630,23 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 		parsed := parseArgument(argument)
 		if parsed != nil && !parsed.long && !hasNegativeNumberName && isNegativeNumber(argument) {
 			parsed = nil
+		}
+
+		// A word that fails as options is still a value where the option awaiting one, or else a
+		// positional, declared that it takes it. Which positional a word lands in is known only
+		// once they are assigned, so the word is noted, and refused there if it lands elsewhere.
+		if parsed != nil && !parsed.long {
+			if unknown, found := tables.unknownShortName(parsed.names); found {
+				switch {
+				case pending != nil:
+					if acceptsDashValue(pending, argument) {
+						parsed = nil
+					}
+				case anyAcceptsDashValue(parser.Positionals, argument):
+					dashValues[len(rest)] = unknown
+					parsed = nil
+				}
+			}
 		}
 
 		if parsed == nil {
@@ -1686,7 +1766,7 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 		return argumentParserErrors.ErrCompletion
 	}
 
-	leftover, err := assignPositionals(parser.Positionals, rest)
+	leftover, err := assignPositionals(parser.Positionals, rest, dashValues)
 	if err != nil {
 		return altshiftErrors.New(fmt.Errorf("assign positionals: %w", err), rest)
 	}

@@ -112,6 +112,15 @@ type CompleterProvider interface {
 	GetCompletesIds() bool
 }
 
+// DashValueProvider is implemented by options that take some words beginning with a dash as values,
+// where a parse would otherwise read them as options: an amount to seek back by ("-10s"), or an
+// identifier whose alphabet includes the dash. Every option built by this package implements it; a
+// hand-written Option may.
+type DashValueProvider interface {
+	// GetDashValues returns the test a dash word is put to, or nil when the option takes none.
+	GetDashValues() func(word string) bool
+}
+
 // base holds the metadata shared by every option kind.
 type base struct {
 	ShortName rune
@@ -134,6 +143,9 @@ type base struct {
 	Completer Completer
 	// CompletesIds marks the completer's values as identifiers, shown by their descriptions.
 	CompletesIds bool
+	// DashValues decides which words beginning with a single dash, and naming none of the parser's
+	// options, the option takes as values. Nil takes none, as a parse does by default.
+	DashValues func(word string) bool
 }
 
 // GetShortName returns the option's short name, or the empty string when it has none. A zero
@@ -219,6 +231,36 @@ func (base *base) GetCompletesIds() bool {
 func (base *base) SetCompleter(completer Completer, ids bool) {
 	base.Completer = completer
 	base.CompletesIds = ids
+}
+
+func (base *base) GetDashValues() func(word string) bool {
+	return base.DashValues
+}
+
+func (base *base) SetDashValues(accepts func(word string) bool) {
+	base.DashValues = accepts
+}
+
+// WithDashValues has an option or positional take as its value a word beginning with one dash, when
+// accepts says it should and the word does not read as the parser's own options, and returns it.
+//
+// Without it such a word is a cluster of short options, and one naming none of them is an error:
+// "-10s" is the unknown options -1, -0 and -s. A parse consults accepts only once the word has
+// failed as options, so declaring it changes no command line that already parses, and every
+// option and positional that does not declare it stays as strict as before. A word beginning with
+// two dashes is always an option.
+//
+// An option is consulted for the word after it; a positional for a word given to none of the
+// options, which must then land in a positional that accepts it, as the positionals are assigned.
+// Pass a test as narrow as the values: one that accepts everything turns every mistyped option into
+// a value.
+func WithDashValues[T interface {
+	Option
+	SetDashValues(func(word string) bool)
+}](opt T, accepts func(word string) bool) T {
+	opt.SetDashValues(accepts)
+
+	return opt
 }
 
 // WithCompleter has an option offer its values from completer when a shell asks, and returns it.

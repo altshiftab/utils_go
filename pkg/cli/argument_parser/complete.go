@@ -222,6 +222,21 @@ func (parser *Parser) complete(ctx context.Context, prior []string, current stri
 			parsed = nil
 		}
 
+		// A word that fails as options is a value of the option awaiting one, or of the positional
+		// it would fill, where that declared it takes it.
+		if parsed != nil && !parsed.long {
+			if _, found := tables.unknownShortName(parsed.names); found {
+				target := state.pending
+				if target == nil {
+					target = parser.positionalSlot(state)
+				}
+
+				if target != nil && acceptsDashValue(target, current) {
+					parsed = nil
+				}
+			}
+		}
+
 		// A lone dash is an operand to a parse, but typed and completed it asks for the options.
 		if current == dash {
 			return &Completion{Candidates: parser.optionNames(tableOptions, state, current)}, nil
@@ -290,6 +305,20 @@ func (parser *Parser) scan(tables *nameTables, prior []string) *completionState 
 		parsed := parseArgument(argument)
 		if parsed != nil && !parsed.long && !hasNegativeNumberName && isNegativeNumber(argument) {
 			parsed = nil
+		}
+
+		// As a parse does: a word that fails as options goes to the option awaiting a value, or to
+		// the positionals, where that or one of them declared it takes it.
+		if parsed != nil && !parsed.long {
+			if _, found := tables.unknownShortName(parsed.names); found {
+				if state.pending != nil {
+					if acceptsDashValue(state.pending, argument) {
+						parsed = nil
+					}
+				} else if anyAcceptsDashValue(parser.Positionals, argument) {
+					parsed = nil
+				}
+			}
 		}
 
 		if parsed == nil {
