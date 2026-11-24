@@ -532,6 +532,28 @@ func (c *Client) GetSendAs(ctx context.Context, userId string, sendAsEmail strin
 	return rest.GetJson[send_as.SendAs](ctx, c.sendAsUrl(userId, sendAsEmail), c.fetchOptions(options))
 }
 
+type listSendAsResponse struct {
+	SendAs []*send_as.SendAs `json:"sendAs"`
+}
+
+// ListSendAs retrieves the given user's send-as aliases: the primary address and every custom "from" address, each
+// with its verification status.
+func (c *Client) ListSendAs(ctx context.Context, userId string, options ...fetch_config.Option) ([]*send_as.SendAs, error) {
+	if userId == "" {
+		return nil, altshiftErrors.NewWithTrace(empty_error.New("user id"))
+	}
+
+	response, err := rest.GetJson[listSendAsResponse](ctx, c.sendAsUrl(userId, ""), c.fetchOptions(options))
+	if err != nil {
+		return nil, err
+	}
+	if response == nil {
+		return nil, nil
+	}
+
+	return response.SendAs, nil
+}
+
 // UpdateSendAs updates a send-as alias identified by sendAsEmail for the given user.
 func (c *Client) UpdateSendAs(ctx context.Context, userId string, sendAsEmail string, s *send_as.SendAs, options ...fetch_config.Option) (*send_as.SendAs, error) {
 	if userId == "" {

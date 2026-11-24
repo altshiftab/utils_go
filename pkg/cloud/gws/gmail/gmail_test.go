@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -476,6 +477,72 @@ func TestGetSendAs(t *testing.T) {
 	}
 	if s.SendAsEmail != "support@example.com" {
 		t.Errorf("expected email 'support@example.com', got %q", s.SendAsEmail)
+	}
+}
+
+func TestListSendAs(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		userId       string
+		body         string
+		wantErr      bool
+		want         []string
+		wantAccepted []string
+	}{
+		{
+			name:   "the primary and aliases",
+			userId: "me",
+			body: `{"sendAs":[{"sendAsEmail":"me@example.com","displayName":"Me","isPrimary":true,"isDefault":true},` +
+				`{"sendAsEmail":"info@example.com","displayName":"Info","verificationStatus":"accepted"},` +
+				`{"sendAsEmail":"new@example.com","verificationStatus":"pending"}]}`,
+			want:         []string{"me@example.com", "info@example.com", "new@example.com"},
+			wantAccepted: []string{"info@example.com"},
+		},
+		{name: "none", userId: "me", body: `{}`},
+		{name: "empty user id", wantErr: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodGet || r.URL.Path != "/gmail/v1/users/me/settings/sendAs" {
+					t.Errorf("%s: request %s %s", testCase.name, r.Method, r.URL.Path)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(testCase.body))
+			})
+
+			sendAs, err := client.ListSendAs(context.Background(), testCase.userId)
+			if testCase.wantErr {
+				if err == nil {
+					t.Fatalf("%s: expected an error", testCase.name)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("%s: unexpected error: %v", testCase.name, err)
+			}
+			var got, accepted []string
+			for _, alias := range sendAs {
+				got = append(got, alias.SendAsEmail)
+				if alias.VerificationStatus == "accepted" {
+					accepted = append(accepted, alias.SendAsEmail)
+				}
+			}
+			if !slices.Equal(got, testCase.want) {
+				t.Errorf("%s: addresses = %v, want %v", testCase.name, got, testCase.want)
+			}
+			if !slices.Equal(accepted, testCase.wantAccepted) {
+				t.Errorf("%s: accepted = %v, want %v", testCase.name, accepted, testCase.wantAccepted)
+			}
+			if len(sendAs) != 0 && (!sendAs[0].IsPrimary || sendAs[0].DisplayName != "Me") {
+				t.Errorf("%s: primary = %+v", testCase.name, sendAs[0])
+			}
+		})
 	}
 }
 
