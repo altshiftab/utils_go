@@ -47,6 +47,13 @@ const (
 	DefaultReadHeaderTimeout = 5 * time.Second
 )
 
+// The environment variables the trust settings are read from, where no option gives them. They are
+// read as strconv.ParseBool reads them, unset or empty being false.
+const (
+	TrustForwardedForVariable  = "TRUST_FORWARDED_FOR"
+	TrustClientHeadersVariable = "TRUST_CLIENT_HEADERS"
+)
+
 // DefaultSignals are the signals whose delivery makes Serve stop serving. They are the ones a
 // process is asked to stop with: SIGTERM by a supervisor replacing or scaling in the instance,
 // SIGINT by a user at a terminal.
@@ -65,6 +72,13 @@ type Config struct {
 	// headers name rather than against the request's own Host. See
 	// WithTrustForwardedHost.
 	TrustForwardedHost bool
+	// TrustForwardedFor makes the client of a request the first entry of X-Forwarded-For. Nil means
+	// no option gave it, and the service reads TrustForwardedForVariable. See WithTrustForwardedFor.
+	TrustForwardedFor *bool
+	// TrustClientHeaders makes the client of a request X-Client-Ip-Address, and the log record what
+	// the other client headers say. Nil means no option gave it, and the service reads
+	// TrustClientHeadersVariable. See WithTrustClientHeaders.
+	TrustClientHeaders *bool
 	Redirects          []*Redirect
 	// Profile is what the service was set up as, for the record. What it decided is in the fields
 	// below, which an option applied after it may have overridden.
@@ -205,6 +219,47 @@ func WithHost(host string) Option {
 func WithTrustForwardedHost(trustForwardedHost bool) Option {
 	return func(config *Config) {
 		config.TrustForwardedHost = trustForwardedHost
+	}
+}
+
+// WithTrustForwardedFor makes the service log the client of a request as the first entry of
+// X-Forwarded-For, rather than as the address the connection came from.
+//
+// It is safe only where every path to the service passes a proxy that rewrites X-Forwarded-For so
+// that its first entry is the address that connected to the outermost proxy, whatever the client
+// sent. Google's front end does so for a Cloud Run service, reached at its run.app address or
+// through Firebase Hosting, and reverse_proxy does, replacing the header. An external Application
+// Load Balancer does not: it keeps what the client sent at the front and appends after it. Nor does
+// a forward proxy, which passes on the client's own headers. Behind either the first entry is the
+// client's to write, and a service trusting it logs whatever address the client chose; use
+// WithTrustClientHeaders there, where the load balancer sets X-Client-Ip-Address.
+//
+// It is off by default. Where no option gives it, it is read from the environment variable named by
+// TrustForwardedForVariable, and a value that does not parse makes New fail.
+func WithTrustForwardedFor(trustForwardedFor bool) Option {
+	return func(config *Config) {
+		config.TrustForwardedFor = &trustForwardedFor
+	}
+}
+
+// WithTrustClientHeaders makes the service log the client of a request as X-Client-Ip-Address,
+// ahead of X-Forwarded-For, and record what X-Client-Port, X-Server-Port,
+// X-Client-Geo-Country-Iso-Code, X-Client-Geo-Region-Iso-Code, X-Client-Geo-City-Name,
+// X-Client-Geo-Location, X-Tls-Ja3-Fingerprint and X-Tls-Ja4-Fingerprint say of the client and the
+// connection it made.
+//
+// It is safe only where BOTH hold: a load balancer in front sets these headers on every request,
+// replacing what the client sent -- custom request headers with replace on a Google Cloud load
+// balancer -- and nothing reaches the service except through it, its ingress being restricted to
+// the load balancer. A header the load balancer does not set is the client's to write even then.
+// Nothing sets them in front of Firebase Hosting or reverse_proxy, where they are always the
+// client's.
+//
+// It is off by default. Where no option gives it, it is read from the environment variable named by
+// TrustClientHeadersVariable, and a value that does not parse makes New fail.
+func WithTrustClientHeaders(trustClientHeaders bool) Option {
+	return func(config *Config) {
+		config.TrustClientHeaders = &trustClientHeaders
 	}
 }
 

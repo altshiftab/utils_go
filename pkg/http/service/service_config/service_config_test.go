@@ -299,3 +299,60 @@ func TestWithErrorLog(t *testing.T) {
 		t.Error("the error log is not the configured one")
 	}
 }
+
+// A trust setting no option gave is nil, for the service to read from the environment; one an option
+// gave is what it gave, false included.
+func TestWithTrust(t *testing.T) {
+	t.Parallel()
+
+	describe := func(value *bool) string {
+		if value == nil {
+			return "unset"
+		}
+		if *value {
+			return "true"
+		}
+		return "false"
+	}
+
+	testCases := []struct {
+		name                  string
+		options               []Option
+		expectedForwardedFor  string
+		expectedClientHeaders string
+	}{
+		{name: "no option", expectedForwardedFor: "unset", expectedClientHeaders: "unset"},
+		{
+			name:                  "true",
+			options:               []Option{WithTrustForwardedFor(true), WithTrustClientHeaders(true)},
+			expectedForwardedFor:  "true",
+			expectedClientHeaders: "true",
+		},
+		{
+			name:                  "false",
+			options:               []Option{WithTrustForwardedFor(false), WithTrustClientHeaders(false)},
+			expectedForwardedFor:  "false",
+			expectedClientHeaders: "false",
+		},
+		{
+			name:                  "the last option given wins",
+			options:               []Option{WithTrustForwardedFor(true), WithTrustForwardedFor(false)},
+			expectedForwardedFor:  "false",
+			expectedClientHeaders: "unset",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			config := New(testCase.options...)
+			if got := describe(config.TrustForwardedFor); got != testCase.expectedForwardedFor {
+				t.Errorf("trust forwarded for = %s, want %s", got, testCase.expectedForwardedFor)
+			}
+			if got := describe(config.TrustClientHeaders); got != testCase.expectedClientHeaders {
+				t.Errorf("trust client headers = %s, want %s", got, testCase.expectedClientHeaders)
+			}
+		})
+	}
+}
