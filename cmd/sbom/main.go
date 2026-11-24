@@ -34,8 +34,8 @@ const description = "Write a CycloneDX SBOM of a container image and what it was
 	"The built image (--image) is read from the local podman store; its OS packages, the modules linked into its Go " +
 	"executables and its node packages are listed as required components. The images the Dockerfile's build stages " +
 	"start from (--dockerfile) are read the same way and listed as excluded container components holding their " +
-	"packages; what RUN instructions installed on top of them is not seen. The final stage's base image is only " +
-	"named, its content being the built image's."
+	"packages; what RUN instructions installed on top of them is not seen, and one not in the local store is only " +
+	"named, with a warning. The final stage's base image is only named, its content being the built image's."
 
 type arguments struct {
 	image      string

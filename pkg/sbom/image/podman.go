@@ -34,11 +34,7 @@ func (store *Store) Save(ctx context.Context, reference string) (io.ReadCloser, 
 		return nil, altshiftErrors.NewWithTrace(empty_error.New("reference"))
 	}
 
-	podman := "podman"
-	if store != nil {
-		podman = cmp.Or(store.Podman, podman)
-	}
-
+	podman := store.executable()
 	command := exec.CommandContext(ctx, podman, "save", "--format", "docker-archive", "--", reference)
 	stderr := &boundedBuffer{limit: maxStderrSize}
 	command.Stderr = stderr
@@ -54,6 +50,37 @@ func (store *Store) Save(ctx context.Context, reference string) (io.ReadCloser, 
 	}
 
 	return &saveReader{ReadCloser: stdout, command: command, stderr: stderr}, nil
+}
+
+// Exists reports whether the image is in the store (`podman image exists`); nothing is pulled. Podman answers an
+// image's absence with exit status 1 and any failure of its own with another, so only the former reads as false.
+func (store *Store) Exists(ctx context.Context, reference string) (bool, error) {
+	if reference == "" {
+		return false, altshiftErrors.NewWithTrace(empty_error.New("reference"))
+	}
+
+	podman := store.executable()
+	command := exec.CommandContext(ctx, podman, "image", "exists", "--", reference)
+	stderr := &boundedBuffer{limit: maxStderrSize}
+	command.Stderr = stderr
+	err := command.Run()
+	if err == nil {
+		return true, nil
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return false, fmt.Errorf("context: %w", ctxErr)
+	}
+	if errors.Is(err, exec.ErrNotFound) {
+		return false, altshiftErrors.NewWithTrace(fmt.Errorf("podman not found (%q): %w", podman, err), podman)
+	}
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+		if exitErr.ExitCode() == 1 {
+			return false, nil
+		}
+		message := cmp.Or(strings.TrimSpace(stderr.String()), err.Error())
+		return false, altshiftErrors.NewWithTrace(fmt.Errorf("%w: %s", ErrPodmanFailed, message), command.Args)
+	}
+	return false, altshiftErrors.NewWithTrace(fmt.Errorf("command run: %w", err), podman, reference)
 }
 
 // Analyze saves and analyzes an image from the store.
@@ -84,6 +111,14 @@ func (store *Store) Analyze(ctx context.Context, reference string) (*Analysis, e
 	}
 
 	return analysis, nil
+}
+
+// executable is the podman to run.
+func (store *Store) executable() string {
+	if store == nil {
+		return "podman"
+	}
+	return cmp.Or(store.Podman, "podman")
 }
 
 // errPodmanSignaled marks a podman that ended by a signal rather than by its own decision, e.g. from the pipe being

@@ -18,7 +18,8 @@ type Sources struct {
 	// components.
 	Image string
 	// Dockerfile is the content of the Dockerfile the image was built from; the images its build stages start from
-	// are described as excluded components, the final stage's base is only named.
+	// are described as excluded components, the final stage's base is only named, as is a build-stage image that is
+	// not in the store.
 	Dockerfile []byte
 	// GoBinaries are local Go executables whose linked modules to list as required components.
 	GoBinaries []string
@@ -89,12 +90,24 @@ func Describe(ctx context.Context, store *image.Store, sources *Sources) (*Descr
 		}
 		buildImages, finalBase := DockerfileImages(stages)
 
+		// An image that cannot be read is named as written and its contents left out, which the warning says.
+		nameOnly := func(buildImage string, reason string) {
+			warn(buildImage, []string{reason + "; its contents are not listed"})
+			description.Components = append(description.Components, ContainerComponent(buildImage, nil, altshiftSbomTypes.ScopeExcluded))
+		}
 		for _, buildImage := range buildImages {
-			// A FROM naming a build argument ("${BASE_IMAGE}") cannot be resolved without the build's arguments;
-			// it is named as written and its contents left out, which the warning says.
+			// A FROM naming a build argument ("${BASE_IMAGE}") cannot be resolved without the build's arguments.
 			if strings.Contains(buildImage, "$") {
-				warn(buildImage, []string{"image reference holds a build argument; its contents are not listed"})
-				description.Components = append(description.Components, ContainerComponent(buildImage, nil, altshiftSbomTypes.ScopeExcluded))
+				nameOnly(buildImage, "image reference holds a build argument")
+				continue
+			}
+			// One never pulled here, or pruned, is not pulled for the SBOM.
+			present, err := store.Exists(ctx, buildImage)
+			if err != nil {
+				return nil, altshiftErrors.New(fmt.Errorf("build image exists %q: %w", buildImage, err), buildImage)
+			}
+			if !present {
+				nameOnly(buildImage, "image is not in the local store")
 				continue
 			}
 			analysis, err := store.Analyze(ctx, buildImage)

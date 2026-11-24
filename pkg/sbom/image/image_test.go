@@ -6,9 +6,12 @@ import (
 	"context"
 	"debug/buildinfo"
 	"errors"
+	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -333,9 +336,7 @@ func writeFakePodman(t *testing.T, fixture []byte, fail bool) string {
 		script += "cat '" + fixturePath + "'\n"
 	}
 	scriptPath := filepath.Join(dir, "podman")
-	if err := os.WriteFile(scriptPath, []byte(script), 0o700); err != nil { //nolint:gosec // executable test script
-		t.Fatalf("write script: %v", err)
-	}
+	writeScript(t, scriptPath, script)
 	return scriptPath
 }
 
@@ -384,6 +385,96 @@ func TestStoreAnalyze(t *testing.T) {
 			t.Fatalf("expected an error")
 		}
 	})
+}
+
+// writeExistsPodman writes a script that behaves like `podman image exists localhost/app:latest`: it says message on
+// stderr and exits with status, or fails as podman does on other arguments.
+func writeExistsPodman(t *testing.T, status int, message string) string {
+	t.Helper()
+	script := "#!/bin/sh\n"
+	script += "[ \"$1\" = image ] && [ \"$2\" = exists ] && [ \"$3\" = -- ] && [ \"$4\" = localhost/app:latest ] && [ $# -eq 4 ] || { echo bad args >&2; exit 2; }\n"
+	if message != "" {
+		script += "echo '" + message + "' >&2\n"
+	}
+	script += "exit " + strconv.Itoa(status) + "\n"
+	scriptPath := filepath.Join(t.TempDir(), "podman")
+	writeScript(t, scriptPath, script)
+	return scriptPath
+}
+
+func TestStoreExists(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		podman    string
+		canceled  bool
+		reference string
+		exists    bool
+		err       bool
+		errIs     error
+		message   string
+	}{
+		{name: "present", podman: writeExistsPodman(t, 0, ""), exists: true},
+		{name: "absent", podman: writeExistsPodman(t, 1, "")},
+		{name: "podman failure", podman: writeExistsPodman(t, 125, "Error: database is locked"), err: true, errIs: ErrPodmanFailed, message: "database is locked"},
+		{name: "unexpected status", podman: writeExistsPodman(t, 2, ""), err: true, errIs: ErrPodmanFailed},
+		{name: "podman path missing", podman: filepath.Join(t.TempDir(), "no-such-podman"), err: true, errIs: fs.ErrNotExist},
+		{name: "podman not in PATH", podman: "utils-go-no-such-podman", err: true, errIs: exec.ErrNotFound, message: "podman not found"},
+		{name: "canceled", podman: writeExistsPodman(t, 1, ""), canceled: true, err: true, errIs: context.Canceled},
+		{name: "empty reference", podman: writeExistsPodman(t, 0, ""), reference: "-", err: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if testCase.canceled {
+				cancel()
+			}
+			reference := "localhost/app:latest"
+			if testCase.reference == "-" {
+				reference = ""
+			}
+			exists, err := (&Store{Podman: testCase.podman}).Exists(ctx, reference)
+			if testCase.err {
+				if err == nil {
+					t.Fatalf("expected an error, got exists %t", exists)
+				}
+				if testCase.errIs != nil && !errors.Is(err, testCase.errIs) {
+					t.Errorf("expected %v, got %v", testCase.errIs, err)
+				}
+				if !strings.Contains(err.Error(), testCase.message) {
+					t.Errorf("expected %q in %v", testCase.message, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if exists != testCase.exists {
+				t.Errorf("expected exists %t, got %t", testCase.exists, exists)
+			}
+		})
+	}
+}
+
+func TestStoreExistsRealPodman(t *testing.T) {
+	t.Parallel()
+
+	if _, err := os.Stat("/usr/bin/podman"); err != nil {
+		t.Skip("podman not installed")
+	}
+
+	exists, err := (&Store{}).Exists(context.Background(), "localhost/utils-go-sbom-test-absent:never")
+	if err != nil || exists {
+		t.Errorf("expected an absent image, got %t %v", exists, err)
+	}
+	if _, err := (&Store{}).Exists(context.Background(), "Bad::Reference"); !errors.Is(err, ErrPodmanFailed) {
+		t.Errorf("expected podman to fail on an invalid reference, got %v", err)
+	}
 }
 
 func TestStoreAnalyzeRealPodman(t *testing.T) {

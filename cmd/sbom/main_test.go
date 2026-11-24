@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	altshiftSbomTypes "github.com/altshiftab/utils_go/pkg/sbom/types"
@@ -51,12 +52,17 @@ func dockerArchive(t *testing.T, reference string, files map[string][]byte) []by
 	return archive.Bytes()
 }
 
-// fakePodman writes a script that serves one archive per reference and fails for any other.
+// fakePodman writes a script answering `podman image exists` and `podman save` for one archive per reference, as
+// podman does for an image absent from the store for any other.
 func fakePodman(t *testing.T, archives map[string][]byte) string {
 	t.Helper()
 	dir := t.TempDir()
 	var script strings.Builder
-	script.WriteString("#!/bin/sh\ncase \"$5\" in\n")
+	script.WriteString("#!/bin/sh\ncase \"$1 $2 $3 $4\" in\n")
+	script.WriteString("  'image exists -- '*) command=exists reference=$4 ;;\n")
+	script.WriteString("  'save --format docker-archive --') command=save reference=$5 ;;\n")
+	script.WriteString("  *) echo \"Error: unexpected arguments: $*\" >&2; exit 125 ;;\nesac\n")
+	script.WriteString("case \"$command:$reference\" in\n")
 	i := 0
 	for reference, archive := range archives {
 		fixture := filepath.Join(dir, "image"+string(rune('a'+i))+".tar")
@@ -64,10 +70,16 @@ func fakePodman(t *testing.T, archives map[string][]byte) string {
 		if err := os.WriteFile(fixture, archive, 0o600); err != nil {
 			t.Fatalf("write fixture: %v", err)
 		}
-		script.WriteString("  '" + reference + "') cat '" + fixture + "' ;;\n")
+		script.WriteString("  'exists:" + reference + "') exit 0 ;;\n")
+		script.WriteString("  'save:" + reference + "') cat '" + fixture + "' ;;\n")
 	}
-	script.WriteString("  *) echo \"Error: $5: image not known\" >&2; exit 125 ;;\nesac\n")
+	script.WriteString("  exists:*) exit 1 ;;\n")
+	script.WriteString("  *) echo \"Error: $reference: image not known\" >&2; exit 125 ;;\nesac\n")
 	scriptPath := filepath.Join(dir, "podman")
+	// Forks are held off while the script is open for writing; a child inheriting it would make running it fail
+	// with ETXTBSY (go.dev/issue/22315).
+	syscall.ForkLock.RLock()
+	defer syscall.ForkLock.RUnlock()
 	if err := os.WriteFile(scriptPath, []byte(script.String()), 0o700); err != nil { //nolint:gosec // executable test script
 		t.Fatalf("write script: %v", err)
 	}
@@ -306,6 +318,26 @@ func TestRunDockerfileWithBuildArgumentImage(t *testing.T) {
 	}
 	if len(bom.Components) != 1 || bom.Components[0] == nil || bom.Components[0].Name != "${BASE_IMAGE}" || bom.Components[0].Scope != altshiftSbomTypes.ScopeExcluded || len(bom.Components[0].Components) != 0 {
 		t.Errorf("expected the unresolved image named without contents, got %+v", bom.Components)
+	}
+}
+
+func TestRunDockerfileWithAbsentBuildImage(t *testing.T) {
+	t.Parallel()
+
+	dockerfile := filepath.Join(t.TempDir(), "Dockerfile")
+	if err := os.WriteFile(dockerfile, []byte("FROM golang:1.26-alpine AS builder\nFROM scratch\n"), 0o600); err != nil {
+		t.Fatalf("write dockerfile: %v", err)
+	}
+
+	code, bom, stderr, err := runCommand(t, "--podman", fakePodman(t, nil), "--dockerfile", dockerfile)
+	if err != nil || code != exitClean {
+		t.Fatalf("unexpected result: %d %v", code, err)
+	}
+	if !strings.Contains(stderr, "sbom: warning: golang:1.26-alpine: image is not in the local store") {
+		t.Errorf("expected a warning about the absent image, got %q", stderr)
+	}
+	if len(bom.Components) != 1 || bom.Components[0] == nil || bom.Components[0].Purl != "pkg:docker/golang@1.26-alpine" || bom.Components[0].Scope != altshiftSbomTypes.ScopeExcluded || len(bom.Components[0].Components) != 0 {
+		t.Errorf("expected the absent image named without contents, got %+v", bom.Components)
 	}
 }
 
