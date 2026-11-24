@@ -31,11 +31,16 @@ type HttpContext struct {
 	RemoteAddr       net.Addr
 	// ClientAddress is the address of the client that made the request, as a proxy in front reported
 	// it and the mux was configured to believe, resolved when the request arrived. It is empty where
-	// nothing believed reported one, and the client is then the connection's own peer.
+	// nothing believed reported one, and the client is then the connection's own peer. Where
+	// X-Client-Ip-Address named it, it is as the load balancer sent it; where X-Forwarded-For did, it
+	// is in its normal form.
 	ClientAddress string
-	// TrustClientHeaders says that the X-Client-*, X-Server-Port and X-Tls-*-Fingerprint headers of
-	// the request were set by a load balancer in front, and are to be recorded as what it says of the
-	// client and the connection the client made; otherwise they are the client's to write.
+	// TrustClientHeaders says that ClientAddress was named by X-Client-Ip-Address, which the mux
+	// trusts a load balancer in front to set, and so that the X-Client-*, X-Server-Port and
+	// X-Tls-*-Fingerprint headers of the request were set by it too, and are to be recorded as what
+	// it says of the client and the connection the client made, each where it is on one line (see
+	// forwarded_headers.ClientHeader). It is false wherever the address came from anywhere else, the
+	// headers being the client's to write then.
 	TrustClientHeaders bool
 }
 

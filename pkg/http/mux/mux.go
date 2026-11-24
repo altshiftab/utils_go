@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/http"
+	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -81,36 +82,58 @@ type baseMux struct {
 	// the request ends otherwise, which for a large download or a stream left open is memory that nothing
 	// reads. An inner mux leaves an outer one's setting alone unless it has one of its own.
 	MaxStoredResponseBodySize int
-	// TrustForwardedFor makes the client's address the first entry of X-Forwarded-For, which is
-	// otherwise the client's to write; see forwarded_headers.ClientAddress for where that is safe.
+	// TrustForwardedFor says that the proxy directly in front of the service appends the address it
+	// accepted the connection from as the last entry of X-Forwarded-For, or replaces the header with
+	// it, as Google's front end on Cloud Run and reverse_proxy do. The client is then read from the
+	// right, past the entries of TrustedProxies; see forwarded_headers.ClientAddress.
 	TrustForwardedFor bool
 	// TrustClientHeaders makes the client's address X-Client-Ip-Address, ahead of X-Forwarded-For,
-	// and has the log record what the X-Client-*, X-Server-Port and X-Tls-*-Fingerprint headers say;
-	// see forwarded_headers.ClientAddress for where that is safe.
-	//
-	// The two are resolved into the HTTP context as the request arrives at the mux, so that what is
-	// logged of it later reads the request as it came rather than whatever the context holds by then.
-	// An inner mux keeps what an outer one resolved unless it trusts something of its own.
+	// and, where it is that header that names the client, has the log record what the X-Client-*,
+	// X-Server-Port and X-Tls-*-Fingerprint headers say; see forwarded_headers.ClientAddress for where
+	// that is safe.
 	TrustClientHeaders bool
+	// TrustedProxies are the address ranges of proxies further out than the one directly in front,
+	// whose X-Forwarded-For entries are trusted to name who connected to them: Firebase Hosting's
+	// edges, say. They are read only with TrustForwardedFor; see forwarded_headers.ClientAddress. A
+	// VhostMux with TrustForwardedHost and any of them believes the forwarded host only of a request
+	// that came through one; see forwarded_headers.ForwardedHostTrusted.
+	//
+	// The client is resolved into the HTTP context as the request arrives at the mux, so that what is
+	// logged of it later reads the request as it came rather than whatever the context holds by then.
+	// An inner mux keeps what an outer one resolved wherever the outer one trusted the proxies in
+	// front with anything, whatever the inner one's own settings, and resolves the client itself only
+	// where the outer one trusted nothing.
+	TrustedProxies []netip.Prefix
 }
 
-// resolveClient records on the HTTP context of a request arriving at the mux who the client is, as
-// the mux is configured to believe the proxies in front. A request reaching it through an outer mux
-// keeps what that one resolved, unless this one trusts something of its own.
-func (bm *baseMux) resolveClient(httpContext *altshiftHttpTypes.HttpContext, outer *altshiftHttpTypes.HttpContext) {
-	if outer != nil && !bm.TrustForwardedFor && !bm.TrustClientHeaders {
-		httpContext.ClientAddress = outer.ClientAddress
-		httpContext.TrustClientHeaders = outer.TrustClientHeaders
-		return
+type clientResolutionContextType struct{}
+
+// clientResolutionContextKey carries the client a mux resolved from headers it trusted, for an inner
+// mux to keep. It is set only where the mux trusted something, so that its absence tells an inner mux
+// that nothing in front was trusted.
+var clientResolutionContextKey clientResolutionContextType
+
+// clientResolution is who a mux resolved the client of a request to be.
+type clientResolution struct {
+	address           string
+	fromClientHeaders bool
+}
+
+// resolveClient resolves who the client of a request is, as the mux is configured to believe the
+// proxies in front, or returns nil where it believes them in nothing.
+func (bm *baseMux) resolveClient(header http.Header) *clientResolution {
+	if !bm.TrustForwardedFor && !bm.TrustClientHeaders {
+		return nil
 	}
 
-	var header http.Header
-	if request := httpContext.Request; request != nil {
-		header = request.Header
-	}
+	address, fromClientHeaders := forwarded_headers.ClientAddress(
+		header,
+		bm.TrustForwardedFor,
+		bm.TrustClientHeaders,
+		bm.TrustedProxies,
+	)
 
-	httpContext.ClientAddress = forwarded_headers.ClientAddress(header, bm.TrustForwardedFor, bm.TrustClientHeaders)
-	httpContext.TrustClientHeaders = bm.TrustClientHeaders
+	return &clientResolution{address: address, fromClientHeaders: fromClientHeaders}
 }
 
 //nolint:contextcheck,fatcontext // The request context is deliberately extended and reassigned via request.WithContext; contextcheck cannot track the chain, and the loop builds one derived context from the configured pairs.
@@ -138,12 +161,24 @@ func (bm *baseMux) ServeHttpWithCallback(
 
 	// Create an HTTP context and populate it with the request and put it in the request context.
 
-	outerHttpContext, _ := request.Context().Value(MuxHttpContextContextKey).(*altshiftHttpTypes.HttpContext)
+	// The client is the one an outer mux resolved where it trusted anything, and is resolved here
+	// otherwise.
+	ctx := request.Context()
+	client, inherited := ctx.Value(clientResolutionContextKey).(*clientResolution)
+	if !inherited {
+		client = bm.resolveClient(request.Header)
+	}
+
 	httpContext := &altshiftHttpTypes.HttpContext{Request: request}
-	bm.resolveClient(httpContext, outerHttpContext)
-	request = request.WithContext(
-		context.WithValue(request.Context(), MuxHttpContextContextKey, httpContext),
-	)
+	ctx = context.WithValue(ctx, MuxHttpContextContextKey, httpContext)
+	if client != nil {
+		httpContext.ClientAddress = client.address
+		httpContext.TrustClientHeaders = client.fromClientHeaders
+		if !inherited {
+			ctx = context.WithValue(ctx, clientResolutionContextKey, client)
+		}
+	}
+	request = request.WithContext(ctx)
 
 	requestId := uuid.NewV7()
 	if contextRequest := request.WithContext(

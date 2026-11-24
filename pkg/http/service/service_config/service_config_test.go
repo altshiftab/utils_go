@@ -4,8 +4,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
+	"slices"
 	"syscall"
 	"testing"
 	"time"
@@ -338,6 +340,65 @@ func TestWithTrust(t *testing.T) {
 			}
 			if config.TrustClientHeaders != testCase.expectedClientHeaders {
 				t.Errorf("trust client headers = %t, want %t", config.TrustClientHeaders, testCase.expectedClientHeaders)
+			}
+		})
+	}
+}
+
+// The trusted proxies are the last option's, copied, so that the caller's slice changing after does
+// not change what the service trusts.
+func TestWithTrustedProxies(t *testing.T) {
+	t.Parallel()
+
+	first := netip.MustParsePrefix("66.249.93.0/24")
+	second := netip.MustParsePrefix("2001:db8::/32")
+
+	testCases := []struct {
+		name     string
+		options  func([]netip.Prefix) []Option
+		given    []netip.Prefix
+		expected []netip.Prefix
+	}{
+		{
+			name:     "no option",
+			options:  func([]netip.Prefix) []Option { return nil },
+			expected: nil,
+		},
+		{
+			name:     "one call",
+			options:  func(given []netip.Prefix) []Option { return []Option{WithTrustedProxies(given...)} },
+			given:    []netip.Prefix{first, second},
+			expected: []netip.Prefix{first, second},
+		},
+		{
+			name: "the last call wins",
+			options: func(given []netip.Prefix) []Option {
+				return []Option{WithTrustedProxies(second), WithTrustedProxies(given...)}
+			},
+			given:    []netip.Prefix{first},
+			expected: []netip.Prefix{first},
+		},
+		{
+			name: "a call with none clears them",
+			options: func([]netip.Prefix) []Option {
+				return []Option{WithTrustedProxies(first), WithTrustedProxies()}
+			},
+			expected: nil,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			given := slices.Clone(testCase.given)
+			config := New(testCase.options(given)...)
+			for i := range given {
+				given[i] = netip.MustParsePrefix("0.0.0.0/0")
+			}
+
+			if !slices.Equal(config.TrustedProxies, testCase.expected) {
+				t.Errorf("trusted proxies = %v, want %v", config.TrustedProxies, testCase.expected)
 			}
 		})
 	}

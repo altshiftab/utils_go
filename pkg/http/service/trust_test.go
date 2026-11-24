@@ -1,6 +1,8 @@
 package service
 
 import (
+	"net/netip"
+	"slices"
 	"testing"
 
 	altshiftMux "github.com/altshiftab/utils_go/pkg/http/mux"
@@ -12,11 +14,14 @@ import (
 func TestNewTrustSettings(t *testing.T) {
 	t.Parallel()
 
+	firebaseEdges := netip.MustParsePrefix("66.249.93.0/24")
+
 	testCases := []struct {
-		name                  string
-		options               []service_config.Option
-		expectedForwardedFor  bool
-		expectedClientHeaders bool
+		name                   string
+		options                []service_config.Option
+		expectedForwardedFor   bool
+		expectedClientHeaders  bool
+		expectedTrustedProxies []netip.Prefix
 	}{
 		{
 			name: "no option",
@@ -39,6 +44,15 @@ func TestNewTrustSettings(t *testing.T) {
 			},
 			expectedForwardedFor:  true,
 			expectedClientHeaders: true,
+		},
+		{
+			name: "X-Forwarded-For past trusted proxies",
+			options: []service_config.Option{
+				service_config.WithTrustForwardedFor(true),
+				service_config.WithTrustedProxies(firebaseEdges),
+			},
+			expectedForwardedFor:   true,
+			expectedTrustedProxies: []netip.Prefix{firebaseEdges},
 		},
 		{
 			name: "turned off again",
@@ -74,19 +88,23 @@ func TestNewTrustSettings(t *testing.T) {
 				t.Fatalf("handler = %T, want a vhost mux", service.Server.Handler)
 			}
 
-			for _, mux := range []struct {
+			for _, mux := range []*struct {
 				name               string
 				trustForwardedFor  bool
 				trustClientHeaders bool
+				trustedProxies     []netip.Prefix
 			}{
-				{"mux", service.Mux.TrustForwardedFor, service.Mux.TrustClientHeaders},
-				{"vhost mux", vhostMux.TrustForwardedFor, vhostMux.TrustClientHeaders},
+				{"mux", service.Mux.TrustForwardedFor, service.Mux.TrustClientHeaders, service.Mux.TrustedProxies},
+				{"vhost mux", vhostMux.TrustForwardedFor, vhostMux.TrustClientHeaders, vhostMux.TrustedProxies},
 			} {
 				if mux.trustForwardedFor != testCase.expectedForwardedFor {
 					t.Errorf("%s trusts X-Forwarded-For = %t, want %t", mux.name, mux.trustForwardedFor, testCase.expectedForwardedFor)
 				}
 				if mux.trustClientHeaders != testCase.expectedClientHeaders {
 					t.Errorf("%s trusts client headers = %t, want %t", mux.name, mux.trustClientHeaders, testCase.expectedClientHeaders)
+				}
+				if !slices.Equal(mux.trustedProxies, testCase.expectedTrustedProxies) {
+					t.Errorf("%s trusted proxies = %v, want %v", mux.name, mux.trustedProxies, testCase.expectedTrustedProxies)
 				}
 			}
 		})

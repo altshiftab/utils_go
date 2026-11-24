@@ -13,6 +13,7 @@ package forwarded_headers
 
 import (
 	"context"
+	"iter"
 	"net"
 	"net/http"
 	"net/netip"
@@ -195,7 +196,8 @@ func Authority(request *http.Request, trustForwarded bool) string {
 // the service except through that proxy. Where the second does not hold -- a
 // Cloud Run service that must accept public traffic to be reachable by the
 // proxy at all, say -- this stops being a check on the host and becomes only a
-// way to learn the name the client used.
+// way to learn the name the client used, unless ForwardedHostTrusted decides it
+// for each request from the trusted proxies it came through.
 func Host(request *http.Request, trustForwarded bool) string {
 	return HostFromAuthority(Authority(request, trustForwarded))
 }
@@ -245,52 +247,212 @@ func parseClientAddress(value string) (netip.Addr, bool) {
 	return address.Unmap(), true
 }
 
+// maxProxyHops bounds how many entries of trusted proxies the walk along
+// X-Forwarded-For steps over before it gives up. A request passes through a
+// proxy or two; a chain longer than any deployment has is not one to read on
+// into.
+const maxProxyHops = 16
+
+// forwardedForFromRight yields the entries of X-Forwarded-For from the
+// rightmost leftwards, each trimmed, across every line of the header as though
+// the lines were joined with commas: a proxy may add a line of its own rather
+// than append to one. An empty entry is yielded as one. The header is not split
+// up front, its length being the client's to choose.
+func forwardedForFromRight(header http.Header) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		lines := header.Values("X-Forwarded-For")
+		for i := len(lines) - 1; i >= 0; i-- {
+			line := lines[i]
+			for {
+				index := strings.LastIndexByte(line, ',')
+				if !yield(strings.TrimSpace(line[index+1:])) {
+					return
+				}
+				if index < 0 {
+					break
+				}
+				line = line[:index]
+			}
+		}
+	}
+}
+
+// inPrefixes says whether an address is inside one of the prefixes.
+func inPrefixes(address netip.Addr, prefixes []netip.Prefix) bool {
+	for _, prefix := range prefixes {
+		if prefix.Contains(address) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// forwardedForClient walks X-Forwarded-For from its rightmost entry, which the
+// proxy directly in front wrote, leftwards past the entries that are addresses
+// of trusted proxies, and returns the first entry that is not one. An entry
+// reached that is empty or not an address ends the walk with nothing: it is
+// what a trusted proxy said connected to it, and skipping it would let the
+// entry before it, which the client may have written, answer instead.
+func forwardedForClient(header http.Header, trustedProxies []netip.Prefix) (netip.Addr, bool) {
+	hops := 0
+	for entry := range forwardedForFromRight(header) {
+		address, ok := parseClientAddress(entry)
+		if !ok {
+			return netip.Addr{}, false
+		}
+
+		if !inPrefixes(address, trustedProxies) {
+			return address, true
+		}
+
+		if hops++; hops > maxProxyHops {
+			return netip.Addr{}, false
+		}
+	}
+
+	return netip.Addr{}, false
+}
+
+// ClientHeader returns the value of one of the headers a load balancer in
+// front sets of the client -- X-Client-Ip-Address, X-Client-Port,
+// X-Server-Port, X-Client-Geo-Country-Iso-Code, X-Client-Geo-Region-Iso-Code,
+// X-Client-Geo-City-Name, X-Tls-Ja3-Fingerprint and X-Tls-Ja4-Fingerprint --
+// where it is given on exactly one line, and the empty
+// string otherwise. A load balancer that sets one of them replacing what the
+// client sent leaves one line of it; a second line is one it did not write, and
+// which of the two it wrote cannot be told from the request.
+//
+// It says nothing of whether the header is to be believed. Read it only where
+// the HTTP context says so (HttpContext.TrustClientHeaders), which is where
+// ClientAddress named the client from X-Client-Ip-Address.
+func ClientHeader(header http.Header, name string) string {
+	if lines := header.Values(name); len(lines) == 1 {
+		return lines[0]
+	}
+
+	return ""
+}
+
+// clientIpAddress returns X-Client-Ip-Address as the load balancer sent it,
+// trimmed and otherwise as it is, where it is on one line and is an IP address
+// with no zone, and the empty string otherwise. It is not normalized, so that
+// what is recorded of a client is what the load balancer said.
+func clientIpAddress(header http.Header) string {
+	value := strings.TrimSpace(ClientHeader(header, "X-Client-Ip-Address"))
+	if address, err := netip.ParseAddr(value); err != nil || address.Zone() != "" {
+		return ""
+	}
+
+	return value
+}
+
 // ClientAddress returns the address of the client that made the request, as
 // the proxies in front report it and the caller says they are to be believed,
-// or the empty string where nothing believed reports one -- in which case the
-// client is the connection's own peer, and the caller reads it from there.
+// and whether it was X-Client-Ip-Address that named it. The address is the
+// empty string where nothing believed names one, and the client is then the
+// connection's own peer, which the caller reads from there.
 //
-// With trustClientHeaders, X-Client-Ip-Address answers first. Set it only where
-// a load balancer in front sets that header on every request, replacing what
-// the client sent, AND nothing reaches the service except through it. A header
-// given on more than one line was not replaced by one proxy, and answers
-// nothing.
+// With trustClientHeaders, X-Client-Ip-Address answers first, as it was sent
+// (trimmed), where it is on exactly one line and is an IP address. Set it only
+// where a load balancer in front sets that header on every request, replacing
+// what the client sent, AND nothing reaches the service except through it --
+// the intil load balancer, which sets X-Client-Ip-Address, X-Client-Port,
+// X-Server-Port, the client's country, region and city and the TLS
+// fingerprints with replace, and is the only way in. Only where it answers are the other client
+// headers believed (see ClientHeader); where it does not, they are not, even
+// though trusted.
 //
-// With trustForwardedFor, the first entry of X-Forwarded-For answers next,
-// across every line of the header. Set it only where every path to the service
-// passes a proxy that rewrites the header so that its first entry is the
-// address that connected to it: Google's front end on Cloud Run, reached at the
-// run.app address or through Firebase Hosting, or a reverse proxy that replaces
-// the header. A proxy that appends to the header -- an external Application
-// Load Balancer, or a forward proxy passing on what the client sent -- leaves
-// the first entry the client's to write.
+// With trustForwardedFor, X-Forwarded-For answers next, read from the right.
+// Set it only where the proxy directly in front of the service appends the
+// address it accepted the connection from as the last entry, or replaces the
+// header with that address alone: Google's front end on Cloud Run appends, and
+// reverse_proxy replaces. The rightmost entry is then the only one nobody but
+// that proxy can write. As measured on Cloud Run, a request sent to the run.app
+// address with `X-Forwarded-For: 192.0.2.21` arrives with
+// `192.0.2.21,<caller>`: the front end appends rather than replaces, and the
+// first entry is the client's to write.
 //
-// Only the first entry is read, an empty list element being none (RFC 9110,
-// section 5.6.1). One that is not an address -- `unknown`, an obfuscated
-// identifier, anything else -- answers nothing, rather than letting a later
-// entry answer instead: the later entries are the proxies the request passed
-// through, and none of them is the client.
+// The client is the rightmost entry, unless that is an address inside
+// trustedProxies -- a proxy further out, whose own entry is trusted to name who
+// connected to it -- in which case it is the entry before it, and so on
+// leftwards. Through Firebase Hosting a request arrives with
+// `<client>,<Firebase edge>`: Firebase replaces whatever the client sent with
+// the address that connected to it, and Google's front end appends the address
+// of the edge that connected to it. With the edges' range among trustedProxies
+// the client is the first entry; without it, it is the edge. A request sent
+// to the run.app address directly, naming an edge itself, arrives as
+// `<anything>,<edge>,<caller>`, and is the caller's.
 //
-// `Forwarded` is not read for the address at all, whatever is trusted. A proxy
-// that rewrites X-Forwarded-For need not touch `Forwarded`, and one that does
-// not passes on what the client wrote there, which would then answer for the
-// client as though a proxy had.
-func ClientAddress(header http.Header, trustForwardedFor bool, trustClientHeaders bool) string {
+// An entry the walk reaches that is empty or not an address -- `unknown`, an
+// obfuscated identifier, a zone, anything else -- answers nothing rather than
+// letting the entry before it answer. So does a header whose every entry is a
+// trusted proxy's, and one with more than 16 of them at its end. An
+// entry is read as a proxy writes one: bare, with a port, or bracketed, an
+// IPv4-mapped address being the IPv4 address it maps; the address returned is
+// in its normal form.
+//
+// A range among trustedProxies is believed of everything sent from it. A range
+// shared with anything that sends requests with headers its user chose is not
+// a proxy's to trust.
+//
+// `Forwarded` is not read for the address at all, whatever is trusted: neither
+// proxy above writes it, and both pass on what the client wrote there.
+func ClientAddress(
+	header http.Header,
+	trustForwardedFor bool,
+	trustClientHeaders bool,
+	trustedProxies []netip.Prefix,
+) (string, bool) {
 	if trustClientHeaders {
-		if lines := header.Values("X-Client-Ip-Address"); len(lines) == 1 {
-			if address, ok := parseClientAddress(lines[0]); ok {
-				return address.String()
-			}
+		if address := clientIpAddress(header); address != "" {
+			return address, true
 		}
 	}
 
 	if trustForwardedFor {
-		if address, ok := parseClientAddress(firstListItem(header, "X-Forwarded-For")); ok {
-			return address.String()
+		if address, ok := forwardedForClient(header, trustedProxies); ok {
+			return address.String(), false
 		}
 	}
 
-	return ""
+	return "", false
+}
+
+// ForwardedHostTrusted says whether the host the forwarded headers name is to
+// be believed for a request, as Authority and Host take it.
+//
+// Without trustForwardedHost it is not. With it and no trustedProxies it is,
+// on every request, as before trusted proxies were a setting. With both, it is
+// only where the rightmost X-Forwarded-For entry is an address inside
+// trustedProxies: where the proxy directly in front recorded that the request
+// came from a trusted proxy further out. A request sent to a Cloud Run service's
+// run.app address directly, with `X-Forwarded-Host` or `Forwarded: host=` of
+// its own, is recorded with the caller's address there, and is answered for
+// its own Host -- with a 421 by a vhost mux that does not answer for the
+// run.app name -- rather than for the host it named. Through Firebase Hosting
+// the rightmost entry is the edge's, and the host it forwarded is believed.
+//
+// It relies on what trustForwardedFor in ClientAddress declares, that the proxy
+// directly in front appends the address it accepted the connection from.
+func ForwardedHostTrusted(header http.Header, trustForwardedHost bool, trustedProxies []netip.Prefix) bool {
+	if !trustForwardedHost {
+		return false
+	}
+
+	if len(trustedProxies) == 0 {
+		return true
+	}
+
+	lines := header.Values("X-Forwarded-For")
+	if len(lines) == 0 {
+		return false
+	}
+
+	line := lines[len(lines)-1]
+	address, ok := parseClientAddress(line[strings.LastIndexByte(line, ',')+1:])
+
+	return ok && inPrefixes(address, trustedProxies)
 }
 
 type authorityContextType struct{}

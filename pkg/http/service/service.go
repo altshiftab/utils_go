@@ -449,9 +449,11 @@ func makeHandler(
 	// what the service is configured to answer with, and not with less.
 	vhostMux.DefaultHeaders = serviceMux.DefaultHeaders
 	// So is what it trusts the proxies in front to say, the vhost mux being where a request arrives
-	// and is resolved; the mux keeps what it resolved.
+	// and is resolved, and the trusted proxies deciding which forwarded host it believes; the mux
+	// keeps what it resolved.
 	vhostMux.TrustForwardedFor = serviceMux.TrustForwardedFor
 	vhostMux.TrustClientHeaders = serviceMux.TrustClientHeaders
+	vhostMux.TrustedProxies = serviceMux.TrustedProxies
 
 	return vhostMux, nil
 }
@@ -477,6 +479,7 @@ func New(options ...service_config.Option) (*Service, error) {
 	serviceMux := altshiftMux.New(endpoints...)
 	serviceMux.TrustForwardedFor = config.TrustForwardedFor
 	serviceMux.TrustClientHeaders = config.TrustClientHeaders
+	serviceMux.TrustedProxies = config.TrustedProxies
 
 	if err := patchMux(serviceMux, config); err != nil {
 		return nil, fmt.Errorf("patch mux: %w", err)

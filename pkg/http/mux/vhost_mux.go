@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -41,6 +42,12 @@ type VhostMux struct {
 	// are the client's to write unless a proxy overwrites them AND nothing can
 	// reach the service except through that proxy. Where the second does not
 	// hold, the 421 below stops being a check and becomes routing.
+	//
+	// With TrustedProxies it holds again: the forwarded host is believed only
+	// of a request whose rightmost X-Forwarded-For entry is inside them, the
+	// proxy directly in front having recorded that it came through one, and a
+	// request sent around them is looked up by its own Host. Without them it is
+	// believed of every request. See forwarded_headers.ForwardedHostTrusted.
 	TrustForwardedHost bool
 }
 
@@ -83,7 +90,7 @@ const misdirectedValueLimit = 256
 // misdirectedHeaders are the headers kept of a misdirected request: what the
 // client says it is, what it came through, and what a load balancer in front
 // adds that the log extractors read -- the trace the entry is grouped under,
-// the client's location, ports and TLS fingerprints.
+// the client's address, location, ports and TLS fingerprints.
 var misdirectedHeaders = []string{
 	"User-Agent",
 	"X-Forwarded-For",
@@ -92,9 +99,9 @@ var misdirectedHeaders = []string{
 	"X-Forwarded-Proto",
 	"X-Cloud-Trace-Context",
 	"Traceparent",
+	"X-Client-Ip-Address",
 	"X-Client-Geo-City-Name",
 	"X-Client-Geo-Country-Iso-Code",
-	"X-Client-Geo-Location",
 	"X-Client-Geo-Region-Iso-Code",
 	"X-Client-Port",
 	"X-Server-Port",
@@ -102,8 +109,6 @@ var misdirectedHeaders = []string{
 	"X-Tls-Ja4-Fingerprint",
 }
 
-// truncateValue cuts a value to at most limit bytes, at the start of a
-// character, and says that it was cut.
 // misdirectedListHeaders are the headers each proxy appends its entry to: the
 // start is what the client wrote, and the end what the nearest proxy saw, so
 // both are kept when one is bounded.
@@ -128,6 +133,8 @@ func truncateEnds(value string, limit int) string {
 	return fmt.Sprintf("%s... [truncated, %d bytes in full] ...%s", value[:head], len(value), value[tail:])
 }
 
+// truncateValue cuts a value to at most limit bytes, at the start of a
+// character, and says that it was cut.
 func truncateValue(value string, limit int) string {
 	if len(value) <= limit {
 		return value
@@ -164,25 +171,40 @@ func summarizeMisdirected(request *http.Request) *http.Request {
 
 	header := make(http.Header, len(misdirectedHeaders))
 	for _, name := range misdirectedHeaders {
-		// Every line of a header counts, as in the full log: a proxy may add a
+		lines := request.Header.Values(name)
+
+		// Every line of a list counts, as in the full log: a proxy may add a
 		// line of its own after the client's.
-		var values []string
-		for _, value := range request.Header.Values(name) {
-			if value != "" {
-				values = append(values, value)
+		if misdirectedListHeaders[name] {
+			var values []string
+			for _, value := range lines {
+				if value != "" {
+					values = append(values, value)
+				}
 			}
-		}
-		if len(values) == 0 {
+			if len(values) == 0 {
+				continue
+			}
+
+			header.Set(name, truncateEnds(strings.Join(values, ", "), misdirectedValueLimit))
 			continue
 		}
 
-		value := strings.Join(values, ", ")
-		if misdirectedListHeaders[name] {
-			value = truncateEnds(value, misdirectedValueLimit)
-		} else {
-			value = truncateValue(value, misdirectedValueLimit)
+		// Any other header keeps its first line and, where there are more, its
+		// last, each a line of its own: the line a proxy added after the client's
+		// is kept, and a header given on more than one line still reads as one,
+		// which a client header is not believed from (see
+		// forwarded_headers.ClientHeader). The entry is logged from the summary
+		// as the request was read on arrival.
+		if len(lines) > 2 {
+			lines = []string{lines[0], lines[len(lines)-1]}
 		}
-		header.Set(name, value)
+		if !slices.ContainsFunc(lines, func(value string) bool { return value != "" }) {
+			continue
+		}
+		for _, value := range lines {
+			header.Add(name, truncateValue(value, misdirectedValueLimit))
+		}
 	}
 	summary.Header = header
 	summary.Trailer = nil
@@ -224,7 +246,12 @@ func vhostMuxHandleRequest(
 		}
 	}
 
-	authority := forwarded_headers.Authority(request, vhostMux.TrustForwardedHost)
+	trustForwardedHost := forwarded_headers.ForwardedHostTrusted(
+		request.Header,
+		vhostMux.TrustForwardedHost,
+		vhostMux.TrustedProxies,
+	)
+	authority := forwarded_headers.Authority(request, trustForwardedHost)
 	host := forwarded_headers.HostFromAuthority(authority)
 
 	// The TLS configuration a connection got was chosen by its server name and
@@ -233,14 +260,15 @@ func vhostMuxHandleRequest(
 	// of it and then address one that demands a client certificate. A
 	// connection that sent no server name fails this too, having matched no
 	// vhost's certificate to be addressing. It cannot apply where the forwarded
-	// headers are trusted, since the host routed on is then deliberately not
-	// the one the connection was opened for.
+	// headers are believed, since the host routed on is then deliberately not
+	// the one the connection was opened for; a request they are not believed of
+	// is routed on its own Host, and is held to it.
 	var serverName string
 	if request.TLS != nil {
 		serverName = truncateValue(request.TLS.ServerName, misdirectedValueLimit)
 	}
 
-	if request.TLS != nil && !vhostMux.TrustForwardedHost {
+	if request.TLS != nil && !trustForwardedHost {
 		if forwarded_headers.HostFromAuthority(request.TLS.ServerName) != host {
 			return nil, misdirected(
 				request,

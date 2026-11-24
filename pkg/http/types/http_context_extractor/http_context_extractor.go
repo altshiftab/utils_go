@@ -18,6 +18,7 @@ import (
 
 	altshiftErrors "github.com/altshiftab/utils_go/pkg/errors"
 	altshiftHttpContext "github.com/altshiftab/utils_go/pkg/http/context"
+	"github.com/altshiftab/utils_go/pkg/http/mux/types/forwarded_headers"
 	altshiftHttpTypes "github.com/altshiftab/utils_go/pkg/http/types"
 	"github.com/altshiftab/utils_go/pkg/http/types/authorization"
 	csp "github.com/altshiftab/utils_go/pkg/http/types/content_security_policy"
@@ -1173,7 +1174,7 @@ func (e *Extractor) Handle(ctx context.Context, record *slog.Record) error {
 					}
 
 					// What a load balancer in front says of the client and the connection it made, where it
-					// is trusted to have said it; the client wrote the headers otherwise.
+					// is trusted to have said it and named the client; the client wrote the headers otherwise.
 					if httpContext.TrustClientHeaders {
 						recordClientHeaders(base, requestHeader)
 					}
@@ -1260,22 +1261,23 @@ func writableTarget(target **schema.Target, connection *schema.Target) *schema.T
 
 // recordClientHeaders records what a load balancer in front says of the client and the connection
 // it made -- the client's port and location, the TLS fingerprints of its handshake, the port it
-// connected to -- in the client, the server and the TLS fields. The headers are believed as they
-// are: the caller is to call it only where the load balancer replaces what the client sent.
+// connected to -- in the client, the server and the TLS fields. A header is believed as it is where
+// it is on one line, and not at all where it is on more: the caller is to call it only where the
+// load balancer replaces what the client sent, which leaves one line. X-Client-Geo-Location is not
+// read: the load balancer does not set it, so it is the client's to write even there.
 func recordClientHeaders(base *schema.Base, requestHeader http.Header) {
 	if base == nil {
 		return
 	}
 
 	var (
-		clientCityName       = requestHeader.Get("X-Client-Geo-City-Name")
-		clientCountryIsoCode = requestHeader.Get("X-Client-Geo-Country-Iso-Code")
-		clientCityLongLat    = requestHeader.Get("X-Client-Geo-Location")
-		clientRegionIsoCode  = requestHeader.Get("X-Client-Geo-Region-Iso-Code")
-		clientPort           = requestHeader.Get("X-Client-Port")
-		clientTlsJa3         = requestHeader.Get("X-Tls-Ja3-Fingerprint")
-		clientTlsJa4         = requestHeader.Get("X-Tls-Ja4-Fingerprint")
-		serverPort           = requestHeader.Get("X-Server-Port")
+		clientCityName       = forwarded_headers.ClientHeader(requestHeader, "X-Client-Geo-City-Name")
+		clientCountryIsoCode = forwarded_headers.ClientHeader(requestHeader, "X-Client-Geo-Country-Iso-Code")
+		clientRegionIsoCode  = forwarded_headers.ClientHeader(requestHeader, "X-Client-Geo-Region-Iso-Code")
+		clientPort           = forwarded_headers.ClientHeader(requestHeader, "X-Client-Port")
+		clientTlsJa3         = forwarded_headers.ClientHeader(requestHeader, "X-Tls-Ja3-Fingerprint")
+		clientTlsJa4         = forwarded_headers.ClientHeader(requestHeader, "X-Tls-Ja4-Fingerprint")
+		serverPort           = forwarded_headers.ClientHeader(requestHeader, "X-Server-Port")
 	)
 
 	if clientPort != "" {
@@ -1284,7 +1286,7 @@ func recordClientHeaders(base *schema.Base, requestHeader http.Header) {
 		}
 	}
 
-	if utils.AnyNonZero(clientCityName, clientCountryIsoCode, clientCityLongLat, clientRegionIsoCode) {
+	if utils.AnyNonZero(clientCityName, clientCountryIsoCode, clientRegionIsoCode) {
 		ecsClient := writableTarget(&base.Client, base.Source)
 
 		ecsClientGeo := ecsClient.Geo
@@ -1307,11 +1309,6 @@ func recordClientHeaders(base *schema.Base, requestHeader http.Header) {
 
 		if clientRegionIsoCode != "" {
 			ecsClientGeo.RegionIsoCode = clientRegionIsoCode
-		}
-		if clientCityLongLat != "" {
-			if lat, lon, ok := strings.Cut(clientCityLongLat, ","); ok {
-				ecsClientGeo.Location = map[string]string{"lat": lat, "lon": lon}
-			}
 		}
 	}
 

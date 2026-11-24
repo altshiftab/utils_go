@@ -3,6 +3,8 @@ package forwarded_headers
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
+	"strings"
 	"testing"
 )
 
@@ -405,17 +407,24 @@ func TestHostFromAuthority(t *testing.T) {
 	}
 }
 
+// firebaseEdges is the range of Firebase Hosting's edges as Google's front end
+// recorded them.
+var firebaseEdges = netip.MustParsePrefix("66.249.93.0/24")
+
 // The client's address is believed only from the headers a deployment says a
-// proxy in front writes, and only from the first entry of X-Forwarded-For.
+// proxy in front writes: X-Client-Ip-Address as the load balancer sent it, and
+// X-Forwarded-For read from the right, past the trusted proxies.
 func TestClientAddress(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name               string
-		lines              map[string][]string
-		trustForwardedFor  bool
-		trustClientHeaders bool
-		expected           string
+		name                      string
+		lines                     map[string][]string
+		trustForwardedFor         bool
+		trustClientHeaders        bool
+		trustedProxies            []netip.Prefix
+		expected                  string
+		expectedFromClientHeaders bool
 	}{
 		{
 			name:     "nothing trusted",
@@ -423,34 +432,124 @@ func TestClientAddress(t *testing.T) {
 			expected: "",
 		},
 		{
-			name:              "one entry",
-			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.1"}},
+			name:              "run.app directly, the front end appending the caller",
+			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.21,203.0.113.9"}},
 			trustForwardedFor: true,
-			expected:          "192.0.2.1",
+			expected:          "203.0.113.9",
 		},
 		{
-			name:              "two entries, the first wins",
-			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.1, 198.51.100.1"}},
+			name:              "run.app directly, with the edges trusted",
+			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.21,203.0.113.9"}},
 			trustForwardedFor: true,
-			expected:          "192.0.2.1",
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "203.0.113.9",
 		},
 		{
-			name:              "two lines, the first line's entry wins",
-			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.1", "198.51.100.1"}},
+			name:              "through Firebase Hosting, the edge trusted",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7,66.249.93.77"}},
 			trustForwardedFor: true,
-			expected:          "192.0.2.1",
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "198.51.100.7",
 		},
 		{
-			name:              "spaces around the entry",
-			lines:             map[string][]string{"X-Forwarded-For": {"  192.0.2.1  ,198.51.100.1"}},
+			name:              "through Firebase Hosting, the edge not trusted",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7,66.249.93.77"}},
 			trustForwardedFor: true,
-			expected:          "192.0.2.1",
+			expected:          "66.249.93.77",
 		},
 		{
-			name:              "empty list elements before the entry",
-			lines:             map[string][]string{"X-Forwarded-For": {" , ,192.0.2.1"}},
+			name:              "a chain naming an edge, sent directly",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7,66.249.93.77,203.0.113.9"}},
 			trustForwardedFor: true,
-			expected:          "192.0.2.1",
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "203.0.113.9",
+		},
+		{
+			name:              "reverse_proxy's single entry",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7"}},
+			trustForwardedFor: true,
+			expected:          "198.51.100.7",
+		},
+		{
+			name:              "two trusted proxies",
+			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.21, 198.51.100.7, 66.249.93.133, 66.249.93.77"}},
+			trustForwardedFor: true,
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "198.51.100.7",
+		},
+		{
+			name:              "every entry a trusted proxy's",
+			lines:             map[string][]string{"X-Forwarded-For": {"66.249.93.133, 66.249.93.77"}},
+			trustForwardedFor: true,
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "",
+		},
+		{
+			name:              "an empty entry reached is not skipped",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7, ,66.249.93.77"}},
+			trustForwardedFor: true,
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "",
+		},
+		{
+			name:              "a garbage entry reached is not skipped",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7,unknown,66.249.93.77"}},
+			trustForwardedFor: true,
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "",
+		},
+		{
+			name:              "an empty rightmost entry",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7,"}},
+			trustForwardedFor: true,
+			expected:          "",
+		},
+		{
+			name:              "garbage beyond the client is never reached",
+			lines:             map[string][]string{"X-Forwarded-For": {"unknown, ,198.51.100.7,66.249.93.77"}},
+			trustForwardedFor: true,
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "198.51.100.7",
+		},
+		{
+			name:              "as many trusted proxies as the walk steps over",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7" + strings.Repeat(",66.249.93.77", maxProxyHops)}},
+			trustForwardedFor: true,
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "198.51.100.7",
+		},
+		{
+			name:              "more trusted proxies than the walk steps over",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7" + strings.Repeat(",66.249.93.77", maxProxyHops+1)}},
+			trustForwardedFor: true,
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "",
+		},
+		{
+			name:              "two lines, the last line's entry is the rightmost",
+			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.21", "203.0.113.9"}},
+			trustForwardedFor: true,
+			expected:          "203.0.113.9",
+		},
+		{
+			name:              "two lines, read past a trusted proxy into the first",
+			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.21, 198.51.100.7", "66.249.93.77"}},
+			trustForwardedFor: true,
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "198.51.100.7",
+		},
+		{
+			name:              "two lines, the last one empty",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7", ""}},
+			trustForwardedFor: true,
+			expected:          "",
+		},
+		{
+			name:              "spaces around the entries",
+			lines:             map[string][]string{"X-Forwarded-For": {"  198.51.100.7  ,  66.249.93.77  "}},
+			trustForwardedFor: true,
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "198.51.100.7",
 		},
 		{
 			name:              "an IPv4 address and a port",
@@ -460,7 +559,7 @@ func TestClientAddress(t *testing.T) {
 		},
 		{
 			name:              "a bare IPv6 address",
-			lines:             map[string][]string{"X-Forwarded-For": {"2001:DB8::1, 198.51.100.1"}},
+			lines:             map[string][]string{"X-Forwarded-For": {"192.0.2.21, 2001:DB8::1"}},
 			trustForwardedFor: true,
 			expected:          "2001:db8::1",
 		},
@@ -483,14 +582,22 @@ func TestClientAddress(t *testing.T) {
 			expected:          "192.0.2.1",
 		},
 		{
-			name:              "a bracketed IPv4-mapped IPv6 address and a port",
-			lines:             map[string][]string{"X-Forwarded-For": {"[::ffff:192.0.2.1]:443"}},
+			name:              "an IPv4-mapped trusted proxy",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.7, [::ffff:66.249.93.77]:443"}},
 			trustForwardedFor: true,
-			expected:          "192.0.2.1",
+			trustedProxies:    []netip.Prefix{firebaseEdges},
+			expected:          "198.51.100.7",
+		},
+		{
+			name:              "an IPv6 trusted proxy",
+			lines:             map[string][]string{"X-Forwarded-For": {"2001:db8::5, 2001:db8:f::1"}},
+			trustForwardedFor: true,
+			trustedProxies:    []netip.Prefix{netip.MustParsePrefix("2001:db8:f::/48")},
+			expected:          "2001:db8::5",
 		},
 		{
 			name:              "an address with a zone",
-			lines:             map[string][]string{"X-Forwarded-For": {"fe80::1%eth0, 198.51.100.1"}},
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.1, fe80::1%eth0"}},
 			trustForwardedFor: true,
 			expected:          "",
 		},
@@ -507,20 +614,8 @@ func TestClientAddress(t *testing.T) {
 			expected:          "",
 		},
 		{
-			name:              "unknown first, and no later entry answers",
-			lines:             map[string][]string{"X-Forwarded-For": {"unknown, 198.51.100.1"}},
-			trustForwardedFor: true,
-			expected:          "",
-		},
-		{
-			name:              "garbage first, and no later entry answers",
-			lines:             map[string][]string{"X-Forwarded-For": {"not an address", "198.51.100.1"}},
-			trustForwardedFor: true,
-			expected:          "",
-		},
-		{
-			name:              "a name first",
-			lines:             map[string][]string{"X-Forwarded-For": {"client.example.com, 198.51.100.1"}},
+			name:              "a name",
+			lines:             map[string][]string{"X-Forwarded-For": {"198.51.100.1, client.example.com"}},
 			trustForwardedFor: true,
 			expected:          "",
 		},
@@ -530,21 +625,42 @@ func TestClientAddress(t *testing.T) {
 			expected:          "",
 		},
 		{
-			name:               "the client headers, trusted",
-			lines:              map[string][]string{"X-Client-Ip-Address": {"192.0.2.3"}, "X-Forwarded-For": {"192.0.2.1"}},
-			trustForwardedFor:  true,
-			trustClientHeaders: true,
-			expected:           "192.0.2.3",
+			name:                      "the client headers, trusted",
+			lines:                     map[string][]string{"X-Client-Ip-Address": {"203.0.113.5"}, "X-Forwarded-For": {"192.0.2.1"}},
+			trustForwardedFor:         true,
+			trustClientHeaders:        true,
+			expected:                  "203.0.113.5",
+			expectedFromClientHeaders: true,
 		},
 		{
-			name:               "the client headers, trusted without X-Forwarded-For",
-			lines:              map[string][]string{"X-Client-Ip-Address": {" 2001:db8::3 "}, "X-Forwarded-For": {"192.0.2.1"}},
+			name:                      "the client address as sent, mapped",
+			lines:                     map[string][]string{"X-Client-Ip-Address": {"::ffff:203.0.113.5"}},
+			trustClientHeaders:        true,
+			expected:                  "::ffff:203.0.113.5",
+			expectedFromClientHeaders: true,
+		},
+		{
+			name:                      "the client address as sent, trimmed and not folded",
+			lines:                     map[string][]string{"X-Client-Ip-Address": {" 2001:DB8::3 "}},
+			trustClientHeaders:        true,
+			expected:                  "2001:DB8::3",
+			expectedFromClientHeaders: true,
+		},
+		{
+			name:               "a client address with a port is not an IP address",
+			lines:              map[string][]string{"X-Client-Ip-Address": {"203.0.113.5:443"}},
 			trustClientHeaders: true,
-			expected:           "2001:db8::3",
+			expected:           "",
+		},
+		{
+			name:               "a client address with a zone",
+			lines:              map[string][]string{"X-Client-Ip-Address": {"fe80::1%eth0"}},
+			trustClientHeaders: true,
+			expected:           "",
 		},
 		{
 			name:               "the client headers not trusted, X-Forwarded-For trusted",
-			lines:              map[string][]string{"X-Client-Ip-Address": {"192.0.2.3"}, "X-Forwarded-For": {"192.0.2.1"}},
+			lines:              map[string][]string{"X-Client-Ip-Address": {"203.0.113.5"}, "X-Forwarded-For": {"192.0.2.1"}},
 			trustForwardedFor:  true,
 			trustClientHeaders: false,
 			expected:           "192.0.2.1",
@@ -564,15 +680,23 @@ func TestClientAddress(t *testing.T) {
 		},
 		{
 			name:               "a client address given on two lines",
-			lines:              map[string][]string{"X-Client-Ip-Address": {"192.0.2.3", "192.0.2.4"}},
+			lines:              map[string][]string{"X-Client-Ip-Address": {"203.0.113.5", "192.0.2.4"}},
 			trustClientHeaders: true,
 			expected:           "",
+		},
+		{
+			name:               "a client address given on two lines falls to a trusted X-Forwarded-For",
+			lines:              map[string][]string{"X-Client-Ip-Address": {"203.0.113.5", "192.0.2.4"}, "X-Forwarded-For": {"192.0.2.1"}},
+			trustForwardedFor:  true,
+			trustClientHeaders: true,
+			expected:           "192.0.2.1",
 		},
 		{
 			name:               "Forwarded alone, everything trusted",
 			lines:              map[string][]string{"Forwarded": {"for=192.0.2.2;proto=https"}},
 			trustForwardedFor:  true,
 			trustClientHeaders: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
 			expected:           "",
 		},
 		{
@@ -597,16 +721,174 @@ func TestClientAddress(t *testing.T) {
 				}
 			}
 
-			address := ClientAddress(header, testCase.trustForwardedFor, testCase.trustClientHeaders)
-			if address != testCase.expected {
+			address, fromClientHeaders := ClientAddress(
+				header,
+				testCase.trustForwardedFor,
+				testCase.trustClientHeaders,
+				testCase.trustedProxies,
+			)
+			if address != testCase.expected || fromClientHeaders != testCase.expectedFromClientHeaders {
 				t.Fatalf(
-					"ClientAddress(%v, %t, %t) = %q, want %q",
+					"ClientAddress(%v, %t, %t, %v) = %q, %t; want %q, %t",
 					testCase.lines,
 					testCase.trustForwardedFor,
 					testCase.trustClientHeaders,
+					testCase.trustedProxies,
 					address,
+					fromClientHeaders,
+					testCase.expected,
+					testCase.expectedFromClientHeaders,
+				)
+			}
+		})
+	}
+}
+
+// The forwarded host is believed where it is trusted and, where trusted
+// proxies are known, only of a request the proxy directly in front recorded as
+// coming from one.
+func TestForwardedHostTrusted(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name               string
+		lines              []string
+		trustForwardedHost bool
+		trustedProxies     []netip.Prefix
+		expected           bool
+	}{
+		{
+			name:           "not trusted, through Firebase Hosting",
+			lines:          []string{"198.51.100.7,66.249.93.77"},
+			trustedProxies: []netip.Prefix{firebaseEdges},
+			expected:       false,
+		},
+		{
+			name:               "trusted with no proxies, run.app directly",
+			lines:              []string{"192.0.2.21,203.0.113.9"},
+			trustForwardedHost: true,
+			expected:           true,
+		},
+		{
+			name:               "trusted with no proxies and no X-Forwarded-For",
+			trustForwardedHost: true,
+			expected:           true,
+		},
+		{
+			name:               "through Firebase Hosting",
+			lines:              []string{"198.51.100.7,66.249.93.77"},
+			trustForwardedHost: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           true,
+		},
+		{
+			name:               "run.app directly",
+			lines:              []string{"192.0.2.21,203.0.113.9"},
+			trustForwardedHost: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           false,
+		},
+		{
+			name:               "a chain naming an edge, sent directly",
+			lines:              []string{"198.51.100.7,66.249.93.77,203.0.113.9"},
+			trustForwardedHost: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           false,
+		},
+		{
+			name:               "no X-Forwarded-For",
+			trustForwardedHost: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           false,
+		},
+		{
+			name:               "the edge on a line of its own",
+			lines:              []string{"198.51.100.7", "66.249.93.77"},
+			trustForwardedHost: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           true,
+		},
+		{
+			name:               "an edge on the first line only",
+			lines:              []string{"66.249.93.77", "203.0.113.9"},
+			trustForwardedHost: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           false,
+		},
+		{
+			name:               "an empty rightmost entry",
+			lines:              []string{"66.249.93.77,"},
+			trustForwardedHost: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           false,
+		},
+		{
+			name:               "a rightmost entry that is not an address",
+			lines:              []string{"66.249.93.77, unknown"},
+			trustForwardedHost: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           false,
+		},
+		{
+			name:               "an edge with a port",
+			lines:              []string{"198.51.100.7, 66.249.93.77:443"},
+			trustForwardedHost: true,
+			trustedProxies:     []netip.Prefix{firebaseEdges},
+			expected:           true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			header := http.Header{}
+			for _, line := range testCase.lines {
+				header.Add("X-Forwarded-For", line)
+			}
+
+			trusted := ForwardedHostTrusted(header, testCase.trustForwardedHost, testCase.trustedProxies)
+			if trusted != testCase.expected {
+				t.Fatalf(
+					"ForwardedHostTrusted(%q, %t, %v) = %t, want %t",
+					testCase.lines,
+					testCase.trustForwardedHost,
+					testCase.trustedProxies,
+					trusted,
 					testCase.expected,
 				)
+			}
+		})
+	}
+}
+
+// A client header is read only where it is on exactly one line.
+func TestClientHeader(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		lines    []string
+		expected string
+	}{
+		{name: "absent", expected: ""},
+		{name: "one line", lines: []string{"Stockholm"}, expected: "Stockholm"},
+		{name: "one empty line", lines: []string{""}, expected: ""},
+		{name: "two lines", lines: []string{"Stockholm", "Oslo"}, expected: ""},
+		{name: "two lines, one empty", lines: []string{"", "Stockholm"}, expected: ""},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			header := http.Header{}
+			for _, line := range testCase.lines {
+				header.Add("X-Client-Geo-City-Name", line)
+			}
+
+			if value := ClientHeader(header, "X-Client-Geo-City-Name"); value != testCase.expected {
+				t.Fatalf("ClientHeader(%q) = %q, want %q", testCase.lines, value, testCase.expected)
 			}
 		})
 	}

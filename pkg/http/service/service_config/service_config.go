@@ -3,8 +3,10 @@ package service_config
 import (
 	"log"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
+	"slices"
 	"syscall"
 	"time"
 
@@ -65,13 +67,17 @@ type Config struct {
 	// headers name rather than against the request's own Host. See
 	// WithTrustForwardedHost.
 	TrustForwardedHost bool
-	// TrustForwardedFor makes the client of a request the first entry of X-Forwarded-For. See
-	// WithTrustForwardedFor.
+	// TrustForwardedFor makes the client of a request the entry of X-Forwarded-For the proxy
+	// directly in front wrote, or the one before it past TrustedProxies. See WithTrustForwardedFor.
 	TrustForwardedFor bool
 	// TrustClientHeaders makes the client of a request X-Client-Ip-Address, and the log record what
 	// the other client headers say. See WithTrustClientHeaders.
 	TrustClientHeaders bool
-	Redirects          []*Redirect
+	// TrustedProxies are the address ranges of proxies further out than the one directly in front,
+	// whose X-Forwarded-For entries are trusted to name who connected to them. See
+	// WithTrustedProxies.
+	TrustedProxies []netip.Prefix
+	Redirects      []*Redirect
 	// Profile is what the service was set up as, for the record. What it decided is in the fields
 	// below, which an option applied after it may have overridden.
 	Profile Profile
@@ -207,46 +213,77 @@ func WithHost(host string) Option {
 // headers on every request, and nothing can reach the service except through that proxy. Where the
 // second does not hold, the headers are the client's to write, and the 421 stops being a check on
 // the host and becomes only routing -- anything deciding on the host must then be able to answer
-// for a host the client chose.
+// for a host the client chose. A Cloud Run service reached at its run.app address with
+// `X-Forwarded-Host: films.vvvp.se` or `Forwarded: host=films.vvvp.se` is served as films.vvvp.se.
+//
+// WithTrustedProxies makes the second hold again: with any trusted proxies, the forwarded host is
+// believed only of a request whose rightmost X-Forwarded-For entry is inside them -- one Firebase
+// Hosting forwarded, Google's front end having appended the edge's address -- and a request sent to
+// the run.app address directly, which the front end records with the caller's address there, is
+// looked up by its own Host and refused. Without trusted proxies the forwarded host is believed of
+// every request, as described above.
 func WithTrustForwardedHost(trustForwardedHost bool) Option {
 	return func(config *Config) {
 		config.TrustForwardedHost = trustForwardedHost
 	}
 }
 
-// WithTrustForwardedFor makes the service log the client of a request as the first entry of
-// X-Forwarded-For, rather than as the address the connection came from.
+// WithTrustForwardedFor makes the service log the client of a request as X-Forwarded-For names it,
+// read from the right, rather than as the address the connection came from.
 //
-// It is safe only where every path to the service passes a proxy that rewrites X-Forwarded-For so
-// that its first entry is the address that connected to the outermost proxy, whatever the client
-// sent. Google's front end does so for a Cloud Run service, reached at its run.app address or
-// through Firebase Hosting, and reverse_proxy does, replacing the header. An external Application
-// Load Balancer does not: it keeps what the client sent at the front and appends after it. Nor does
-// a forward proxy, which passes on the client's own headers. Behind either the first entry is the
-// client's to write, and a service trusting it logs whatever address the client chose; use
-// WithTrustClientHeaders there, where the load balancer sets X-Client-Ip-Address.
+// It says that the proxy directly in front of the service appends the address it accepted the
+// connection from as the last entry of X-Forwarded-For, or replaces the header with that address
+// alone. The last entry is then the only one nobody but that proxy can write, and it is the client,
+// unless it is a trusted proxy's address (WithTrustedProxies), in which case the client is the entry
+// before it, and so on leftwards.
+//
+// Google's front end appends, for a Cloud Run service reached at its run.app address or through
+// Firebase Hosting: a request sent with `X-Forwarded-For: 192.0.2.21` arrives with
+// `192.0.2.21,<caller>`, so that the first entry is whatever the client chose. Through Firebase
+// Hosting a request arrives with `<client>,<Firebase edge>`, Firebase replacing whatever the client
+// sent and the front end appending the edge's address; the client is read past the edge only with
+// the edges' range among the trusted proxies, and is the edge without it. reverse_proxy replaces the
+// header with the client's address alone. A forward proxy passes on the client's own headers, and
+// nothing in front of it is to be trusted with this.
 //
 // It is off by default. Being a fact about the deployment rather than about the service, it is
 // commonly read by the service from its environment -- a TRUST_FORWARDED_FOR its deployment sets
-// where a proxy in front rewrites the header -- and passed here.
+// where such a proxy is directly in front -- and passed here.
 func WithTrustForwardedFor(trustForwardedFor bool) Option {
 	return func(config *Config) {
 		config.TrustForwardedFor = trustForwardedFor
 	}
 }
 
+// WithTrustedProxies sets the address ranges of the proxies further out than the one directly in
+// front of the service whose X-Forwarded-For entries are trusted to name who connected to them:
+// Firebase Hosting's edges, which Google's front end records as the last entry of a request Firebase
+// forwarded (seen from 66.249.93.77 and 66.249.93.133). The client of a request is read past their
+// entries, with WithTrustForwardedFor, and the forwarded host is believed only of a request that came
+// through one, with WithTrustForwardedHost.
+//
+// A range is trusted with everything sent from it, so it is to be no wider than the proxies' own: a
+// range shared with anything that sends requests with headers its user chose lets that user name
+// any client, and any host. Each call replaces what an earlier one set; the prefixes are copied.
+func WithTrustedProxies(prefixes ...netip.Prefix) Option {
+	return func(config *Config) {
+		config.TrustedProxies = slices.Clone(prefixes)
+	}
+}
+
 // WithTrustClientHeaders makes the service log the client of a request as X-Client-Ip-Address,
-// ahead of X-Forwarded-For, and record what X-Client-Port, X-Server-Port,
-// X-Client-Geo-Country-Iso-Code, X-Client-Geo-Region-Iso-Code, X-Client-Geo-City-Name,
-// X-Client-Geo-Location, X-Tls-Ja3-Fingerprint and X-Tls-Ja4-Fingerprint say of the client and the
-// connection it made.
+// ahead of X-Forwarded-For, and, where that header names the client, record what X-Client-Port,
+// X-Server-Port, X-Client-Geo-Country-Iso-Code, X-Client-Geo-Region-Iso-Code,
+// X-Client-Geo-City-Name, X-Tls-Ja3-Fingerprint and X-Tls-Ja4-Fingerprint say of the client and the
+// connection it made, each where it is on one line. X-Client-Geo-Location is not among them, the
+// intil load balancer not setting it.
 //
 // It is safe only where BOTH hold: a load balancer in front sets these headers on every request,
 // replacing what the client sent -- custom request headers with replace on a Google Cloud load
-// balancer -- and nothing reaches the service except through it, its ingress being restricted to
-// the load balancer. A header the load balancer does not set is the client's to write even then.
-// Nothing sets them in front of Firebase Hosting or reverse_proxy, where they are always the
-// client's.
+// balancer, as the intil load balancer sets them -- and nothing reaches the service except through
+// it, its ingress being restricted to the load balancer. A header the load balancer does not set is
+// the client's to write even then. Nothing sets them in front of Firebase Hosting or reverse_proxy,
+// where they are always the client's.
 //
 // It is off by default. Being a fact about the deployment rather than about the service, it is
 // commonly read by the service from its environment -- a TRUST_CLIENT_HEADERS its deployment sets
