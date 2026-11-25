@@ -42,6 +42,14 @@ type UrlMasker interface {
 	MaskUrlString(raw string) string
 }
 
+// ContextUrlMasker is a UrlMasker that can also mask a URL relative to the request a context is for.
+// A *url.Error may carry one: Go's client writes the Location of a redirect it refuses into it as
+// sent, and a mask scoped to a domain cannot match a URL that names none. The context is the one
+// the error carries, its own request's, never the logging context, whose request may be another.
+type ContextUrlMasker interface {
+	MaskUrlStringInContext(ctx context.Context, raw string) string
+}
+
 type ContextExtractorFunction func(context.Context, *slog.Record) error
 
 func (cef ContextExtractorFunction) Handle(ctx context.Context, record *slog.Record) error {
@@ -139,8 +147,19 @@ type ErrorContextExtractor struct {
 }
 
 func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
+	return extractor.makeErrorAttrs(context.Background(), err) //nolint:contextcheck // Deliberate: no context but the ones the error carries; see makeErrorAttrs.
+}
+
+// makeErrorAttrs is MakeErrorAttrs with ctx the context of the error wrapping err, which a URL err
+// carries is relative to where err carries none of its own: a fetch's *url.Error is a cause of the
+// error that carries the HTTP context of its request.
+func (extractor *ErrorContextExtractor) makeErrorAttrs(ctx context.Context, err error) []any { //nolint:contextcheck // Deliberate: the context a URL is relative to is the error's own, not the caller's.
 	if err == nil {
 		return nil
+	}
+
+	if own := errorContext(err); own != nil {
+		ctx = own
 	}
 
 	errorMessage := err.Error()
@@ -228,7 +247,7 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 				continue
 			}
 
-			wrappedErrorAttrs := extractor.MakeErrorAttrs(wrappedError)
+			wrappedErrorAttrs := extractor.makeErrorAttrs(ctx, wrappedError)
 
 			if lastWrappedErrorAttrs != nil {
 				wrappedErrorAttrs = append(
@@ -286,7 +305,7 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 
 	if errorMessage != "" {
 		// Masked as the inputs are: a message that formats a token in with %s would write it whole.
-		attrs = append(attrs, slog.String("message", extractor.maskErrorText(err, errorMessage)))
+		attrs = append(attrs, slog.String("message", extractor.maskErrorText(ctx, err, errorMessage)))
 	}
 
 	return attrs
@@ -295,10 +314,10 @@ func (extractor *ErrorContextExtractor) MakeErrorAttrs(err error) []any {
 // maskErrorText is text an error is written into -- its own message, or the message of the record
 // it is logged with -- masked as the error's message is: the URL a *url.Error carries as the URL it
 // is, rather than as whatever a text matcher finds of it, then every token's signature and the URLs
-// the text is written with.
-func (extractor *ErrorContextExtractor) maskErrorText(err error, text string) string {
+// the text is written with. ctx is the context the URL is relative to; see maskUrl.
+func (extractor *ErrorContextExtractor) maskErrorText(ctx context.Context, err error, text string) string {
 	if urlErr, ok := errors.AsType[*url.Error](err); ok && urlErr.URL != "" {
-		if masked := extractor.maskUrl(urlErr.URL); masked != urlErr.URL {
+		if masked := extractor.maskUrl(ctx, urlErr.URL); masked != urlErr.URL {
 			text = strings.ReplaceAll(text, urlErr.URL, masked)
 		}
 	}
@@ -306,10 +325,24 @@ func (extractor *ErrorContextExtractor) maskErrorText(err error, text string) st
 	return extractor.maskText(altshiftJws.MaskSignatures(text))
 }
 
-// maskUrl is a URL as each of the context extractors that masks URLs has it; see UrlMasker.
-func (extractor *ErrorContextExtractor) maskUrl(raw string) string {
+// errorContext is the context an error carries, or nil where it carries none.
+func errorContext(err error) context.Context {
+	if contextErr, ok := errors.AsType[altshiftErrors.ContextErrorI](err); ok {
+		if contextPtr := contextErr.GetContext(); contextPtr != nil {
+			return *contextPtr
+		}
+	}
+
+	return nil
+}
+
+// maskUrl is a URL as each of the context extractors that masks URLs has it, relative to the request
+// of ctx where an extractor can take it so and ctx is not nil; see UrlMasker and ContextUrlMasker.
+func (extractor *ErrorContextExtractor) maskUrl(ctx context.Context, raw string) string {
 	for _, contextExtractor := range extractor.ContextExtractors {
-		if masker, ok := contextExtractor.(UrlMasker); ok && masker != nil {
+		if masker, ok := contextExtractor.(ContextUrlMasker); ok && masker != nil && ctx != nil {
+			raw = masker.MaskUrlStringInContext(ctx, raw)
+		} else if masker, ok := contextExtractor.(UrlMasker); ok && masker != nil {
 			raw = masker.MaskUrlString(raw)
 		}
 	}
@@ -344,9 +377,9 @@ func (extractor *ErrorContextExtractor) Handle(ctx context.Context, record *slog
 		// keeps back -- whatever the logging context carries: an error that holds the HTTP context
 		// of its request, as a fetch's does, holds it for itself, and the HTTP context extractor
 		// masks the message only for a logging context that carries one.
-		record.Message = extractor.maskErrorText(logErr, record.Message)
+		record.Message = extractor.maskErrorText(errorContext(logErr), logErr, record.Message) //nolint:contextcheck // Deliberate: a URL the error carries is relative to its own request, not the logging context's.
 
-		record.Add(slog.Group("error", extractor.MakeErrorAttrs(logErr)...))
+		record.Add(slog.Group("error", extractor.MakeErrorAttrs(logErr)...)) //nolint:contextcheck // Deliberate: as for the message, the error's own context, not the logging one.
 
 		if contextErr, ok := errors.AsType[altshiftErrors.ContextErrorI](logErr); ok {
 			if contextErrCtxPtr := contextErr.GetContext(); contextErrCtxPtr != nil {
@@ -427,7 +460,7 @@ func (extractor *ErrorContextExtractor) Handle(ctx context.Context, record *slog
 			// written; masked as a URL, being known to be one. A token in it loses its signature, as
 			// it does in the error's message, which has the same URL written into it.
 			if urlStr := urlErr.URL; urlStr != "" {
-				contextAttrs = append(contextAttrs, slog.Group("url", slog.String("original", altshiftJws.MaskSignatures(extractor.maskUrl(urlStr)))))
+				contextAttrs = append(contextAttrs, slog.Group("url", slog.String("original", altshiftJws.MaskSignatures(extractor.maskUrl(errorContext(logErr), urlStr))))) //nolint:contextcheck // Deliberate: the URL is relative to the error's own request.
 			}
 
 			if op := urlErr.Op; op != "" {

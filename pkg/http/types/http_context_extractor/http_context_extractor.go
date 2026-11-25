@@ -750,6 +750,27 @@ func parseUrlString(raw string) *schema.Url {
 // of the empty string and of the sentinels a violation report uses in place of a URL -- "inline",
 // "eval", "wasm-eval", "trusted-types-policy" -- without naming them.
 func (e *Extractor) MaskUrlString(raw string) string {
+	return e.maskUrlStringFor(raw, nil)
+}
+
+// MaskUrlStringInContext is MaskUrlString for a URL that may be relative to the request of the HTTP
+// context ctx carries, such as the Location of a redirect Go's client refused, which it writes into
+// its *url.Error as sent: a relative one is for the request's host, and is masked as the request's
+// Location header is, by the masks scoped to that host as well as the unscoped ones.
+func (e *Extractor) MaskUrlStringInContext(ctx context.Context, raw string) string {
+	var requestUrl *schema.Url
+	if ctx != nil {
+		if httpContext, ok := ctx.Value(altshiftHttpContext.HttpContextContextKey).(*altshiftHttpTypes.HttpContext); ok && httpContext != nil {
+			requestUrl = requestHostUrl(httpContext.Request)
+		}
+	}
+
+	return e.maskUrlStringFor(raw, requestUrl)
+}
+
+// maskUrlStringFor is MaskUrlString with a URL that names no host taken as one for requestUrl's,
+// where requestUrl is not nil.
+func (e *Extractor) maskUrlStringFor(raw string, requestUrl *schema.Url) string {
 	if e == nil || raw == "" || !e.masksUrls() || (e.masksOnlyQueries() && !strings.Contains(raw, "?")) {
 		return raw
 	}
@@ -765,9 +786,42 @@ func (e *Extractor) MaskUrlString(raw string) string {
 		return maskedValue
 	}
 
+	inheritDomain(schemaUrl, requestUrl)
 	e.maskUrl(schemaUrl)
 
 	return schemaUrl.Full
+}
+
+// requestHostUrl is the schema URL of the host a request is for, which is all a URL relative to it
+// takes from it; nil where it names none. An outgoing request names it in its URL, an incoming one
+// in its Host.
+func requestHostUrl(request *http.Request) *schema.Url {
+	if request == nil {
+		return nil
+	}
+
+	host := request.Host
+	if request.URL != nil && request.URL.Host != "" {
+		host = request.URL.Host
+	}
+	if host == "" {
+		return nil
+	}
+
+	return parseUrlString("//" + host)
+}
+
+// inheritDomain makes a URL that names no host one for requestUrl's, so that the masks scoped to it
+// match; a nil requestUrl leaves it as it is.
+func inheritDomain(schemaUrl *schema.Url, requestUrl *schema.Url) {
+	if schemaUrl == nil || schemaUrl.Domain != "" || requestUrl == nil {
+		return
+	}
+
+	schemaUrl.Domain = requestUrl.Domain
+	schemaUrl.RegisteredDomain = requestUrl.RegisteredDomain
+	schemaUrl.Subdomain = requestUrl.Subdomain
+	schemaUrl.TopLevelDomain = requestUrl.TopLevelDomain
 }
 
 // maskUrlStringPointer is the same for an optional field, which a report uses for the members a
@@ -885,13 +939,7 @@ func (e *Extractor) maskUrlHeaderValue(raw string, requestUrl *schema.Url) strin
 		return maskedValue
 	}
 
-	if schemaUrl.Domain == "" && requestUrl != nil {
-		schemaUrl.Domain = requestUrl.Domain
-		schemaUrl.RegisteredDomain = requestUrl.RegisteredDomain
-		schemaUrl.Subdomain = requestUrl.Subdomain
-		schemaUrl.TopLevelDomain = requestUrl.TopLevelDomain
-	}
-
+	inheritDomain(schemaUrl, requestUrl)
 	e.maskUrl(schemaUrl)
 
 	return schemaUrl.Full
