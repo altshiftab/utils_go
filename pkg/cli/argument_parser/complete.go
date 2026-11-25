@@ -251,12 +251,24 @@ func (parser *Parser) complete(ctx context.Context, prior []string, current stri
 			return parser.completeValues(ctx, state, state.pending, current, "")
 		}
 
-		// A parse hands its arguments to a subcommand only when it is the first of them.
+		// A parse hands its arguments to a subcommand only when it is the first of them, and a first word that
+		// names none is the parser's own: a positional's value, or one of Rest's.
 		if len(prior) == 0 && len(parser.Parsers) != 0 {
-			return &Completion{Candidates: subcommandNames(parser, current)}, nil
+			own, err := parser.completePositional(ctx, state, current)
+			if err != nil {
+				return nil, err
+			}
+
+			return &Completion{Candidates: append(subcommandNames(parser, current), own.Candidates...), Directives: own.Directives}, nil
 		}
 	}
 
+	return parser.completePositional(ctx, state, current)
+}
+
+// completePositional completes a word as the parser's own positionals take it: the value of the one it would fill,
+// a file of Rest's past them, or nothing.
+func (parser *Parser) completePositional(ctx context.Context, state *completionState, current string) (*Completion, error) {
 	slot := parser.positionalSlot(state)
 	if slot == nil {
 		if parser.Rest != nil {

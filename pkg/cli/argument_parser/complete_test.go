@@ -823,3 +823,54 @@ func TestCompleteAfterADashValue(t *testing.T) {
 		})
 	}
 }
+
+// TestCompleteFirstWordBesideSubcommands pins that a first word of a parser with both subcommands and positionals is
+// offered both: a parse hands the word to a subcommand it names, and to the positional otherwise.
+func TestCompleteFirstWordBesideSubcommands(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		words      []string
+		rest       bool
+		positional bool
+		want       []string
+		directives []string
+	}{
+		{name: "subcommands and the positional's values", words: []string{""}, positional: true, want: []string{"show", "tv", "film"}},
+		{name: "a prefix of each", words: []string{"f"}, positional: true, want: []string{"film"}},
+		{name: "a prefix of a subcommand", words: []string{"s"}, positional: true, want: []string{"show"}},
+		{name: "subcommands and Rest's files", words: []string{""}, rest: true, want: []string{"show"}, directives: []string{DirectiveFiles}},
+		{name: "subcommands alone without either", words: []string{""}, want: []string{"show"}},
+		{name: "a subcommand's own words", words: []string{"show", ""}, positional: true, want: nil},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var kind string
+			var rest []string
+			parser := &Parser{ProgramName: "prog", Parsers: []Subparser{&Parser{Command: "show"}}}
+			if testCase.positional {
+				parser.Positionals = []option.Option{
+					option.WithMetavar(option.WithChoices(option.NewStringOption(0, "", "", false, &kind), "tv", "film"), "KIND"),
+				}
+			}
+			if testCase.rest {
+				parser.Rest = &rest
+			}
+
+			completion, err := parser.Complete(t.Context(), testCase.words)
+			if err != nil {
+				t.Fatalf("complete: %v", err)
+			}
+			if got := values(completion); !slices.Equal(got, testCase.want) {
+				t.Errorf("candidates: got %q, want %q", got, testCase.want)
+			}
+			if !slices.Equal(completion.Directives, testCase.directives) {
+				t.Errorf("directives: got %q, want %q", completion.Directives, testCase.directives)
+			}
+		})
+	}
+}
