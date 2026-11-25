@@ -156,6 +156,26 @@ func truncateValue(value string, limit int) string {
 	return fmt.Sprintf("%s... [truncated, %d bytes in full]", value[:cut], len(value))
 }
 
+// summarizeMisdirectedPath is the URL logged for a request no vhost answers for:
+// its path alone, as it was written. The logger's path masks match the path
+// percent-encoded, so the summary keeps RawPath, without which a name holding
+// an encoded delimiter (/people/Alice%2FSecret) would be logged decoded and
+// masked only up to it. A path too long to log is left out rather than cut
+// short: a mask that needs what follows the secret, or the path's end, would
+// no longer match what was cut.
+func summarizeMisdirectedPath(requestUrl *url.URL) *url.URL {
+	if requestUrl == nil {
+		return &url.URL{}
+	}
+
+	writtenPath := requestUrl.EscapedPath()
+	if len(writtenPath) > misdirectedValueLimit {
+		return &url.URL{Path: fmt.Sprintf("/[a path of %d bytes, left out]", len(writtenPath))}
+	}
+
+	return &url.URL{Path: requestUrl.Path, RawPath: requestUrl.RawPath}
+}
+
 // summarizeMisdirected is what is logged of a request no vhost answers for, in
 // place of the request itself: its method, path, host and peer, the few headers
 // in misdirectedHeaders, each value bounded. Such a request is anyone's to send
@@ -171,11 +191,7 @@ func summarizeMisdirected(request *http.Request) *http.Request {
 	summary.Host = truncateValue(request.Host, misdirectedValueLimit)
 	summary.RequestURI = ""
 
-	summaryUrl := &url.URL{}
-	if requestUrl := request.URL; requestUrl != nil {
-		summaryUrl.Path = truncateValue(requestUrl.Path, misdirectedValueLimit)
-	}
-	summary.URL = summaryUrl
+	summary.URL = summarizeMisdirectedPath(request.URL)
 
 	header := make(http.Header, len(misdirectedHeaders))
 	for _, name := range misdirectedHeaders {

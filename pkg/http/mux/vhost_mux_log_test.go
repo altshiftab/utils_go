@@ -7,10 +7,12 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor"
+	"github.com/altshiftab/utils_go/pkg/http/types/http_context_extractor/http_context_extractor_config"
 	altshiftLog "github.com/altshiftab/utils_go/pkg/log"
 	"github.com/altshiftab/utils_go/pkg/log/context_logger"
 )
@@ -22,8 +24,15 @@ import (
 func captureVhostLog(t *testing.T, vhostMux *VhostMux, request *http.Request) (string, int) {
 	t.Helper()
 
+	return captureVhostLogWith(t, &http_context_extractor.Extractor{}, vhostMux, request)
+}
+
+// captureVhostLogWith is captureVhostLog with the extractor the logger reads the
+// HTTP context through, so that a test can give it masks.
+func captureVhostLogWith(t *testing.T, extractor *http_context_extractor.Extractor, vhostMux *VhostMux, request *http.Request) (string, int) {
+	t.Helper()
+
 	var buffer bytes.Buffer
-	extractor := &http_context_extractor.Extractor{}
 	logger := context_logger.New(
 		slog.NewJSONHandler(&buffer, &slog.HandlerOptions{Level: slog.LevelInfo}),
 		&altshiftLog.ErrorContextExtractor{ContextExtractors: []altshiftLog.ContextExtractor{extractor}},
@@ -237,6 +246,87 @@ func TestVhostMux_ServedRequestLogKeepsHeaders(t *testing.T) {
 	}
 	if !strings.Contains(logged, "kept-in-full") {
 		t.Fatalf("expected the served request's headers in the log:\n%s", logged)
+	}
+}
+
+// The summary's path is the one the logger's path masks are matched on, so it is
+// kept as it was written: a name holding an encoded delimiter is masked whole,
+// and a path too long to log whole is left out, not cut where a mask would no
+// longer match it.
+//
+//nolint:paralleltest // Swaps the default logger, which is global, to read what is logged.
+func TestVhostMux_MisdirectedRequestPathIsMasked(t *testing.T) {
+	const servedHost = "open.home.arpa"
+	const otherHost = "restic.home.arpa"
+
+	testCases := []struct {
+		name       string
+		pattern    string
+		path       string
+		rawPath    string
+		wantLogged []string
+		wantAbsent []string
+	}{
+		{
+			name:       "an encoded delimiter inside a masked name",
+			pattern:    `/people/([^/]+)`,
+			path:       "/people/Alice/secret-marker",
+			rawPath:    "/people/Alice%2Fsecret-marker",
+			wantLogged: []string{"/people/"},
+			wantAbsent: []string{"Alice", "secret-marker"},
+		},
+		{
+			name:       "a short path, as it was",
+			pattern:    `/people/([^/]+)`,
+			path:       "/status/kept-marker",
+			wantLogged: []string{"/status/kept-marker"},
+		},
+		{
+			name:       "a path too long for the summary, under a mask that needs its end",
+			pattern:    `/people/([^/]+)/details$`,
+			path:       "/people/secret-marker" + strings.Repeat("x", 300) + "/details",
+			wantLogged: []string{"left out"},
+			wantAbsent: []string{"secret-marker"},
+		},
+	}
+
+	//nolint:paralleltest // Same reason: each case swaps the default logger for one it can read.
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			vhostMux := &VhostMux{
+				HostToSpecification: map[string]*VhostMuxSpecification{
+					servedHost: {Mux: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+						t.Error("the request reached a vhost")
+					})},
+				},
+			}
+			extractor := http_context_extractor.New(http_context_extractor_config.WithMaskedUrlPaths(
+				&http_context_extractor_config.MaskedUrlPath{Pattern: regexp.MustCompile(testCase.pattern)},
+			))
+
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+servedHost+"/", nil)
+			request.Host = servedHost
+			request.URL.Path = testCase.path
+			request.URL.RawPath = testCase.rawPath
+			request.RequestURI = request.URL.RequestURI()
+			request.RemoteAddr = "192.0.2.10:54321"
+			request.TLS = &tls.ConnectionState{ServerName: otherHost}
+
+			logged, status := captureVhostLogWith(t, extractor, vhostMux, request)
+			if status != http.StatusMisdirectedRequest {
+				t.Fatalf("status = %d, want %d", status, http.StatusMisdirectedRequest)
+			}
+			for _, want := range testCase.wantLogged {
+				if !strings.Contains(logged, want) {
+					t.Errorf("the log does not contain %q:\n%s", want, logged)
+				}
+			}
+			for _, absent := range testCase.wantAbsent {
+				if strings.Contains(logged, absent) {
+					t.Errorf("the log contains %q:\n%s", absent, logged)
+				}
+			}
+		})
 	}
 }
 
