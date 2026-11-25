@@ -651,6 +651,57 @@ func TestCompleteReservesForLaterPositionals(t *testing.T) {
 	}
 }
 
+// TestCompleteSeesPositionalDefaults pins that a completer sees the positionals no word goes to
+// holding their defaults, as a parse of the line leaves them, whether it completes an option's value
+// or another positional's.
+func TestCompleteSeesPositionalDefaults(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name  string
+		words []string
+		// want is the completer asked and what the positionals held then.
+		want string
+	}{
+		{name: "an option's value, no positional given", words: []string{"--server", ""}, want: "server: subject= target=tv"},
+		{name: "an option's value, the required positional given", words: []string{"x", "--server", ""}, want: "server: subject=x target=tv"},
+		{name: "an option's value, both positionals given", words: []string{"x", "y", "--server", ""}, want: "server: subject=x target=y"},
+		{name: "the required positional's value", words: []string{""}, want: "subject: subject= target=tv"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var server, subject, target, seen string
+			recording := func(name string) option.Completer {
+				return func(context.Context, string) ([]*option.Candidate, error) {
+					seen = fmt.Sprintf("%s: subject=%s target=%s", name, subject, target)
+					return nil, nil
+				}
+			}
+
+			parser := &Parser{
+				ProgramName: "prog",
+				Options: []option.Option{
+					option.WithCompleter(option.NewStringOption(0, "server", "", false, &server), recording("server")),
+				},
+				Positionals: []option.Option{
+					option.WithCompleter(option.NewStringOption(0, "", "", true, &subject), recording("subject")),
+					option.WithDefault(option.WithNargs(option.NewStringOption(0, "", "", false, &target), option.NargsOptional), "tv"),
+				},
+			}
+
+			if _, err := parser.Complete(t.Context(), testCase.words); err != nil {
+				t.Fatalf("complete: %v", err)
+			}
+			if seen != testCase.want {
+				t.Errorf("got %q, want %q", seen, testCase.want)
+			}
+		})
+	}
+}
+
 // TestCompleteValueInWordSeesWhatParseSet pins that a value written into the word being completed,
 // "--name=value" or an attached "-nvalue", is completed once what a parse does with the word up to
 // the value is done, as for a value that is a word of its own: an optional argument left without

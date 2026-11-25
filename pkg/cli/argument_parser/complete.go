@@ -665,6 +665,23 @@ func (parser *Parser) completeValues(
 		}
 	}
 
+	// So do the positionals no word goes to, as assignPositionals gives them theirs: the words
+	// before this one, and this one where it is a positional's.
+	words := len(state.positionals)
+	if slices.Contains(parser.Positionals, opt) {
+		words++
+	}
+	filled := parser.positionalSlots(words)
+	for _, declared := range parser.Positionals {
+		if declared == nil || slices.Contains(filled, declared) {
+			continue
+		}
+
+		if defaults, ok := declared.(option.DefaultProvider); ok && defaults.GetDefault() != nil {
+			setPure(declared, *defaults.GetDefault())
+		}
+	}
+
 	directives := []string{DirectiveOrdered}
 	if provider.GetCompletesIds() {
 		directives = append(directives, DirectiveIds)
