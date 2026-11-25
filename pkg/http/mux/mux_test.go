@@ -177,6 +177,21 @@ func TestMain(m *testing.M) {
 			},
 		},
 		&endpoint.Endpoint{
+			Path:   "/body-parsing-any",
+			Method: http.MethodPost,
+			Handler: func(request *http.Request, body []byte) (*muxTypesResponse.Response, *response_error.ResponseError) {
+				if _, responseError := utils.GetServerNonZeroParsedRequestBody[*bodyParserTestData](request.Context()); responseError != nil {
+					return nil, responseError
+				}
+
+				return nil, nil
+			},
+			BodyLoader: &body_loader.Loader{
+				Parser:      bodyParserAdapter.New(json_body_parser.New[*bodyParserTestData]()),
+				ContentType: "application/json",
+			},
+		},
+		&endpoint.Endpoint{
 			Path:   "/body-parsing-limit",
 			Method: http.MethodPost,
 			Handler: func(request *http.Request, body []byte) (*muxTypesResponse.Response, *response_error.ResponseError) {
@@ -428,6 +443,29 @@ func TestMux(t *testing.T) {
 				Headers:            [][2]string{{"Content-Type", "application/json"}},
 				Body:               []byte(`{"data": "hello world"}`),
 				ExpectedStatusCode: http.StatusNoContent,
+			},
+		},
+		{
+			name: "body parsing, empty object reaches the handler",
+			args: &muxTesting.Args{
+				Method:             http.MethodPost,
+				Path:               "/body-parsing-any",
+				Headers:            [][2]string{{"Content-Type", "application/json"}},
+				Body:               []byte(`{}`),
+				ExpectedStatusCode: http.StatusNoContent,
+			},
+		},
+		{
+			name: "body parsing, null is a client error",
+			args: &muxTesting.Args{
+				Method:             http.MethodPost,
+				Path:               "/body-parsing-any",
+				Headers:            [][2]string{{"Content-Type", "application/json"}},
+				Body:               []byte(`null`),
+				ExpectedStatusCode: http.StatusUnprocessableEntity,
+				ExpectedProblemDetail: &problem_detail.Detail{
+					Detail: "Invalid body. The body is null.",
+				},
 			},
 		},
 		{

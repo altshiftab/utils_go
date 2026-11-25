@@ -11,6 +11,7 @@ import (
 	"github.com/altshiftab/utils_go/pkg/http/mux/types/response_error"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail"
 	"github.com/altshiftab/utils_go/pkg/http/types/problem_detail/problem_detail_config"
+	"github.com/altshiftab/utils_go/pkg/utils"
 )
 
 type Parser[T any] struct {
@@ -63,6 +64,21 @@ func (p *Parser[T]) Parse(_ *http.Request, body []byte) (T, *response_error.Resp
 		}
 
 		return target, &response_error.ResponseError{ServerError: wrappedErr}
+	}
+
+	// A JSON null unmarshals into a pointer or an interface as nil, without error: the body is
+	// valid JSON but no value, which the handler would meet as a zero value -- a server error --
+	// or a nil dereference. A nil map or slice is left alone; it is usable as it is.
+	if utils.IsNil(target) {
+		return target, &response_error.ResponseError{
+			ClientError: altshiftErrors.NewWithTrace(
+				fmt.Errorf("%w: json unmarshal: the body is null", altshiftErrors.ErrParseError),
+			),
+			ProblemDetail: problem_detail.New(
+				http.StatusUnprocessableEntity,
+				problem_detail_config.WithDetail("Invalid body. The body is null."),
+			),
+		}
 	}
 
 	return target, nil

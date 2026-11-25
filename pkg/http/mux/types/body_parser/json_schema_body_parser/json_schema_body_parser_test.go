@@ -296,6 +296,58 @@ func TestParserParseSlice(t *testing.T) {
 	}
 }
 
+// A schema with no required members passes null, which reaches the schema as an empty object; the
+// pointer it would unmarshal into is left nil, and is refused.
+func TestParserParsePointerNull(t *testing.T) {
+	t.Parallel()
+
+	type optionalPayload struct {
+		Name string `json:"name,omitzero"`
+	}
+
+	parser, err := New[*optionalPayload]()
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+
+	testCases := []struct {
+		name         string
+		body         string
+		expectStatus int
+	}{
+		{name: "null", body: `null`, expectStatus: http.StatusUnprocessableEntity},
+		{name: "empty object", body: `{}`},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			result, responseError := parser.Parse(newRequest(t), []byte(testCase.body))
+
+			if testCase.expectStatus == 0 {
+				if responseError != nil {
+					t.Fatalf("%s: unexpected response error: %+v", testCase.name, responseError)
+				}
+				if result == nil {
+					t.Fatalf("%s: expected a value, got nil", testCase.name)
+				}
+				return
+			}
+
+			if responseError == nil || responseError.ProblemDetail == nil {
+				t.Fatalf("%s: expected a problem detail, got %+v", testCase.name, responseError)
+			}
+			if responseError.ClientError == nil || responseError.ServerError != nil {
+				t.Errorf("%s: expected a client error alone, got %+v", testCase.name, responseError)
+			}
+			if responseError.ProblemDetail.Status != testCase.expectStatus {
+				t.Errorf("%s: status = %d, want %d", testCase.name, responseError.ProblemDetail.Status, testCase.expectStatus)
+			}
+		})
+	}
+}
+
 func TestParserParseNilSchema(t *testing.T) {
 	t.Parallel()
 
