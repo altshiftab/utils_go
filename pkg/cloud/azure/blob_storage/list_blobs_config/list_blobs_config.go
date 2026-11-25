@@ -8,6 +8,10 @@ type Config struct {
 	IncludeVersions bool
 	// IncludeMetadata lists each blob's user metadata.
 	IncludeMetadata bool
+	// IncludeImmutabilityPolicy lists each version's time-based retention, where it has one: the
+	// service leaves Properties' ImmutabilityPolicyUntilDate and ImmutabilityPolicyMode out
+	// otherwise.
+	IncludeImmutabilityPolicy bool
 	// Marker continues a listing from the NextMarker of the page before.
 	Marker string
 	// MaxResults bounds a page; zero leaves it to the service, which returns at most 5000.
@@ -42,6 +46,12 @@ func WithIncludeVersions(includeVersions bool) Option {
 func WithIncludeMetadata(includeMetadata bool) Option {
 	return func(config *Config) {
 		config.IncludeMetadata = includeMetadata
+	}
+}
+
+func WithIncludeImmutabilityPolicy(includeImmutabilityPolicy bool) Option {
+	return func(config *Config) {
+		config.IncludeImmutabilityPolicy = includeImmutabilityPolicy
 	}
 }
 

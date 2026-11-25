@@ -231,6 +231,60 @@ func TestListAllBlobs(t *testing.T) {
 	}
 }
 
+func TestListBlobsImmutabilityPolicy(t *testing.T) {
+	t.Parallel()
+
+	const (
+		until = "Fri, 25 Dec 2026 00:00:00 GMT"
+		mode  = "Unlocked"
+	)
+	service, client := newFakeBlobService(t)
+	service.policyUntil = until
+	service.policyMode = mode
+	if _, err := client.Upload(t.Context(), "databases", "prod/a", bytes.NewReader([]byte("a"))); err != nil {
+		t.Fatalf("upload: %v", err)
+	}
+
+	testCases := []struct {
+		name      string
+		options   []list_blobs_config.Option
+		wantUntil string
+		wantMode  string
+	}{
+		{name: "not asked for"},
+		{
+			name:      "asked for",
+			options:   []list_blobs_config.Option{list_blobs_config.WithIncludeImmutabilityPolicy(true)},
+			wantUntil: until,
+			wantMode:  mode,
+		},
+		{
+			name:      "asked for with the versions and metadata",
+			options:   []list_blobs_config.Option{list_blobs_config.WithIncludeVersions(true), list_blobs_config.WithIncludeMetadata(true), list_blobs_config.WithIncludeImmutabilityPolicy(true)},
+			wantUntil: until,
+			wantMode:  mode,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			results, err := client.ListBlobs(t.Context(), "databases", testCase.options...)
+			if err != nil {
+				t.Fatalf("list blobs: %v", err)
+			}
+			if results.Blobs == nil || len(results.Blobs.Blob) != 1 || results.Blobs.Blob[0].Properties == nil {
+				t.Fatalf("listed %+v, want one blob with its properties", results.Blobs)
+			}
+			properties := results.Blobs.Blob[0].Properties
+			if properties.ImmutabilityPolicyUntilDate != testCase.wantUntil || properties.ImmutabilityPolicyMode != testCase.wantMode {
+				t.Errorf("policy until %q, mode %q; want %q, %q", properties.ImmutabilityPolicyUntilDate, properties.ImmutabilityPolicyMode, testCase.wantUntil, testCase.wantMode)
+			}
+		})
+	}
+}
+
 func equalStrings(a []string, b []string) bool {
 	if len(a) != len(b) {
 		return false

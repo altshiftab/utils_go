@@ -426,6 +426,9 @@ func (c *Client) ListBlobs(ctx context.Context, container string, options ...lis
 	if config.IncludeMetadata {
 		include = append(include, "metadata")
 	}
+	if config.IncludeImmutabilityPolicy {
+		include = append(include, "immutabilitypolicy")
+	}
 	if len(include) > 0 {
 		query.Set("include", strings.Join(include, ","))
 	}

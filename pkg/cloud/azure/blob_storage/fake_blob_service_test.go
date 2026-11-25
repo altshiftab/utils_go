@@ -25,6 +25,10 @@ type fakeVersion struct {
 	content     []byte
 	contentType string
 	metadata    map[string]string
+	// policyUntil and policyMode are the version's time-based retention, which a container's
+	// default policy gives every version committed to it.
+	policyUntil string
+	policyMode  string
 }
 
 // fakeBlob is a blob's versions, oldest first, and whether the newest is current.
@@ -49,6 +53,10 @@ type fakeBlobService struct {
 	requests int
 	// stagedIds is every block id staged, by blob, in order.
 	stagedIds map[string][]string
+	// policyUntil and policyMode, where set, are the container's default retention, given to every
+	// version committed.
+	policyUntil string
+	policyMode  string
 }
 
 func newFakeBlobService(t *testing.T, fetchOptions ...fetch_config.Option) (*fakeBlobService, *Client) {
@@ -176,6 +184,8 @@ func (s *fakeBlobService) putBlockList(w http.ResponseWriter, r *http.Request, k
 		content:     content,
 		contentType: r.Header.Get(blobContentTypeHeader),
 		metadata:    metadata,
+		policyUntil: s.policyUntil,
+		policyMode:  s.policyMode,
 	}
 	if existing == nil {
 		existing = &fakeBlob{}
@@ -225,6 +235,7 @@ func (s *fakeBlobService) listBlobs(w http.ResponseWriter, container string, que
 	include := strings.Split(query.Get("include"), ",")
 	withVersions := slices.Contains(include, "versions")
 	withMetadata := slices.Contains(include, "metadata")
+	withPolicy := slices.Contains(include, "immutabilitypolicy")
 
 	all := []*blob_list.Blob{}
 	names := make([]string, 0, len(s.blobs))
@@ -253,6 +264,10 @@ func (s *fakeBlobService) listBlobs(w http.ResponseWriter, container string, que
 			if withVersions {
 				listed.VersionId = version.id
 				listed.IsCurrentVersion = isCurrent
+			}
+			if withPolicy {
+				listed.Properties.ImmutabilityPolicyUntilDate = version.policyUntil
+				listed.Properties.ImmutabilityPolicyMode = version.policyMode
 			}
 			if withMetadata {
 				listed.Metadata = &blob_list.Metadata{}

@@ -20,10 +20,11 @@ func TestNew(t *testing.T) {
 				WithPrefix("prod/"),
 				WithIncludeVersions(true),
 				WithIncludeMetadata(true),
+				WithIncludeImmutabilityPolicy(true),
 				WithMarker("m"),
 				WithMaxResults(10),
 			},
-			want: Config{Prefix: "prod/", IncludeVersions: true, IncludeMetadata: true, Marker: "m", MaxResults: 10},
+			want: Config{Prefix: "prod/", IncludeVersions: true, IncludeMetadata: true, IncludeImmutabilityPolicy: true, Marker: "m", MaxResults: 10},
 		},
 	}
 
