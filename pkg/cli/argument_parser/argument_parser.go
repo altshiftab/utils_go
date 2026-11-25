@@ -1254,8 +1254,9 @@ func anyAcceptsDashValue(options []option.Option, word string) bool {
 }
 
 // unknownShortName returns the first name of a cluster of short options that the parser does not
-// declare, as reading the cluster would stop at, or false when the whole cluster reads as options.
-// The names after one that takes a value are its value, as a parse reads them.
+// declare, as reading the cluster would stop at, or false when the cluster reads as options. Reading
+// stops at one that takes a value, the names after it being its value, and at the automatic help
+// option, which is answered as soon as it is reached.
 func (tables *nameTables) unknownShortName(names []string) (string, bool) {
 	for _, name := range names {
 		opt, ok := tables.lookup(name, false)
@@ -1263,7 +1264,7 @@ func (tables *nameTables) unknownShortName(names []string) (string, bool) {
 			return name, true
 		}
 
-		if opt.GetNargs() != option.NargsNone {
+		if opt.GetNargs() != option.NargsNone || (tables.help != nil && opt == tables.help) {
 			return "", false
 		}
 	}
@@ -1287,6 +1288,9 @@ func isDigits(text string) bool {
 type nameTables struct {
 	short map[string]option.Option
 	long  map[string]option.Option
+	// help is the automatic help option where the tables hold it, which ends a reading of a
+	// cluster the moment it is reached.
+	help option.Option
 }
 
 func makeNameTables(options []option.Option) (*nameTables, error) {
@@ -1590,6 +1594,7 @@ func (parser *Parser) ParseArgs(arguments []string) error {
 	if err != nil {
 		return altshiftErrors.New(fmt.Errorf("make name tables: %w", err), options)
 	}
+	tables.help = helpOption
 
 	if err := checkGroups(options, parser.Groups, parser.ExclusiveGroups); err != nil {
 		return altshiftErrors.New(fmt.Errorf("check groups: %w", err), options)

@@ -779,26 +779,37 @@ func TestCompleteOffersAccumulatingOptionsAgain(t *testing.T) {
 func TestCompleteAfterADashValue(t *testing.T) {
 	t.Parallel()
 
+	acceptsAll := func(string) bool { return true }
+
 	testCases := []struct {
-		name      string
-		words     []string
+		name  string
+		words []string
+		// accepts is what the positional takes; dashDigit where nil.
+		accepts   func(string) bool
 		wantFiles bool
 	}{
 		{name: "the positional is offered", words: []string{""}, wantFiles: true},
 		{name: "a dash value being typed is the positional's", words: []string{"-10s"}, wantFiles: true},
 		{name: "a word the test refuses is options", words: []string{"-x"}, wantFiles: false},
 		{name: "nothing is left after it", words: []string{"-10s", ""}, wantFiles: false},
+		{name: "help ahead of an unknown name is options", words: []string{"-hx"}, accepts: acceptsAll, wantFiles: false},
+		{name: "after help, the positional is still offered", words: []string{"-hx", ""}, accepts: acceptsAll, wantFiles: true},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
+			accepts := testCase.accepts
+			if accepts == nil {
+				accepts = dashDigit
+			}
+
 			var amount string
 			parser := &Parser{
 				ProgramName: "seek",
 				Positionals: []option.Option{
-					option.WithMetavar(option.WithDashValues(option.NewStringOption(0, "", "", true, &amount), dashDigit), "AMOUNT"),
+					option.WithMetavar(option.WithDashValues(option.NewStringOption(0, "", "", true, &amount), accepts), "AMOUNT"),
 				},
 			}
 

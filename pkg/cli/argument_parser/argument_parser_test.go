@@ -3,6 +3,7 @@ package argument_parser
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -3241,6 +3242,18 @@ func TestParseArgsDashValues(t *testing.T) {
 			wantErr: argumentParserErrors.ErrNameNotFound,
 		},
 		{name: "after a terminator as before", args: []string{"--", "-1v"}, wantSecond: "-1v"},
+		{
+			name:    "help ahead of an unknown name is still help",
+			args:    []string{"-hx"},
+			accepts: acceptsAll,
+			wantErr: argumentParserErrors.ErrHelp,
+		},
+		{
+			name:    "help after a flag is still help",
+			args:    []string{"-vhx"},
+			accepts: acceptsAll,
+			wantErr: argumentParserErrors.ErrHelp,
+		},
 		{name: "an option named by a digit", args: []string{"-1"}, digitOption: true, wantErr: argumentParserErrors.ErrMissingPositional, wantOne: true},
 		{
 			name:        "a word that fails even with an option named by a digit",
@@ -3273,6 +3286,7 @@ func TestParseArgsDashValues(t *testing.T) {
 
 			parser := &Parser{
 				ProgramName: "myapp",
+				Output:      io.Discard,
 				Options:     options,
 				Positionals: []option.Option{
 					option.WithMetavar(option.WithNargs(option.NewStringOption(0, "", "", false, &first), option.NargsOptional), "FIRST"),

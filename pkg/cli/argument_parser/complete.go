@@ -206,13 +206,14 @@ func (parser *Parser) complete(ctx context.Context, prior []string, current stri
 	}
 
 	var completionShell string
-	tableOptions, _, _ := parser.tableOptions(&completionShell)
+	tableOptions, helpOption, _ := parser.tableOptions(&completionShell)
 
 	tables, err := makeNameTables(tableOptions)
 	if err != nil {
 		// A declaration a parse would refuse has nothing to offer.
 		return &Completion{}, nil
 	}
+	tables.help = helpOption
 
 	state := parser.scan(tables, prior)
 
