@@ -156,7 +156,10 @@ func TestResponse_BodyStreamerEarlyStop(t *testing.T) {
 	}
 
 	count := 0
-	for range response.BodyStreamer {
+	for _, err := range response.BodyStreamer {
+		if err != nil {
+			t.Fatalf("chunk %d: %v", count, err)
+		}
 		count++
 		if count == 2 {
 			break
