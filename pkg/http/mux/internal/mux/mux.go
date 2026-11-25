@@ -31,9 +31,15 @@ import (
 	altshiftHttpUtils "github.com/altshiftab/utils_go/pkg/http/utils"
 )
 
+// HandleRateLimiting counts the request against its key's limit: the key GetKey gives, where the
+// configuration has one, and otherwise the client's address. That is clientAddress, the client the
+// mux resolved from the headers it trusts, where it resolved one, and the connection's peer where it
+// did not. The peer of a service behind a proxy is the proxy, which every client would share a limit
+// with.
 func HandleRateLimiting(
 	rateLimitingConfiguration *muxTypesRateLimiting.RateLimitingConfiguration,
 	request *http.Request,
+	clientAddress string,
 ) *muxTypesResponseError.ResponseError {
 	if rateLimitingConfiguration == nil {
 		return nil
@@ -45,15 +51,18 @@ func HandleRateLimiting(
 		}
 	}
 
-	getKeyFunc := rateLimitingConfiguration.GetKey
-	if getKeyFunc == nil {
-		getKeyFunc = muxTypesRateLimiting.DefaultGetRateLimitingKey
-	}
+	key := clientAddress
+	if getKeyFunc := rateLimitingConfiguration.GetKey; getKeyFunc != nil || key == "" {
+		if getKeyFunc == nil {
+			getKeyFunc = muxTypesRateLimiting.DefaultGetRateLimitingKey
+		}
 
-	key, err := getKeyFunc(request)
-	if err != nil {
-		return &muxTypesResponseError.ResponseError{
-			ServerError: altshiftErrors.NewWithTrace(fmt.Errorf("get key func: %w", err)),
+		var err error
+		key, err = getKeyFunc(request)
+		if err != nil {
+			return &muxTypesResponseError.ResponseError{
+				ServerError: altshiftErrors.NewWithTrace(fmt.Errorf("get key func: %w", err)),
+			}
 		}
 	}
 

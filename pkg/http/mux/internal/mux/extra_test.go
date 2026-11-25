@@ -112,7 +112,7 @@ func TestHandleRateLimiting_KeyError(t *testing.T) {
 	}
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 
-	responseError := HandleRateLimiting(config, request)
+	responseError := HandleRateLimiting(config, request, "")
 	if responseError == nil || responseError.ServerError == nil {
 		t.Fatalf("expected a server error, got %#v", responseError)
 	}

@@ -686,3 +686,72 @@ func TestRateLimiting(t *testing.T) {
 		}
 	})
 }
+
+// Behind a proxy whose X-Forwarded-For the mux trusts, each client is limited on its own rather than
+// with every other client of the proxy; where the mux trusts nothing, a client naming itself anew in
+// the header still counts against the peer's limit.
+func TestRateLimiting_ForwardedClient(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name              string
+		trustForwardedFor bool
+		forwardedFor      [2]string
+		wantSecond        int
+	}{
+		{
+			name:              "trusted, two clients",
+			trustForwardedFor: true,
+			forwardedFor:      [2]string{"203.0.113.1", "203.0.113.2"},
+			wantSecond:        http.StatusNoContent,
+		},
+		{
+			name:              "trusted, one client",
+			trustForwardedFor: true,
+			forwardedFor:      [2]string{"203.0.113.1", "203.0.113.1"},
+			wantSecond:        http.StatusTooManyRequests,
+		},
+		{
+			name:         "untrusted, the header ignored",
+			forwardedFor: [2]string{"203.0.113.1", "203.0.113.2"},
+			wantSecond:   http.StatusTooManyRequests,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				mux := &Mux{}
+				mux.TrustForwardedFor = testCase.trustForwardedFor
+				mux.Add(
+					&endpoint.Endpoint{
+						Path:   "/rate-limiting",
+						Method: http.MethodGet,
+						RateLimitingConfiguration: &rate_limiting.RateLimitingConfiguration{
+							NumRequests:          1,
+							NumSecondsExpiration: 5,
+						},
+					},
+				)
+
+				var codes [2]int
+				for index, forwardedFor := range testCase.forwardedFor {
+					request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/rate-limiting", nil)
+					request.RemoteAddr = "198.51.100.1:5000"
+					request.Header.Set("X-Forwarded-For", forwardedFor)
+					recorder := httptest.NewRecorder()
+					mux.ServeHTTP(recorder, request)
+					codes[index] = recorder.Code
+				}
+
+				if codes[0] != http.StatusNoContent {
+					t.Fatalf("first request: got status code %d, expected %d", codes[0], http.StatusNoContent)
+				}
+				if codes[1] != testCase.wantSecond {
+					t.Fatalf("second request: got status code %d, expected %d", codes[1], testCase.wantSecond)
+				}
+			})
+		})
+	}
+}

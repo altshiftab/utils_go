@@ -426,7 +426,7 @@ func muxHandleRequest(
 	// Perform rate limiting, if specified.
 
 	if rateLimitingConfiguration := endpoint.RateLimitingConfiguration; rateLimitingConfiguration != nil {
-		if responseError := muxInternalMux.HandleRateLimiting(rateLimitingConfiguration, request); responseError != nil {
+		if responseError := muxInternalMux.HandleRateLimiting(rateLimitingConfiguration, request, httpContext.ClientAddress); responseError != nil {
 			responseError.Headers = append(responseError.Headers, corsHeaderEntries...)
 			return nil, responseError
 		}

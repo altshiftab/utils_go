@@ -18,7 +18,7 @@ func TestHandleRateLimiting(t *testing.T) {
 	t.Run("nil config allows", func(t *testing.T) {
 		t.Parallel()
 		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
-		if responseError := HandleRateLimiting(nil, request); responseError != nil {
+		if responseError := HandleRateLimiting(nil, request, ""); responseError != nil {
 			t.Fatalf("expected nil, got %#v", responseError)
 		}
 	})
@@ -26,7 +26,7 @@ func TestHandleRateLimiting(t *testing.T) {
 	t.Run("nil request is a server error", func(t *testing.T) {
 		t.Parallel()
 		config := &muxTypesRateLimiting.RateLimitingConfiguration{NumRequests: 1, NumSecondsExpiration: 5}
-		if responseError := HandleRateLimiting(config, nil); responseError == nil || responseError.ServerError == nil {
+		if responseError := HandleRateLimiting(config, nil, ""); responseError == nil || responseError.ServerError == nil {
 			t.Fatalf("expected a server error, got %#v", responseError)
 		}
 	})
@@ -39,12 +39,12 @@ func TestHandleRateLimiting(t *testing.T) {
 			request.RemoteAddr = "203.0.113.9:5000"
 
 			for i := range 2 {
-				if responseError := HandleRateLimiting(config, request); responseError != nil {
+				if responseError := HandleRateLimiting(config, request, ""); responseError != nil {
 					t.Fatalf("request %d should be allowed, got %#v", i, responseError)
 				}
 			}
 
-			responseError := HandleRateLimiting(config, request)
+			responseError := HandleRateLimiting(config, request, "")
 			if responseError == nil || responseError.ProblemDetail == nil {
 				t.Fatalf("expected a problem detail, got %#v", responseError)
 			}
@@ -82,7 +82,7 @@ func TestHandleRateLimiting_Concurrent(t *testing.T) {
 			address := index % addresses
 			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 			request.RemoteAddr = fmt.Sprintf("203.0.113.%d:5000", address+1)
-			if responseError := HandleRateLimiting(config, request); responseError == nil {
+			if responseError := HandleRateLimiting(config, request, ""); responseError == nil {
 				admitted[address].Add(1)
 			} else if responseError.ProblemDetail == nil || responseError.ProblemDetail.Status != http.StatusTooManyRequests {
 				t.Errorf("request %d: %#v", index, responseError)
@@ -95,5 +95,63 @@ func TestHandleRateLimiting_Concurrent(t *testing.T) {
 		if got := admitted[address].Load(); got != limit {
 			t.Errorf("address %d: %d requests let through, the limit is %d", address, got, limit)
 		}
+	}
+}
+
+// A request is counted under the client the mux resolved, where it resolved one, rather than the
+// connection's peer, which behind a proxy is the proxy every client shares; GetKey, where given, wins
+// over both.
+func TestHandleRateLimiting_Key(t *testing.T) {
+	t.Parallel()
+
+	const peer = "198.51.100.1:5000"
+
+	testCases := []struct {
+		name string
+		// clientAddresses are the addresses the mux resolved for two requests from one peer.
+		clientAddresses [2]string
+		getKey          func(*http.Request) (string, error)
+		wantSecondFull  bool
+	}{
+		{name: "different clients behind one proxy", clientAddresses: [2]string{"203.0.113.1", "203.0.113.2"}},
+		{name: "one client", clientAddresses: [2]string{"203.0.113.1", "203.0.113.1"}, wantSecondFull: true},
+		{name: "no client resolved keys on the peer", wantSecondFull: true},
+		{
+			name:            "get key wins over the client",
+			clientAddresses: [2]string{"203.0.113.1", "203.0.113.2"},
+			getKey:          func(*http.Request) (string, error) { return "everyone", nil },
+			wantSecondFull:  true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				config := &muxTypesRateLimiting.RateLimitingConfiguration{
+					NumRequests:          1,
+					NumSecondsExpiration: 5,
+					GetKey:               testCase.getKey,
+				}
+
+				var full [2]bool
+				for index, clientAddress := range testCase.clientAddresses {
+					request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
+					request.RemoteAddr = peer
+					responseError := HandleRateLimiting(config, request, clientAddress)
+					if responseError != nil && (responseError.ProblemDetail == nil || responseError.ProblemDetail.Status != http.StatusTooManyRequests) {
+						t.Fatalf("request %d: %#v", index, responseError)
+					}
+					full[index] = responseError != nil
+				}
+
+				if full[0] {
+					t.Fatal("the first request was limited")
+				}
+				if full[1] != testCase.wantSecondFull {
+					t.Fatalf("second request limited: %v, want %v", full[1], testCase.wantSecondFull)
+				}
+			})
+		})
 	}
 }

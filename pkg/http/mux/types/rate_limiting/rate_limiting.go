@@ -55,6 +55,8 @@ func (rateLimiter *RateLimiter) occupied() int {
 	return rateLimiter.NumOccupied
 }
 
+// DefaultGetRateLimitingKey keys a request on the connection's peer. The mux uses it only where it
+// resolved no client from the headers in front; where it resolved one, it keys on that address.
 func DefaultGetRateLimitingKey(request *http.Request) (string, error) {
 	if request == nil {
 		return "", nil
@@ -136,6 +138,8 @@ func (lookup *RateLimitingLookup) evict(key string, timerRateLimiter *TimerRateL
 type RateLimitingConfiguration struct {
 	NumRequests          int
 	NumSecondsExpiration int
-	GetKey               func(*http.Request) (string, error)
-	Lookup               RateLimitingLookup
+	// GetKey keys a request to count it against the limit, in place of the client's address the mux
+	// keys it on otherwise; see DefaultGetRateLimitingKey.
+	GetKey func(*http.Request) (string, error)
+	Lookup RateLimitingLookup
 }
