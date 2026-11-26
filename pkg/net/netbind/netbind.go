@@ -19,11 +19,18 @@ import (
 
 const defaultTimeout = 30 * time.Second
 
+// minimumDialShare is the least of the timeout each resolved address is given when several share
+// it, as the standard dialer does, unless less than that is left.
+const minimumDialShare = 2 * time.Second
+
+var limitedBroadcast = netip.AddrFrom4([4]byte{255, 255, 255, 255})
+
 // Binder creates sockets bound to one local address.
 type Binder struct {
 	address        netip.Addr
 	timeout        time.Duration
 	dnsServer      netip.AddrPort
+	withResolver   bool
 	systemResolver bool
 	resolver       *net.Resolver
 }
@@ -44,6 +51,7 @@ func WithTimeout(timeout time.Duration) Option {
 func WithResolver(server netip.AddrPort) Option {
 	return func(binder *Binder) {
 		binder.dnsServer = server
+		binder.withResolver = true
 	}
 }
 
@@ -62,6 +70,9 @@ func WithSystemResolver() Option {
 // The address must be a specific IPv4 address. The unspecified address is refused rather than
 // treated as "any": it is precisely the value that would route traffic the wrong way, and a
 // configuration that leaves it empty should fail at start-up rather than at the first connection.
+// The limited broadcast address and multicast addresses are refused too: a socket bound to one
+// reports it as its local address, so verification passes, while the kernel sends from whatever
+// address it picks for the route.
 func New(address netip.Addr, options ...Option) (*Binder, error) {
 	if !address.IsValid() {
 		return nil, altshiftErrors.NewWithTrace(
@@ -86,6 +97,13 @@ func New(address netip.Addr, options ...Option) (*Binder, error) {
 		)
 	}
 
+	if address == limitedBroadcast || address.IsMulticast() {
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: refusing to bind %s, which sends from an address the kernel picks", altshiftErrors.ErrValidationError, address),
+			address,
+		)
+	}
+
 	binder := &Binder{address: address, timeout: defaultTimeout}
 
 	for _, option := range options {
@@ -99,15 +117,18 @@ func New(address netip.Addr, options ...Option) (*Binder, error) {
 	}
 
 	switch {
-	case binder.dnsServer.IsValid() && binder.systemResolver:
+	case binder.withResolver && binder.systemResolver:
 		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf(
 				"%w: a Binder takes a bound resolver or the system resolver, not both",
 				altshiftErrors.ErrValidationError,
 			),
 		)
-	case binder.dnsServer.IsValid():
-		if !binder.dnsServer.Addr().Is4() || binder.dnsServer.Port() == 0 {
+	case binder.withResolver:
+		// 0.0.0.0 is refused with the rest: on Linux a connection to it reaches the host itself, so
+		// the queries would go to the local resolver this option exists to avoid.
+		server := binder.dnsServer.Addr()
+		if !server.Is4() || server.IsUnspecified() || server == limitedBroadcast || server.IsMulticast() || binder.dnsServer.Port() == 0 {
 			return nil, altshiftErrors.NewWithTrace(
 				fmt.Errorf(
 					"%w: the DNS server must be an IPv4 address and port, got %s",
@@ -176,10 +197,19 @@ func (binder *Binder) DialContext(ctx context.Context, network string, address s
 		return nil, fmt.Errorf("resolve: %w", err)
 	}
 
+	// The timeout covers the whole dial, shared among the answers, so that one that drops packets
+	// silently cannot spend it all before the others are tried.
+	deadline := time.Now().Add(binder.timeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+	}
+
 	var dialErrors []error
 
-	for _, resolved := range addresses {
-		conn, err := binder.dial(ctx, "tcp4", netip.AddrPortFrom(resolved, uint16(port)))
+	for index, resolved := range addresses {
+		share := dialShare(time.Until(deadline), len(addresses)-index)
+
+		conn, err := binder.dial(ctx, "tcp4", netip.AddrPortFrom(resolved, uint16(port)), share)
 		if err == nil {
 			return conn, nil
 		}
@@ -190,9 +220,41 @@ func (binder *Binder) DialContext(ctx context.Context, network string, address s
 	return nil, altshiftErrors.New(fmt.Errorf("dial: %w", errors.Join(dialErrors...)), address)
 }
 
-// dial connects to one address over network ("tcp4" or "udp4") and verifies the local end.
-func (binder *Binder) dial(ctx context.Context, network string, remote netip.AddrPort) (net.Conn, error) {
-	dialer := &net.Dialer{Timeout: binder.timeout}
+// dialShare is the part of what is left of a timeout that the next of left addresses gets: an even
+// share, but no less than minimumDialShare unless less than that is left.
+func dialShare(remaining time.Duration, left int) time.Duration {
+	if remaining <= 0 || left <= 1 {
+		return remaining
+	}
+
+	return max(remaining/time.Duration(left), min(minimumDialShare, remaining))
+}
+
+// usable refuses a Binder that New did not make: its address is the zero value, and a socket
+// bound to that is bound to the wildcard, which sends from the default source before anything
+// could verify it.
+func (binder *Binder) usable() error {
+	if !binder.address.Is4() || binder.address.IsUnspecified() {
+		return altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: a Binder not made by New has no address to bind", altshiftErrors.ErrValidationError),
+		)
+	}
+
+	return nil
+}
+
+// dial connects to one address over network ("tcp4" or "udp4") within timeout and verifies the
+// local end.
+func (binder *Binder) dial(ctx context.Context, network string, remote netip.AddrPort, timeout time.Duration) (net.Conn, error) {
+	if err := binder.usable(); err != nil {
+		return nil, err
+	}
+
+	if timeout <= 0 {
+		return nil, altshiftErrors.NewWithTrace(fmt.Errorf("dial: %w", context.DeadlineExceeded), remote)
+	}
+
+	dialer := &net.Dialer{Timeout: timeout}
 
 	switch network {
 	case "tcp4":
@@ -230,7 +292,7 @@ func (binder *Binder) dialDNS(ctx context.Context, network string, _ string) (ne
 		)
 	}
 
-	return binder.dial(ctx, network, binder.dnsServer)
+	return binder.dial(ctx, network, binder.dnsServer, binder.timeout)
 }
 
 // Listen accepts TCP connections on the bound address.
@@ -292,6 +354,10 @@ func verified[T io.Closer](binder *Binder, local net.Addr, socket T) (T, error) 
 
 // localAddrPort is the bound address with a port, 0 asking the kernel to choose one.
 func (binder *Binder) localAddrPort(port int) (netip.AddrPort, error) {
+	if err := binder.usable(); err != nil {
+		return netip.AddrPort{}, err
+	}
+
 	if port < 0 || port > 65535 {
 		return netip.AddrPort{}, altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: port %d is out of range", altshiftErrors.ErrValidationError, port),

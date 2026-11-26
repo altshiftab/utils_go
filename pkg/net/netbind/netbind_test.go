@@ -48,6 +48,29 @@ func TestNewRejectsWhatWouldLeak(t *testing.T) {
 			options:     []Option{WithResolver(netip.AddrPortFrom(netip.MustParseAddr("10.2.0.1"), 0))},
 			expectError: true,
 		},
+		{name: "the limited broadcast address", address: netip.MustParseAddr("255.255.255.255"), expectError: true},
+		{name: "a multicast address", address: netip.MustParseAddr("224.0.0.1"), expectError: true},
+		{
+			// A connection to 0.0.0.0 reaches the host itself on Linux, so the queries would go to
+			// the local resolver.
+			name:        "the unspecified dns server",
+			address:     loopback,
+			options:     []Option{WithResolver(netip.MustParseAddrPort("0.0.0.0:53"))},
+			expectError: true,
+		},
+		{name: "a zero dns server", address: loopback, options: []Option{WithResolver(netip.AddrPort{})}, expectError: true},
+		{
+			name:        "a zero dns server beside the system resolver",
+			address:     loopback,
+			options:     []Option{WithResolver(netip.AddrPort{}), WithSystemResolver()},
+			expectError: true,
+		},
+		{
+			name:        "a broadcast dns server",
+			address:     loopback,
+			options:     []Option{WithResolver(netip.MustParseAddrPort("255.255.255.255:53"))},
+			expectError: true,
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -418,6 +441,78 @@ func TestNilBinderIsInert(t *testing.T) {
 
 	if _, err := binder.Resolve(context.Background(), "127.0.0.1"); err == nil {
 		t.Error("resolve: expected an error from a nil binder")
+	}
+}
+
+// TestAZeroBinderOpensNothing refuses a Binder not made by New before any socket exists: its zero
+// address would bind the wildcard and send from the default source.
+func TestAZeroBinderOpensNothing(t *testing.T) {
+	t.Parallel()
+
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	defer closeOrError(t, listener.Close)
+
+	accepted := acceptOne(listener)
+	binder := new(Binder)
+
+	if _, err := binder.DialContext(t.Context(), "tcp4", listener.Addr().String()); err == nil {
+		t.Error("dial context: a zero binder dialled")
+	}
+
+	// With a timeout, so that only the missing address stands in the way.
+	if _, err := (&Binder{timeout: time.Second}).DialContext(t.Context(), "tcp4", listener.Addr().String()); err == nil {
+		t.Error("dial context: a binder without an address dialled")
+	}
+
+	if _, err := binder.Listen(t.Context(), 0); err == nil {
+		t.Error("listen: a zero binder listened")
+	}
+
+	if _, err := binder.ListenPacket(t.Context(), 0); err == nil {
+		t.Error("listen packet: a zero binder listened")
+	}
+
+	select {
+	case conn := <-accepted:
+		if conn != nil {
+			_ = conn.Close()
+
+			t.Error("a zero binder's dial reached the listener")
+		}
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+// TestDialShare splits what is left of the timeout among the addresses still to try, with a floor,
+// so that one address that drops packets silently cannot spend all of it.
+func TestDialShare(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		remaining time.Duration
+		left      int
+		want      time.Duration
+	}{
+		{name: "one address takes it all", remaining: 30 * time.Second, left: 1, want: 30 * time.Second},
+		{name: "three addresses share it", remaining: 30 * time.Second, left: 3, want: 10 * time.Second},
+		{name: "a share below the floor gets the floor", remaining: 5 * time.Second, left: 10, want: 2 * time.Second},
+		{name: "less than the floor left", remaining: time.Second, left: 4, want: time.Second},
+		{name: "nothing left", remaining: 0, left: 2, want: 0},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := dialShare(testCase.remaining, testCase.left); got != testCase.want {
+				t.Errorf("%s: %s, want %s", testCase.name, got, testCase.want)
+			}
+		})
 	}
 }
 

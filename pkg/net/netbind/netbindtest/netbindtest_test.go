@@ -67,6 +67,29 @@ func TestInspectCatchesBypasses(t *testing.T) {
 		{name: "a local variable named net is not the package", source: `package p; func f() { var net struct{ Dial func() }; net.Dial() }`, expected: false},
 		{name: "http types used only for serving", source: `package p; import "net/http"; func f(w http.ResponseWriter, r *http.Request) {}`, expected: false},
 		{name: "a Serve method in a file with no http import", source: `package p; type t struct{}; func (t) Serve() {}; func f() { t{}.Serve() }`, expected: false},
+		{name: "net.ResolveTCPAddr resolves unbound", source: `package p; import "net"; func f() { net.ResolveTCPAddr("tcp", "example.com:80") }`, expected: true},
+		{name: "net.ResolveUDPAddr resolves unbound", source: `package p; import "net"; func f() { net.ResolveUDPAddr("udp", "example.com:53") }`, expected: true},
+		{name: "net.ResolveIPAddr resolves unbound", source: `package p; import "net"; func f() { net.ResolveIPAddr("ip", "example.com") }`, expected: true},
+		{name: "net.Dial taken as a value", source: `package p; import "net"; var dial = net.Dial`, expected: true},
+		{name: "http.Get returned as a value", source: `package p; import "net/http"; func f() any { return http.Get }`, expected: true},
+		{name: "net.LookupIP handed over as a callback", source: `package p; import "net"; func g(any) {}; func f() { g(net.LookupIP) }`, expected: true},
+		{name: "tls.Dial", source: `package p; import "crypto/tls"; func f() { tls.Dial("tcp", "x", nil) }`, expected: true},
+		{name: "tls.Listen", source: `package p; import "crypto/tls"; func f() { tls.Listen("tcp", "x", nil) }`, expected: true},
+		{name: "constructing a tls.Dialer", source: `package p; import "crypto/tls"; var d = &tls.Dialer{}`, expected: true},
+		{name: "tls.Client over a connection made elsewhere", source: `package p; import ("crypto/tls"; "net"); func f(c net.Conn) { tls.Client(c, nil) }`, expected: false},
+		{name: "smtp.Dial", source: `package p; import "net/smtp"; func f() { smtp.Dial("x") }`, expected: true},
+		{name: "rpc.Dial", source: `package p; import "net/rpc"; func f() { rpc.Dial("tcp", "x") }`, expected: true},
+		{name: "jsonrpc.Dial", source: `package p; import "net/rpc/jsonrpc"; func f() { jsonrpc.Dial("tcp", "x") }`, expected: true},
+		{name: "a dot import of net", source: `package p; import . "net"; func f() { Dial("tcp", "x") }`, expected: true},
+		{name: "a dot import of net/http", source: `package p; import . "net/http"; func f() { Get("x") }`, expected: true},
+		{name: "a ReverseProxy on DefaultTransport", source: `package p; import "net/http/httputil"; var p = &httputil.ReverseProxy{}`, expected: true},
+		{name: "a ReverseProxy with its own Transport", source: `package p; import ("net/http"; "net/http/httputil"); func f(t http.RoundTripper) any { return &httputil.ReverseProxy{Transport: t} }`, expected: false},
+		{name: "NewSingleHostReverseProxy", source: `package p; import "net/http/httputil"; func f() { httputil.NewSingleHostReverseProxy(nil) }`, expected: true},
+		{name: "an elided http.Client in a slice of pointers", source: `package p; import "net/http"; var c = []*http.Client{{}}`, expected: true},
+		{name: "an elided net.Dialer in a map", source: `package p; import "net"; var d = map[string]*net.Dialer{"k": {}}`, expected: true},
+		{name: "an elided net.Resolver in an array", source: `package p; import "net"; var r = [1]*net.Resolver{{}}`, expected: true},
+		{name: "an elided literal in a nested slice", source: `package p; import "net/http"; var c = [][]*http.Client{{{}}}`, expected: true},
+		{name: "a slice of client handles", source: `package p; import "net/http"; func f(c *http.Client) any { return []*http.Client{c} }`, expected: false},
 	}
 
 	for _, testCase := range testCases {
@@ -169,5 +192,21 @@ func TestFindWalksTheTree(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestALiteralIsReportedOnce reports a constructed client at its literal, not again at its type.
+func TestALiteralIsReportedOnce(t *testing.T) {
+	t.Parallel()
+
+	fileSet := token.NewFileSet()
+
+	file, err := parser.ParseFile(fileSet, "synthetic.go", `package p; import "net/http"; var a = http.Client{}; var b = &http.Transport{}`, parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatalf("parse file: %v", err)
+	}
+
+	if violations := inspect(fileSet, file, "synthetic.go"); len(violations) != 2 {
+		t.Errorf("%d violations for two literals: %v", len(violations), violations)
 	}
 }

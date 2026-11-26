@@ -22,14 +22,23 @@ import (
 )
 
 const (
-	netPath     = "net"
-	httpPath    = "net/http"
-	servicePath = "pkg/http/service"
+	netPath      = "net"
+	httpPath     = "net/http"
+	tlsPath      = "crypto/tls"
+	smtpPath     = "net/smtp"
+	rpcPath      = "net/rpc"
+	jsonrpcPath  = "net/rpc/jsonrpc"
+	httputilPath = "net/http/httputil"
+	servicePath  = "pkg/http/service"
+
+	reverseProxy = "ReverseProxy"
 )
 
 // forbiddenCalls names package-level functions that create a socket, resolve a name unbound, or ask
 // the kernel about interfaces. The interface calls are here for a second reason: they need
 // AF_NETLINK, and keeping them out is what lets a systemd unit deny that address family outright.
+// They are refused wherever they are named, not only where they are called: a function taken as a
+// value or handed over as a callback dials all the same.
 var forbiddenCalls = map[string]map[string]struct{}{
 	netPath: {
 		"Dial": {}, "DialTimeout": {}, "DialIP": {}, "DialTCP": {}, "DialUDP": {}, "DialUnix": {},
@@ -39,20 +48,30 @@ var forbiddenCalls = map[string]map[string]struct{}{
 		"Interfaces": {}, "InterfaceAddrs": {}, "InterfaceByIndex": {}, "InterfaceByName": {},
 		"LookupHost": {}, "LookupIP": {}, "LookupIPAddr": {}, "LookupPort": {}, "LookupCNAME": {},
 		"LookupAddr": {}, "LookupMX": {}, "LookupNS": {}, "LookupSRV": {}, "LookupTXT": {},
+		"ResolveIPAddr": {}, "ResolveTCPAddr": {}, "ResolveUDPAddr": {},
 	},
 	httpPath: {
 		"Get": {}, "Head": {}, "Post": {}, "PostForm": {},
 		"ListenAndServe": {}, "ListenAndServeTLS": {},
 	},
+	tlsPath:      {"Dial": {}, "DialWithDialer": {}, "Listen": {}},
+	smtpPath:     {"Dial": {}, "SendMail": {}},
+	rpcPath:      {"Dial": {}, "DialHTTP": {}, "DialHTTPPath": {}},
+	jsonrpcPath:  {"Dial": {}},
+	httputilPath: {"NewSingleHostReverseProxy": {}},
 }
 
 // forbiddenTypes names types whose zero value is already a working, unbound client. Constructing
 // one, by a composite literal or a variable of the bare type, is what is refused; a pointer to one
 // that netbind handed over is not. http.Server is not here: serving a listener netbind made is the
-// right way to serve, and the methods that listen by themselves are in forbiddenMethods.
+// right way to serve, and the methods that listen by themselves are in forbiddenMethods. A
+// ReverseProxy literal that sets its Transport is allowed: only without one does it fall back to
+// http.DefaultTransport.
 var forbiddenTypes = map[string]map[string]struct{}{
-	netPath:  {"Dialer": {}, "ListenConfig": {}, "Resolver": {}},
-	httpPath: {"Client": {}, "Transport": {}},
+	netPath:      {"Dialer": {}, "ListenConfig": {}, "Resolver": {}},
+	httpPath:     {"Client": {}, "Transport": {}},
+	tlsPath:      {"Dialer": {}},
+	httputilPath: {reverseProxy: {}},
 }
 
 // forbiddenVars names package-level values that are unbound clients ready to use.
@@ -159,10 +178,32 @@ func isAllowed(relative string, allowed []string) bool {
 	return false
 }
 
+// watched reports whether a package has something the check refuses.
+func watched(path string) bool {
+	for _, sets := range []map[string]map[string]struct{}{forbiddenCalls, forbiddenTypes, forbiddenVars} {
+		if _, ok := sets[path]; ok {
+			return true
+		}
+	}
+
+	return false
+}
+
 // inspect finds the forbidden references in one file.
 func inspect(fileSet *token.FileSet, file *ast.File, relative string) []*Violation {
+	var violations []*Violation
+
+	report := func(node ast.Node, name string, why string) {
+		position := fileSet.Position(node.Pos())
+		violations = append(violations, &Violation{
+			Position: relative + ":" + strconv.Itoa(position.Line),
+			Name:     name + " " + why,
+		})
+	}
+
 	// Resolve the local name of each watched package, so that a variable called "net" is not taken
-	// for the package and an aliased import is not missed.
+	// for the package and an aliased import is not missed. A dot import would leave its names
+	// unqualified, where a syntactic check cannot tell them from the file's own, so it is refused.
 	packages := make(map[string]string)
 	checkMethods := false
 
@@ -172,37 +213,34 @@ func inspect(fileSet *token.FileSet, file *ast.File, relative string) []*Violati
 			continue
 		}
 
-		switch {
-		case path == netPath || path == httpPath:
-			checkMethods = checkMethods || path == httpPath
-		case strings.HasSuffix(path, "/"+servicePath):
+		if strings.HasSuffix(path, "/"+servicePath) {
 			checkMethods = true
 
 			continue
-		default:
+		}
+
+		if !watched(path) {
 			continue
 		}
+
+		checkMethods = checkMethods || path == httpPath
 
 		name := filepath.Base(path)
 		if spec.Name != nil {
 			name = spec.Name.Name
 		}
 
+		if name == "." {
+			report(spec, strconv.Quote(path), "is dot-imported, which hides its names from the check")
+
+			continue
+		}
+
 		packages[name] = path
 	}
 
 	if len(packages) == 0 && !checkMethods {
-		return nil
-	}
-
-	var violations []*Violation
-
-	report := func(node ast.Node, name string, why string) {
-		position := fileSet.Position(node.Pos())
-		violations = append(violations, &Violation{
-			Position: relative + ":" + strconv.Itoa(position.Line),
-			Name:     name + " " + why,
-		})
+		return violations
 	}
 
 	// match reports the qualified name when a selector names something in the given set.
@@ -230,26 +268,68 @@ func inspect(fileSet *token.FileSet, file *ast.File, relative string) []*Violati
 	}
 
 	// A bare type behind a pointer is a handle somebody else made; only the pointer form is allowed,
-	// so the selectors under a StarExpr are collected and skipped below.
+	// so the selectors under a StarExpr are collected and skipped below. So are the types of
+	// composite literals, which the literal reports.
 	behindPointer := make(map[ast.Expr]struct{})
+	literalTypes := make(map[ast.Expr]struct{})
 
 	ast.Inspect(file, func(node ast.Node) bool {
-		if star, ok := node.(*ast.StarExpr); ok {
-			behindPointer[star.X] = struct{}{}
+		switch typed := node.(type) {
+		case *ast.StarExpr:
+			behindPointer[typed.X] = struct{}{}
+		case *ast.CompositeLit:
+			if typed.Type != nil {
+				literalTypes[typed.Type] = struct{}{}
+			}
 		}
 
 		return true
 	})
 
+	// elided reports the literals inside a slice, array or map literal whose type is left out and
+	// so is the container's element type, which may be a forbidden one: []*http.Client{{}}.
+	var elided func(literal *ast.CompositeLit, literalType ast.Expr)
+
+	elided = func(literal *ast.CompositeLit, literalType ast.Expr) {
+		var key, value ast.Expr
+
+		switch container := unpointer(literalType).(type) {
+		case *ast.ArrayType:
+			value = container.Elt
+		case *ast.MapType:
+			key, value = container.Key, container.Value
+		default:
+			return
+		}
+
+		visit := func(element ast.Expr, elementType ast.Expr) {
+			inner, ok := element.(*ast.CompositeLit)
+			if !ok || inner.Type != nil || elementType == nil {
+				return
+			}
+
+			if name, ok := match(unpointer(elementType), forbiddenTypes); ok && !setsTransport(name, inner) {
+				report(inner, name, "constructs an unbound client")
+			}
+
+			elided(inner, elementType)
+		}
+
+		for _, element := range literal.Elts {
+			if pair, ok := element.(*ast.KeyValueExpr); ok {
+				visit(pair.Key, key)
+				visit(pair.Value, value)
+
+				continue
+			}
+
+			visit(element, value)
+		}
+	}
+
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch typed := node.(type) {
 		case *ast.CallExpr:
-			if name, ok := match(typed.Fun, forbiddenCalls); ok {
-				report(typed, name, "opens an unbound socket")
-
-				return true
-			}
-
 			if !checkMethods {
 				return true
 			}
@@ -267,10 +347,22 @@ func inspect(fileSet *token.FileSet, file *ast.File, relative string) []*Violati
 				report(typed, "."+selector.Sel.Name, "listens on an address of its own")
 			}
 		case *ast.CompositeLit:
-			if name, ok := match(typed.Type, forbiddenTypes); ok {
+			if typed.Type == nil {
+				return true
+			}
+
+			if name, ok := match(typed.Type, forbiddenTypes); ok && !setsTransport(name, typed) {
 				report(typed, name, "constructs an unbound client")
 			}
+
+			elided(typed, typed.Type)
 		case *ast.SelectorExpr:
+			if name, ok := match(typed, forbiddenCalls); ok {
+				report(typed, name, "opens an unbound socket")
+
+				return true
+			}
+
 			if name, ok := match(typed, forbiddenVars); ok {
 				report(typed, name, "is an unbound client")
 
@@ -283,6 +375,10 @@ func inspect(fileSet *token.FileSet, file *ast.File, relative string) []*Violati
 				return true
 			}
 
+			if _, literal := literalTypes[ast.Expr(typed)]; literal {
+				return true
+			}
+
 			if name, ok := match(typed, forbiddenTypes); ok {
 				report(typed, name, "declares an unbound client by value")
 			}
@@ -292,6 +388,31 @@ func inspect(fileSet *token.FileSet, file *ast.File, relative string) []*Violati
 	})
 
 	return violations
+}
+
+// unpointer strips the pointer from a type expression.
+func unpointer(expression ast.Expr) ast.Expr {
+	if star, ok := expression.(*ast.StarExpr); ok {
+		return star.X
+	}
+
+	return expression
+}
+
+// setsTransport reports whether a ReverseProxy literal names its Transport, which is all that keeps
+// it off http.DefaultTransport.
+func setsTransport(name string, literal *ast.CompositeLit) bool {
+	if !strings.HasSuffix(name, "."+reverseProxy) {
+		return false
+	}
+
+	for _, element := range literal.Elts {
+		if pair, ok := element.(*ast.KeyValueExpr); ok && identifierName(pair.Key) == "Transport" {
+			return true
+		}
+	}
+
+	return false
 }
 
 func identifierName(expression ast.Expr) string {
