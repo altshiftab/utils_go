@@ -231,6 +231,7 @@ func TestMapRefusesBadRequests(t *testing.T) {
 		{name: "nil", request: nil},
 		{name: "an unknown protocol", request: &Request{Protocol: 9, Lifetime: time.Minute}},
 		{name: "a negative lifetime", request: &Request{Protocol: TCP, Lifetime: -time.Second}},
+		{name: "a negative lifetime under a second", request: &Request{Protocol: TCP, Lifetime: -500 * time.Millisecond}},
 	}
 
 	for _, testCase := range testCases {
@@ -440,21 +441,66 @@ func TestKeeperAsksForTheAddress(t *testing.T) {
 	}
 }
 
-// TestKeeperKeepsTheAddressAcrossRenewals is what Renewed sees: the address found with the port,
-// without asking again.
-func TestKeeperKeepsTheAddressAcrossRenewals(t *testing.T) {
+// addressOf answers mapping requests with the port, for a second, and address requests with the
+// address the gateway is set to, or with nothing while it is the zero address.
+type addressOf struct {
+	mutex   sync.Mutex
+	address netip.Addr
+}
+
+func (state *addressOf) set(address netip.Addr) {
+	state.mutex.Lock()
+	defer state.mutex.Unlock()
+
+	state.address = address
+}
+
+func (state *addressOf) respond(port uint16) func(request []byte) [][]byte {
+	return func(request []byte) [][]byte {
+		if len(request) < 2 {
+			return nil
+		}
+
+		if request[1] != opExternalAddress {
+			return [][]byte{mappingAnswer(request, 0, port, 1)}
+		}
+
+		state.mutex.Lock()
+		address := state.address
+		state.mutex.Unlock()
+
+		if !address.IsValid() {
+			return nil
+		}
+
+		bytes := address.As4()
+
+		return [][]byte{{0, 128, 0, 0, 0, 0, 0, 1, bytes[0], bytes[1], bytes[2], bytes[3]}}
+	}
+}
+
+// TestKeeperFollowsTheAddress asks the address at every renewal: one the gateway stops giving is
+// kept, and a new one, with the same port, as when a tunnel reconnects to another exit, is a
+// change.
+func TestKeeperFollowsTheAddress(t *testing.T) {
 	t.Parallel()
 
-	server := newGateway(t, grant(40000, 1))
+	first := netip.MustParseAddr("149.50.216.238")
+	second := netip.MustParseAddr("149.50.216.239")
+
+	state := &addressOf{address: first}
+	server := newGateway(t, state.respond(40000))
+
 	client := newTestClient(t, server)
-	renewals := make(chan *Mapping, 16)
+	changes := make(chan change, 16)
+	renewals := make(chan *Mapping, 64)
 
 	ctx, cancel := context.WithCancel(t.Context())
 
 	keeper := &Keeper{
 		Client:  client,
 		Request: protonRequest,
-		Changed: func(*Mapping) {},
+		Changed: func(mapping *Mapping) { changes <- change{mapping: mapping, at: time.Now()} },
 		Renewed: func(mapping *Mapping) {
 			select {
 			case renewals <- mapping:
@@ -478,30 +524,250 @@ func TestKeeperKeepsTheAddressAcrossRenewals(t *testing.T) {
 		<-done
 	})
 
-	public := netip.MustParseAddr("149.50.216.238")
+	if got := next(t, changes, 3*time.Second); got.mapping == nil || got.mapping.ExternalAddress != first {
+		t.Fatalf("first change: %+v, want %s", got.mapping, first)
+	}
 
-	for index := range 2 {
+	// Unanswered, the address stays what it was, and nothing is reported.
+	state.set(netip.Addr{})
+
+	for index := range 3 {
 		select {
 		case mapping := <-renewals:
-			if mapping.ExternalAddress != public {
-				t.Errorf("renewal %d: address %s, want %s", index, mapping.ExternalAddress, public)
+			if index > 0 && mapping.ExternalAddress != first {
+				t.Fatalf("renewal %d with the address unanswered: %s, want %s", index, mapping.ExternalAddress, first)
 			}
 		case <-time.After(3 * time.Second):
 			t.Fatalf("no renewal %d", index)
 		}
 	}
 
-	addressRequests := 0
-
-	server.mutex.Lock()
-	for _, request := range server.requests {
-		if len(request) >= 2 && request[1] == opExternalAddress {
-			addressRequests++
-		}
+	select {
+	case got := <-changes:
+		t.Fatalf("an unanswered address question reported a change: %+v", got.mapping)
+	default:
 	}
-	server.mutex.Unlock()
 
-	if addressRequests != 1 {
-		t.Errorf("%d address requests over two renewals of one port, want 1", addressRequests)
+	state.set(second)
+
+	if got := next(t, changes, 3*time.Second); got.mapping == nil || got.mapping.ExternalPort != 40000 || got.mapping.ExternalAddress != second {
+		t.Fatalf("after the exit changed: %+v, want port 40000 at %s", got.mapping, second)
+	}
+}
+
+// TestKeeperRenewsTheMappingItIsGiven starts from a mapping the caller holds: it is renewed at half
+// its lifetime, not at once, nothing is reported while it holds, and its lapse is reported when
+// the gateway falls silent, as for a mapping the keeper got itself.
+func TestKeeperRenewsTheMappingItIsGiven(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		respond func(request []byte) [][]byte
+		lapses  bool
+	}{
+		{name: "renewed", respond: grant(40000, 1)},
+		{name: "the gateway silent from the start", respond: silent, lapses: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := newGateway(t, testCase.respond)
+			client := newTestClient(t, server)
+			client.firstWait = 100 * time.Millisecond
+			changes := make(chan change, 16)
+
+			held := &Mapping{Protocol: TCP, ExternalPort: 40000, Lifetime: time.Second, Obtained: time.Now()}
+
+			ctx, cancel := context.WithCancel(t.Context())
+
+			keeper := &Keeper{
+				Client:     client,
+				Request:    protonRequest,
+				Current:    held,
+				Changed:    func(mapping *Mapping) { changes <- change{mapping: mapping, at: time.Now()} },
+				RetryDelay: 50 * time.Millisecond,
+			}
+
+			done := make(chan struct{})
+
+			go func() {
+				defer close(done)
+
+				_ = keeper.Run(ctx)
+			}()
+
+			t.Cleanup(func() {
+				cancel()
+				<-done
+			})
+
+			time.Sleep(300 * time.Millisecond)
+
+			if count := server.requestCount(); count != 0 {
+				t.Fatalf("%s: %d requests before half the lease had passed", testCase.name, count)
+			}
+
+			if !testCase.lapses {
+				time.Sleep(1200 * time.Millisecond)
+
+				select {
+				case got := <-changes:
+					t.Fatalf("%s: a renewal of the held port reported %+v", testCase.name, got.mapping)
+				default:
+				}
+
+				if count := server.requestCount(); count < 2 {
+					t.Errorf("%s: %d requests in 1.5 s of a 1-second lease", testCase.name, count)
+				}
+
+				return
+			}
+
+			lapse := next(t, changes, 3*time.Second)
+			if lapse.mapping != nil {
+				t.Fatalf("%s: expected a lapse, got %+v", testCase.name, lapse.mapping)
+			}
+
+			if late := lapse.at.Sub(held.Expires()); late > 300*time.Millisecond || late < 0 {
+				t.Errorf("%s: the lapse came %s after the held lease expired", testCase.name, late)
+			}
+		})
+	}
+}
+
+// TestMapDiscardsQueuedAnswers is the second answer to a retransmit, left on the socket: the next
+// request must not take it for its own, though nothing answers that one.
+func TestMapDiscardsQueuedAnswers(t *testing.T) {
+	t.Parallel()
+
+	twice := func(request []byte) [][]byte {
+		answer := mappingAnswer(request, 0, 40000, 60)
+
+		return [][]byte{answer, answer}
+	}
+
+	server := newGateway(t, twice)
+	client := newTestClient(t, server)
+
+	if _, err := client.Map(t.Context(), protonRequest); err != nil {
+		t.Fatalf("map: %v", err)
+	}
+
+	// Both answers have arrived by now; the second is still queued.
+	time.Sleep(50 * time.Millisecond)
+
+	server.setRespond(silent)
+
+	if mapping, err := client.Map(t.Context(), protonRequest); !errors.Is(err, ErrNoAnswer) {
+		t.Fatalf("a silent gateway's renewal gave %+v, %v; want no answer", mapping, err)
+	}
+}
+
+// TestMapMatchesTheInternalPort takes only the answer for the port asked for by number, and any
+// answer for a request for any port, as Proton is asked.
+func TestMapMatchesTheInternalPort(t *testing.T) {
+	t.Parallel()
+
+	answerFor := func(request []byte, internal uint16, external uint16) []byte {
+		answer := mappingAnswer(request, 0, external, 60)
+		binary.BigEndian.PutUint16(answer[8:10], internal)
+
+		return answer
+	}
+
+	testCases := []struct {
+		name     string
+		request  *Request
+		expected uint16
+	}{
+		{name: "a port asked for by number", request: &Request{Protocol: TCP, InternalPort: 5000, Lifetime: time.Minute}, expected: 45000},
+		{name: "any port", request: protonRequest, expected: 46000},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := newGateway(t, func(request []byte) [][]byte {
+				return [][]byte{answerFor(request, 6000, 46000), answerFor(request, 5000, 45000)}
+			})
+			client := newTestClient(t, server)
+
+			mapping, err := client.Map(t.Context(), testCase.request)
+			if err != nil {
+				t.Fatalf("%s: map: %v", testCase.name, err)
+			}
+
+			if mapping.ExternalPort != testCase.expected {
+				t.Errorf("%s: got port %d, want %d", testCase.name, mapping.ExternalPort, testCase.expected)
+			}
+		})
+	}
+}
+
+// TestMapLifetimes sends a lifetime under a second as one, never as zero, which deletes, and takes
+// a granted lifetime of zero for no mapping.
+func TestMapLifetimes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("under a second", func(t *testing.T) {
+		t.Parallel()
+
+		server := newGateway(t, grant(40000, 60))
+		client := newTestClient(t, server)
+
+		if _, err := client.Map(t.Context(), &Request{Protocol: TCP, SuggestedExternalPort: 1, Lifetime: 500 * time.Millisecond}); err != nil {
+			t.Fatalf("map: %v", err)
+		}
+
+		server.mutex.Lock()
+		request := server.requests[0]
+		server.mutex.Unlock()
+
+		if lifetime := binary.BigEndian.Uint32(request[8:12]); lifetime != 1 {
+			t.Errorf("half a second was asked for as %d seconds", lifetime)
+		}
+	})
+
+	grants := []struct {
+		name     string
+		port     uint16
+		lifetime uint32
+	}{
+		{name: "granted no lifetime", port: 40000, lifetime: 0},
+		{name: "granted port 0", port: 0, lifetime: 60},
+	}
+
+	for _, granted := range grants {
+		t.Run(granted.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := newGateway(t, grant(granted.port, granted.lifetime))
+			client := newTestClient(t, server)
+
+			if mapping, err := client.Map(t.Context(), protonRequest); !errors.Is(err, ErrResult) {
+				t.Errorf("%s: gave %+v, %v; want a refusal", granted.name, mapping, err)
+			}
+		})
+	}
+}
+
+// TestKeeperRefusesARequestForNoLifetime is a keeper that would renew a deletion as fast as it can.
+func TestKeeperRefusesARequestForNoLifetime(t *testing.T) {
+	t.Parallel()
+
+	server := newGateway(t, grant(40000, 60))
+
+	keeper := &Keeper{
+		Client:  newTestClient(t, server),
+		Request: &Request{Protocol: TCP, SuggestedExternalPort: 1},
+		Changed: func(*Mapping) {},
+	}
+
+	if err := keeper.Run(t.Context()); err == nil {
+		t.Error("a keeper of a zero lifetime ran")
 	}
 }

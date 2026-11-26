@@ -137,11 +137,17 @@ func (client *Client) Map(ctx context.Context, request *Request) (*Mapping, erro
 		)
 	}
 
-	lifetime := request.Lifetime / time.Second
-	if lifetime < 0 || lifetime > 1<<32-1 {
+	if request.Lifetime < 0 || request.Lifetime/time.Second > 1<<32-1 {
 		return nil, altshiftErrors.NewWithTrace(
 			fmt.Errorf("%w: lifetime %s is out of range", altshiftErrors.ErrValidationError, request.Lifetime),
 		)
+	}
+
+	// Zero on the wire deletes the mapping (RFC 6886 3.4), so a lifetime under a second is asked
+	// for as one second rather than cut to zero.
+	lifetime := request.Lifetime / time.Second
+	if request.Lifetime > 0 && lifetime == 0 {
+		lifetime = 1
 	}
 
 	message := make([]byte, requestSize)
@@ -151,18 +157,39 @@ func (client *Client) Map(ctx context.Context, request *Request) (*Mapping, erro
 	binary.BigEndian.PutUint16(message[6:8], request.SuggestedExternalPort)
 	binary.BigEndian.PutUint32(message[8:12], uint32(lifetime))
 
-	answer, err := client.exchange(ctx, message, byte(request.Protocol), mappingResponseSize)
+	// An answer echoes the internal port it is for (RFC 6886 3.5). One asked for as 0, any port, is
+	// answered with whatever the gateway chose, so only a port asked for by number is compared.
+	var match func(answer []byte) bool
+
+	if request.InternalPort != 0 {
+		match = func(answer []byte) bool {
+			return len(answer) < 10 || binary.BigEndian.Uint16(answer[8:10]) == request.InternalPort
+		}
+	}
+
+	answer, err := client.exchange(ctx, message, byte(request.Protocol), mappingResponseSize, match)
 	if err != nil {
 		return nil, fmt.Errorf("exchange: %w", err)
 	}
 
-	return &Mapping{
+	mapping := &Mapping{
 		Protocol:     request.Protocol,
 		InternalPort: binary.BigEndian.Uint16(answer[8:10]),
 		ExternalPort: binary.BigEndian.Uint16(answer[10:12]),
 		Lifetime:     time.Duration(binary.BigEndian.Uint32(answer[12:16])) * time.Second,
 		Obtained:     client.now(),
-	}, nil
+	}
+
+	// A lifetime of zero answers a deletion; granted to a request for a lease, it is no mapping, and
+	// nor is port 0, which a caller would bind as any port the kernel chose.
+	if lifetime > 0 && (mapping.Lifetime == 0 || mapping.ExternalPort == 0) {
+		return nil, altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: a mapping of port %d for %s", ErrResult, mapping.ExternalPort, mapping.Lifetime),
+			mapping.ExternalPort,
+		)
+	}
+
+	return mapping, nil
 }
 
 // ExternalAddress asks the gateway for its public address: the one peers reach the mapping at.
@@ -171,7 +198,7 @@ func (client *Client) ExternalAddress(ctx context.Context) (netip.Addr, error) {
 		return netip.Addr{}, altshiftErrors.NewWithTrace(nil_error.New("client"))
 	}
 
-	answer, err := client.exchange(ctx, []byte{version, opExternalAddress}, opExternalAddress, addressResponseSize)
+	answer, err := client.exchange(ctx, []byte{version, opExternalAddress}, opExternalAddress, addressResponseSize, nil)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("exchange: %w", err)
 	}
@@ -179,12 +206,22 @@ func (client *Client) ExternalAddress(ctx context.Context) (netip.Addr, error) {
 	return netip.AddrFrom4([4]byte(answer[8:12])), nil
 }
 
+// maxDrained bounds the answers drain discards, so that a flood cannot hold an exchange.
+const maxDrained = 64
+
 // exchange sends message and returns the first well-formed answer to it, retrying with a doubling
-// wait. An answer from another address, or to another opcode, is ignored rather than trusted.
-func (client *Client) exchange(ctx context.Context, message []byte, opcode byte, size int) ([]byte, error) {
+// wait. An answer from another address, to another opcode, or that match refuses, is ignored rather
+// than trusted. What was queued before the request is discarded first: the second answer to a
+// retransmitted request, or a late one to an earlier request, would otherwise be taken for this
+// one's.
+func (client *Client) exchange(ctx context.Context, message []byte, opcode byte, size int, match func(answer []byte) bool) ([]byte, error) {
 	gateway := net.UDPAddrFromAddrPort(client.gateway)
 	buffer := make([]byte, 64)
 	wait := client.firstWait
+
+	if err := client.drain(buffer); err != nil {
+		return nil, altshiftErrors.New(fmt.Errorf("drain: %w", err))
+	}
 
 	for range client.attempts {
 		if err := ctx.Err(); err != nil {
@@ -219,7 +256,7 @@ func (client *Client) exchange(ctx context.Context, message []byte, opcode byte,
 			}
 
 			answer := buffer[:n]
-			if n < 4 || answer[0] != version || answer[1] != responseBit+opcode {
+			if n < 4 || answer[0] != version || answer[1] != responseBit+opcode || (match != nil && !match(answer)) {
 				continue
 			}
 
@@ -245,32 +282,66 @@ func (client *Client) exchange(ctx context.Context, message []byte, opcode byte,
 	return nil, altshiftErrors.NewWithTrace(fmt.Errorf("%w after %d attempts", ErrNoAnswer, client.attempts), client.gateway)
 }
 
+// drain discards the datagrams already queued on the socket, reading until none arrives within a
+// millisecond.
+func (client *Client) drain(buffer []byte) error {
+	if err := client.conn.SetReadDeadline(client.now().Add(time.Millisecond)); err != nil {
+		return altshiftErrors.NewWithTrace(fmt.Errorf("conn set read deadline: %w", err))
+	}
+
+	for range maxDrained {
+		if _, _, err := client.conn.ReadFrom(buffer); err != nil {
+			if netError, ok := errors.AsType[net.Error](err); ok && netError != nil && netError.Timeout() {
+				return nil
+			}
+
+			return altshiftErrors.NewWithTrace(fmt.Errorf("conn read from: %w", err))
+		}
+	}
+
+	return nil
+}
+
 // Keeper holds a mapping for as long as its context lives.
 type Keeper struct {
 	Client  *Client
 	Request *Request
 
-	// Changed is called with each new mapping whose external port differs from the last one, and
-	// with nil when the lease lapsed unrenewed. A program advertises the port it is given and
-	// stops advertising on nil.
+	// Current, if set, is a mapping the caller already holds, from a Map of its own before Run.
+	// Run renews it once half its lifetime has passed, rather than asking anew at once, and reports
+	// its lapse as it would one of its own. Changed is not called for it.
+	Current *Mapping
+
+	// Changed is called with each new mapping whose external port, or with Address its external
+	// address, differs from the last one, and with nil when the lease lapsed unrenewed or Run
+	// stopped holding it. A program advertises the port it is given and stops advertising on nil.
 	Changed func(mapping *Mapping)
 	// Renewed, if set, is called after every successful renewal, changed or not.
 	Renewed func(mapping *Mapping)
 
-	// Address asks the gateway for its public address whenever the port changes, into the
-	// mapping's ExternalAddress, which a renewal carries over. The question is asked of the same
-	// client, between renewals, since the client is not safe for concurrent use; an unanswered one
-	// leaves the address zero and the mapping reported all the same.
+	// Address asks the gateway for its public address after every mapping and renewal, into the
+	// mapping's ExternalAddress, so that a tunnel that reconnects to another exit and keeps its
+	// port is reported as changed too. An unanswered question keeps the address last known. It is
+	// asked of the same client, between renewals, since the client is not safe for concurrent use,
+	// and within the first half of the lease, so that it never puts a renewal off.
 	Address bool
 
 	// RetryDelay is the pause after a failed attempt before the next; 2 s when zero.
 	RetryDelay time.Duration
 }
 
-// externalAddress asks for the gateway's public address within the mapping's lease, and gives the
-// zero address when it is not told.
+// minimumRenewal is the shortest wait before a renewal, however short the lease.
+const minimumRenewal = 100 * time.Millisecond
+
+// renewalDue is when a mapping is renewed: half its lifetime after it was granted.
+func renewalDue(mapping *Mapping) time.Time {
+	return mapping.Obtained.Add(mapping.Lifetime / 2)
+}
+
+// externalAddress asks for the gateway's public address before the mapping's renewal is due, and
+// gives the zero address when it is not told.
 func (keeper *Keeper) externalAddress(ctx context.Context, mapping *Mapping) netip.Addr {
-	addressContext, cancel := context.WithDeadline(ctx, mapping.Expires())
+	addressContext, cancel := context.WithDeadline(ctx, renewalDue(mapping))
 	defer cancel()
 
 	address, err := keeper.Client.ExternalAddress(addressContext)
@@ -289,14 +360,57 @@ func (keeper *Keeper) Run(ctx context.Context) error {
 		return altshiftErrors.NewWithTrace(nil_error.New("keeper, its client, request or Changed"))
 	}
 
+	if keeper.Request.Lifetime <= 0 {
+		return altshiftErrors.NewWithTrace(
+			fmt.Errorf("%w: a keeper asks for a lifetime, not %s", altshiftErrors.ErrValidationError, keeper.Request.Lifetime),
+		)
+	}
+
 	retryDelay := keeper.RetryDelay
 	if retryDelay <= 0 {
 		retryDelay = 2 * time.Second
 	}
 
-	var current *Mapping
+	var (
+		current *Mapping
+		wait    time.Duration
+	)
+
+	if keeper.Current != nil {
+		held := *keeper.Current
+		current = &held
+		wait = max(renewalDue(current).Sub(keeper.Client.now()), 0)
+	}
+
+	// lapseIfExpired reports the lease's lapse once its lifetime has passed.
+	lapseIfExpired := func() {
+		if current != nil && !keeper.Client.now().Before(current.Expires()) {
+			current = nil
+			keeper.Changed(nil)
+		}
+	}
 
 	for {
+		if wait > 0 {
+			timer := time.NewTimer(wait)
+
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+
+				if current != nil {
+					keeper.Changed(nil)
+				}
+
+				return nil
+			case <-timer.C:
+			}
+		}
+
+		// A lease that ran out while waiting is reported before anything is asked: an attempt
+		// bounded by it could not even send.
+		lapseIfExpired()
+
 		// An attempt may not outlive the lease it renews: its retries would otherwise keep a
 		// lapsed port advertised for as long as they take.
 		attemptContext, cancel := ctx, context.CancelFunc(func() {})
@@ -307,28 +421,38 @@ func (keeper *Keeper) Run(ctx context.Context) error {
 		mapping, err := keeper.Client.Map(attemptContext, keeper.Request)
 		cancel()
 
-		now := keeper.Client.now()
-
-		var wait time.Duration
-
 		switch {
 		case err == nil:
-			if current == nil || mapping.ExternalPort != current.ExternalPort {
-				if keeper.Address {
-					mapping.ExternalAddress = keeper.externalAddress(ctx, mapping)
+			previous := current
+
+			if keeper.Address {
+				mapping.ExternalAddress = keeper.externalAddress(ctx, mapping)
+			}
+
+			if !mapping.ExternalAddress.IsValid() && previous != nil && previous.ExternalPort == mapping.ExternalPort {
+				mapping.ExternalAddress = previous.ExternalAddress
+			}
+
+			if ctx.Err() != nil {
+				if previous != nil {
+					keeper.Changed(nil)
 				}
 
+				return nil
+			}
+
+			current = mapping
+
+			if previous == nil || mapping.ExternalPort != previous.ExternalPort || mapping.ExternalAddress != previous.ExternalAddress {
 				keeper.Changed(mapping)
-			} else {
-				mapping.ExternalAddress = current.ExternalAddress
 			}
 
 			if keeper.Renewed != nil {
 				keeper.Renewed(mapping)
 			}
 
-			current = mapping
-			wait = max(mapping.Lifetime/2, retryDelay/4)
+			// From when the mapping was granted, whatever the address question took.
+			wait = max(renewalDue(mapping).Sub(keeper.Client.now()), minimumRenewal)
 		case ctx.Err() != nil:
 			if current != nil {
 				keeper.Changed(nil)
@@ -336,29 +460,12 @@ func (keeper *Keeper) Run(ctx context.Context) error {
 
 			return nil
 		default:
-			if current != nil && !now.Before(current.Expires()) {
-				current = nil
-				keeper.Changed(nil)
-			}
+			lapseIfExpired()
 
 			wait = retryDelay
 			if current != nil {
-				wait = min(wait, max(current.Expires().Sub(now), time.Millisecond))
+				wait = min(wait, max(current.Expires().Sub(keeper.Client.now()), time.Millisecond))
 			}
-		}
-
-		timer := time.NewTimer(wait)
-
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-
-			if current != nil {
-				keeper.Changed(nil)
-			}
-
-			return nil
-		case <-timer.C:
 		}
 	}
 }
