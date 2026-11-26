@@ -43,7 +43,7 @@ func TestUsernameResolver(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				switch {
 				case r.URL.Path == "/tokeninfo":
-					if r.URL.Query().Get("access_token") != "the-token" {
+					if r.Method != http.MethodPost || r.URL.RawQuery != "" || r.PostFormValue("access_token") != "the-token" {
 						http.Error(w, "wrong token", http.StatusBadRequest)
 						return
 					}
@@ -81,5 +81,26 @@ func TestUsernameResolver(t *testing.T) {
 				t.Errorf("resolve = %q, want %q", got, testCase.want)
 			}
 		})
+	}
+}
+
+// A transport error quotes the URL it failed on, so the token has to be somewhere else.
+func TestUsernameResolverKeepsTokenOutOfErrors(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.NotFoundHandler())
+	unreachable := server.URL
+	server.Close()
+
+	tokenSource := token_source.NewStatic(&token.Token{AccessToken: "the-secret-token", Expiry: time.Now().Add(time.Hour)})
+	resolver := NewUsernameResolver()
+	resolver.TokenInfoUrl = unreachable + "/tokeninfo"
+
+	_, err := resolver.Resolve(context.Background(), tokenSource)
+	if err == nil {
+		t.Fatal("resolve against a closed server: no error")
+	}
+	if strings.Contains(err.Error(), "the-secret-token") {
+		t.Errorf("the error carries the token: %v", err)
 	}
 }

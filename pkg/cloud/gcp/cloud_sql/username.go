@@ -55,12 +55,15 @@ func (r *UsernameResolver) Resolve(ctx context.Context, tokenSource token_source
 		return "", altshiftErrors.NewWithTrace(empty_error.New("access token"))
 	}
 
-	infoUrl, err := url.Parse(r.TokenInfoUrl)
-	if err != nil {
-		return "", altshiftErrors.NewWithTrace(fmt.Errorf("url parse (token info url): %w", err), r.TokenInfoUrl)
-	}
-	infoUrl.RawQuery = url.Values{"access_token": {token.AccessToken}}.Encode()
-	_, info, err := altshiftHttpUtils.FetchJson[*tokenInfo](ctx, infoUrl.String())
+	// The token goes in a form body rather than the query, where a transport error's message, which
+	// quotes the URL whole, would carry it into whatever reports the error.
+	_, info, err := altshiftHttpUtils.FetchJson[*tokenInfo](
+		ctx,
+		r.TokenInfoUrl,
+		fetch_config.WithMethod(http.MethodPost),
+		fetch_config.WithHeaders(map[string]string{"Content-Type": "application/x-www-form-urlencoded"}),
+		fetch_config.WithBody([]byte(url.Values{"access_token": {token.AccessToken}}.Encode())),
+	)
 	if err != nil {
 		return "", altshiftErrors.New(fmt.Errorf("fetch json (token info): %w", err))
 	}
