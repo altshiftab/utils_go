@@ -38,6 +38,9 @@ func TestCreatePermission(t *testing.T) {
 		if r.URL.Path != "/drive/v3/files/file-1/permissions" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
+		if fields := r.URL.Query().Get("fields"); fields != "*" {
+			t.Errorf("fields = %q, want every field", fields)
+		}
 		if sendNotificationEmail := r.URL.Query().Get("sendNotificationEmail"); sendNotificationEmail != "false" {
 			t.Errorf("sendNotificationEmail = %q, want %q", sendNotificationEmail, "false")
 		}
@@ -118,6 +121,9 @@ func TestGetPermission(t *testing.T) {
 		if r.URL.Path != "/drive/v3/files/file-1/permissions/permission-1" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
+		if fields := r.URL.Query().Get("fields"); fields != "*" {
+			t.Errorf("fields = %q, want every field", fields)
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.MarshalWrite(w, &permission.Permission{
@@ -144,6 +150,9 @@ func TestListPermissionsPaginated(t *testing.T) {
 
 	client := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if fields := r.URL.Query().Get("fields"); fields != "nextPageToken,permissions(*)" {
+			t.Errorf("fields = %q, want the page token and every permission field", fields)
+		}
 
 		var response any
 		if r.URL.Query().Get("pageToken") == "" {
@@ -182,6 +191,9 @@ func TestUpdatePermission(t *testing.T) {
 		}
 		if r.URL.Path != "/drive/v3/files/file-1/permissions/permission-1" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if fields := r.URL.Query().Get("fields"); fields != "*" {
+			t.Errorf("fields = %q, want every field", fields)
 		}
 		if removeExpiration := r.URL.Query().Get("removeExpiration"); removeExpiration != "true" {
 			t.Errorf("removeExpiration = %q, want %q", removeExpiration, "true")

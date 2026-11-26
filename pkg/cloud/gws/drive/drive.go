@@ -65,6 +65,20 @@ func (c *Client) newQuery() url.Values {
 	return query
 }
 
+// Drive answers a permissions call with only a permission's kind, id, type and role unless it is
+// asked for more: the address, the domain and whether the file can be discovered are left out.
+const (
+	permissionFields     = "*"
+	permissionListFields = "nextPageToken,permissions(*)"
+)
+
+// permissionQuery is the query of a call answering with one permission.
+func (c *Client) permissionQuery() url.Values {
+	query := c.newQuery()
+	query.Set("fields", permissionFields)
+	return query
+}
+
 func (c *Client) fetchOptions(options []fetch_config.Option) []fetch_config.Option {
 	return append(c.config.FetchOptions, options...)
 }
@@ -96,7 +110,7 @@ func (c *Client) CreatePermission(
 
 	createPermissionConfig := create_permission_config.New(options...)
 
-	query := c.newQuery()
+	query := c.permissionQuery()
 	if sendNotificationEmail := createPermissionConfig.SendNotificationEmail; sendNotificationEmail != nil {
 		query.Set("sendNotificationEmail", strconv.FormatBool(*sendNotificationEmail))
 	}
@@ -133,7 +147,7 @@ func (c *Client) GetPermission(
 
 	return rest.GetJson[permission.Permission](
 		ctx,
-		c.urlString(c.newQuery(), permissionPath(fileId, permissionId)...),
+		c.urlString(c.permissionQuery(), permissionPath(fileId, permissionId)...),
 		c.fetchOptions(options),
 	)
 }
@@ -157,6 +171,7 @@ func (c *Client) ListPermissions(
 		ctx,
 		func(pageToken string) string {
 			query := c.newQuery()
+			query.Set("fields", permissionListFields)
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
@@ -191,7 +206,7 @@ func (c *Client) UpdatePermission(
 
 	updatePermissionConfig := update_permission_config.New(options...)
 
-	query := c.newQuery()
+	query := c.permissionQuery()
 	if updatePermissionConfig.TransferOwnership {
 		query.Set("transferOwnership", "true")
 	}
