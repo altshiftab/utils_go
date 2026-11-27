@@ -180,10 +180,20 @@ func (parser *Parser) Parse() error {
 
 // lendTo gives a subparser about to run what it has no way to know: the command that reached it,
 // and where and how wide its parent renders. Only what the subparser left unset is filled in, and
-// only the fields whose zero value cannot be meant deliberately.
+// only the fields whose zero value cannot be meant deliberately. A subparser that wraps a *Parser
+// and says so with GetParser, as completion asks of it too, is lent the same.
 func (parser *Parser) lendTo(subparser Subparser, command string) {
 	child, ok := subparser.(*Parser)
 	if !ok {
+		provider, isProvider := subparser.(parserProvider)
+		if !isProvider {
+			return
+		}
+
+		child = provider.GetParser()
+	}
+
+	if child == nil {
 		return
 	}
 

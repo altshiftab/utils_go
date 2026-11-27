@@ -3324,3 +3324,48 @@ func TestParseArgsDashValues(t *testing.T) {
 		})
 	}
 }
+
+// TestASubparserIsLentItsParentsRendering covers what a subcommand cannot know of itself: its help
+// line names the program and the command, and goes where the parent writes, whether the subparser
+// is a *Parser or wraps one and says so with GetParser.
+func TestASubparserIsLentItsParentsRendering(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		wrap func(*Parser) Subparser
+	}{
+		{name: "a bare parser", wrap: func(child *Parser) Subparser { return child }},
+		{name: "a wrapped parser", wrap: func(child *Parser) Subparser { return &wrapped{parser: child} }},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var output strings.Builder
+
+			child := &Parser{
+				Command:     "child",
+				Description: "Do the child's thing.",
+				Options: []option.Option{
+					option.NewBoolOption(0, "quietly", "say nothing", false, nil),
+				},
+			}
+
+			parent := &Parser{
+				ProgramName: "thing",
+				Output:      &output,
+				Parsers:     []Subparser{testCase.wrap(child)},
+			}
+
+			if err := parent.ParseArgs([]string{"child", "--help"}); !errors.Is(err, argumentParserErrors.ErrHelp) {
+				t.Fatalf("%s: parse args: %v, want ErrHelp", testCase.name, err)
+			}
+
+			if !strings.HasPrefix(output.String(), "Usage: thing child ") || !strings.Contains(output.String(), "--quietly") {
+				t.Errorf("%s: help written to the parent's output:\n%s", testCase.name, output.String())
+			}
+		})
+	}
+}
